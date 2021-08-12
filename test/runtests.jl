@@ -2,5 +2,5 @@ using FastBEAST
 using Test
 
 @testset "FastBEAST.jl" begin
-    # Write your tests here.
+    include("boundingbox.jl")
 end

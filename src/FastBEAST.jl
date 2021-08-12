@@ -1,5 +1,9 @@
 module FastBEAST
 
-# Write your package code here.
+include("tree/boundingbox.jl")
+include("tree/basetree.jl")
+
+export BoundingBox
+export getboxframe
 
 end
