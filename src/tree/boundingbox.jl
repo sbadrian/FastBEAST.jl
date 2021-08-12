@@ -54,5 +54,51 @@ function getboxframe(bbox::BoundingBox{D,T}) where {D,T}
     return mat
 end
 
+"""
+    getchildbox(bbox, id)
 
+Returns a bounding box that this is the `id`th quadrants (2D) /
+octand (3D) of the bounding box `bbox`
+"""
+function getchildbox(bbox::BoundingBox{D,T}, id::Integer) where {D,T}
 
+    hl = bbox.halflength / 2.0
+
+    if D == 2
+        sign_x = [1 -1 -1  1]
+        sign_y = [1  1 -1 -1]
+
+        center = bbox.center + hl .* SVector(sign_x[id], sign_y[id])
+    elseif D == 3
+        sign_x = [1 -1 -1  1  1 -1 -1  1]
+        sign_y = [1  1 -1 -1  1  1 -1 -1]
+        sign_z = [1  1  1  1 -1 -1 -1 -1]
+        center = bbox.center + hl .* SVector(sign_x[id], sign_y[id],  sign_z[id])
+    else
+        error("We support only 2 or 3 dimensions")
+    end
+    return BoundingBox(hl, center)
+end
+
+function whichchildbox(bbox::BoundingBox{D,T}, point::SVector{D,T}) where {D,T}
+
+    if point[1] >= bbox.center[1]
+        if  point[2] >= bbox.center[2]
+            id = 1
+        else 
+            id = 4
+        end
+    else
+        if point[2] >= bbox.center[2]
+            id = 2
+        else 
+            id = 3
+        end
+    end
+
+    if D == 3 && point[3] < bbox.center[3]
+        id += 4
+    end
+
+    return id
+end

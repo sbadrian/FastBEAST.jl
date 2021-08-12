@@ -8,3 +8,8 @@ mutable struct Node{T} <: AbstractNode
     Node{T}() where T = new{K}(nothing, nothing, nothing)
     Node{T}(data::T) where T = new{T}(nothing, nothing, nothing, data)
 end
+
+
+function create_tree(points::Vector{SVector{D,T}}) where {D,T}
+    bbox = BoundingBox(points)
+end
