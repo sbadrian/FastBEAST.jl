@@ -1,3 +1,4 @@
+using LinearAlgebra
 
 abstract type MatrixView{T} end
 
@@ -103,24 +104,38 @@ function hmatrixassembler!(asmpackage::Tuple,
     sourcenode::BoxTreeNode, 
     testnode::BoxTreeNode) where MT <: MatrixView
 
-    assembler, kernel, sourcepoints, testpoints = asmpackage
+
+    function getfullmatrixview(asmpackage, sourcenode, testnode)
+        assembler, kernel, sourcepoints, testpoints = asmpackage
+
+        return FullMatrixView(assembler(kernel, sourcepoints[sourcenode.data], testpoints[testnode.data]),
+        sourcenode.data,
+        testnode.data,
+        length(testpoints),
+        length(sourcepoints))
+    end
 
     if sourcenode.children === nothing && testnode.children === nothing
-        push!(matrixviews, FullMatrixView(assembler(kernel, sourcepoints[sourcenode.data], testpoints[testnode.data]),
-                sourcenode.data,
-                testnode.data,
-                length(testpoints),
-                length(sourcepoints)
-                ))
+        push!(matrixviews, getfullmatrixview(asmpackage, sourcenode, testnode))
     elseif sourcenode.children !== nothing || testnode.children !== nothing
         if sourcenode.children === nothing
-            error("this case needs to be implement and test")
+            for tchild in testnode.children
+                push!(matrixviews, getfullmatrixview(asmpackage, sourcenode, tchild))
+            end
         elseif testnode.children === nothing
-            error("this case needs to be implement and test")
+            for schild in sourcenode.children
+                push!(matrixviews, getfullmatrixview(asmpackage, schild, testnode))
+            end
         else
             for schild in sourcenode.children
                 for tchild in testnode.children
-                    hmatrixassembler!(asmpackage, matrixviews, schild, tchild)
+                    if length(schild.data) > 0 && length(tchild.data) > 0
+                        if iscompressable(schild, tchild)
+                            push!(matrixviews, getfullmatrixview(asmpackage, schild, tchild))
+                        else
+                            hmatrixassembler!(asmpackage, matrixviews, schild, tchild)
+                        end
+                    end
                 end
             end
         end
@@ -129,4 +144,17 @@ function hmatrixassembler!(asmpackage::Tuple,
     #if iswellseparated(sourcenode, testnode)
     #
     #end
+end
+
+
+function iscompressable(sourcenode::BoxTreeNode, testnode::BoxTreeNode)
+    mindistance = sqrt(length(sourcenode.boundingbox.center))*sourcenode.boundingbox.halflength 
+    mindistance += sqrt(length(testnode.boundingbox.center))*testnode.boundingbox.halflength 
+
+    distance_centers = norm(sourcenode.boundingbox.center - sourcenode.boundingbox.center)
+    if distance_centers > mindistance
+        return true
+    else 
+        return false
+    end
 end

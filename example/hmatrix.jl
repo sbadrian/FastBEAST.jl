@@ -41,8 +41,8 @@ plot(S, yaxis=:log, marker=:x)
 
 ##
 asmpackage = (assembler, logkernel, spoints, tpoints)
-stree = create_tree(spoints, nmin=50)
-ttree = create_tree(tpoints, nmin=50)
+stree = create_tree(spoints, nmin=10)
+ttree = create_tree(tpoints, nmin=10)
 hmat = HMatrix(asmpackage, stree, stree)
 
 
