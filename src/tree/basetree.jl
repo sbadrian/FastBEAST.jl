@@ -36,7 +36,6 @@ function add_child!(parent::BoxTreeNode, bbox::BoundingBox, data::T) where T
     end
 end
 
-
 function create_tree(points::Vector{SVector{D,T}}; nmin = 1, maxlevel=-log2(eps(eltype(points[1])))) where {D,T}
     root = BoxTreeNode( nothing, 
                         nothing, 
