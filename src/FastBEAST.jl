@@ -8,6 +8,7 @@ export getboxframe
 export getchildbox
 export whichchildbox
 
+export BoxTreeNode
 export create_tree
 
 end
