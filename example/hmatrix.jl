@@ -12,7 +12,7 @@ function logkernel(sourcepoint::SVector{2,T}, testpoint::SVector{2,T}) where T
     end
 end
 
-N =  100
+N =  1000
 
 spoints = [@SVector rand(2) for i = 1:N]
 
@@ -41,8 +41,8 @@ plot(S, yaxis=:log, marker=:x)
 
 ##
 asmpackage = (assembler, logkernel, spoints, tpoints)
-stree = create_tree(spoints, nmin=10)
-ttree = create_tree(tpoints, nmin=10)
+stree = create_tree(spoints, nmin=50)
+ttree = create_tree(tpoints, nmin=50)
 hmat = HMatrix(asmpackage, stree, stree)
 
 

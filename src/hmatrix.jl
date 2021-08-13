@@ -47,6 +47,29 @@ struct LowRankMatrixView{T} <: MatrixView{T}
     columndim::Integer
 end
 
+function LowRankMatrixView(rightmatrix::Matrix{T}, 
+                            leftmatrix::Matrix{T}, 
+                            rightindices::Vector{I},
+                            leftindices::Vector{I},
+                            rowdim::Integer,
+                            columndim::Integer) where {T, I <: Integer}
+
+    return LowRankMatrixView{T}(rightmatrix,
+                                leftmatrix,
+                                rightindices, 
+                                leftindices, 
+                                rowdim, 
+                                columndim)
+end
+
+function *(lmv::LMT, vecin::VT) where {LMT <:LowRankMatrixView, VT <: AbstractVector}
+    T = promote_type(eltype(lmv), eltype(vecin))
+    vecout = zeros(T, lmv.rowdim)
+
+    vecout[lmv.leftindices] = lmv.leftmatrix*(lmv.rightmatrix' * vecin[lmv.rightindices])
+    return vecout
+end
+
 abstract type AbstractHierarchicalMatrix{T} end
 
 struct HMatrix{T} <: AbstractHierarchicalMatrix{T}
@@ -83,7 +106,7 @@ function HMatrix(asmpackage::Tuple,
 
     T = promote_type(eltype(sourcepoints[1]), eltype(testpoints[1]))
 
-    matrixviews = FullMatrixView{T}[]
+    matrixviews = MatrixView{T}[]
 
     hmatrixassembler!(asmpackage, 
                         matrixviews,
@@ -115,6 +138,25 @@ function hmatrixassembler!(asmpackage::Tuple,
         length(sourcepoints))
     end
 
+    function getcompressedmatrix(asmpackage, sourcenode, testnode; tol = 1e-4)
+        assembler, kernel, sourcepoints, testpoints = asmpackage
+
+        fullmat = assembler(kernel, sourcepoints[sourcenode.data], testpoints[testnode.data])
+
+        U,S,V = svd(fullmat)
+        k = 1
+        while k < length(S) && S[k] > S[1]*tol
+            k += 1
+        end
+
+        return LowRankMatrixView(V[:, 1:k],
+        U[:, 1:k]*diagm(S[1:k]),
+        sourcenode.data,
+        testnode.data,
+        length(testpoints),
+        length(sourcepoints))
+    end
+
     if sourcenode.children === nothing && testnode.children === nothing
         push!(matrixviews, getfullmatrixview(asmpackage, sourcenode, testnode))
     elseif sourcenode.children !== nothing || testnode.children !== nothing
@@ -131,7 +173,7 @@ function hmatrixassembler!(asmpackage::Tuple,
                 for tchild in testnode.children
                     if length(schild.data) > 0 && length(tchild.data) > 0
                         if iscompressable(schild, tchild)
-                            push!(matrixviews, getfullmatrixview(asmpackage, schild, tchild))
+                            push!(matrixviews, getcompressedmatrix(asmpackage, schild, tchild))
                         else
                             hmatrixassembler!(asmpackage, matrixviews, schild, tchild)
                         end
@@ -151,7 +193,7 @@ function iscompressable(sourcenode::BoxTreeNode, testnode::BoxTreeNode)
     mindistance = sqrt(length(sourcenode.boundingbox.center))*sourcenode.boundingbox.halflength 
     mindistance += sqrt(length(testnode.boundingbox.center))*testnode.boundingbox.halflength 
 
-    distance_centers = norm(sourcenode.boundingbox.center - sourcenode.boundingbox.center)
+    distance_centers = norm(sourcenode.boundingbox.center - testnode.boundingbox.center)
     if distance_centers > mindistance
         return true
     else 
