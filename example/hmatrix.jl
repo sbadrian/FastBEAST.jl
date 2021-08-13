@@ -2,6 +2,7 @@ using FastBEAST
 using StaticArrays
 using LinearAlgebra
 using Plots
+using Printf
 plotlyjs()
 function logkernel(sourcepoint::SVector{2,T}, testpoint::SVector{2,T}) where T
     if isapprox(sourcepoint, testpoint, rtol=eps()*1e1)
@@ -40,6 +41,11 @@ plot(S, yaxis=:log, marker=:x)
 
 ##
 asmpackage = (assembler, logkernel, spoints, tpoints)
-stree = create_tree(spoints, nmin=200)
-ttree = create_tree(tpoints, nmin=200)
-hmat = HMatrix(asmpackage, stree, ttree)
+stree = create_tree(spoints, nmin=50)
+ttree = create_tree(tpoints, nmin=50)
+hmat = HMatrix(asmpackage, stree, stree)
+
+
+v = rand(N)
+
+@printf("Accuracy test: %.2e", norm(hmat*v - kmat*v)/norm(kmat*v))

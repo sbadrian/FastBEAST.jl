@@ -9,6 +9,21 @@ struct FullMatrixView{T} <: MatrixView{T}
     columndim::Integer
 end
 
+import Base.:eltype
+
+function eltype(mv::MT) where MT <:MatrixView
+    return typeof(mv).parameters[1]
+end
+
+import Base.:*
+function *(fmv::FMT, vecin::VT) where {FMT <:FullMatrixView, VT <: AbstractVector}
+    T = promote_type(eltype(fmv), eltype(vecin))
+    vecout = zeros(T, fmv.rowdim)
+
+    vecout[fmv.leftindices] = fmv.matrix * vecin[fmv.rightindices]
+    return vecout
+end
+
 function FullMatrixView(matrix::Matrix{T}, 
                         rightindices::Vector{I}, 
                         leftindices::Vector{I},
@@ -39,10 +54,25 @@ struct HMatrix{T} <: AbstractHierarchicalMatrix{T}
     columndim::Integer
 end
 
-#function eltype(hmatrix::T) where {T <: AbstractHierarchicalMatrix}
-#    return typeof(hmatrix).parameters[1]
-#end
+function eltype(hmatrix::T) where {T <: AbstractHierarchicalMatrix}
+    return typeof(hmatrix).parameters[1]
+end
 
+function *(hmat::HT, vecin::VT)  where {HT <: HMatrix, VT <: AbstractVector}
+    if length(vecin) != hmat.columndim
+        error("HMatrix vector and matrix have not matching dimensions")
+    end
+
+    T = promote_type(eltype(hmat), eltype(vecin))
+
+    vecout = zeros(T, hmat.rowdim)
+
+    for mv in hmat.matrixviews
+        vecout += mv*vecin
+    end
+
+    return vecout
+end
 
 function HMatrix(asmpackage::Tuple, 
                  sourcetree::BoxTreeNode, 
@@ -65,6 +95,8 @@ function HMatrix(asmpackage::Tuple,
 end
 
 #function * (hmatrix::HT, matrix::MT) where {HT <:AbstractHierarchicalMatrix, MT <: AbstractMatrix}
+#
+#end
 
 function hmatrixassembler!(asmpackage::Tuple, 
     matrixviews::Vector{MT},
@@ -80,10 +112,18 @@ function hmatrixassembler!(asmpackage::Tuple,
                 length(testpoints),
                 length(sourcepoints)
                 ))
-    elseif sourcenode.children !== nothing && testnode.children !== nothing
-        error("not implemented yet")
-    else
-        error("this case needs to be implement and test")
+    elseif sourcenode.children !== nothing || testnode.children !== nothing
+        if sourcenode.children === nothing
+            error("this case needs to be implement and test")
+        elseif testnode.children === nothing
+            error("this case needs to be implement and test")
+        else
+            for schild in sourcenode.children
+                for tchild in testnode.children
+                    hmatrixassembler!(asmpackage, matrixviews, schild, tchild)
+                end
+            end
+        end
     end
     
     #if iswellseparated(sourcenode, testnode)
