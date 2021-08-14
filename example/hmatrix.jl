@@ -46,12 +46,8 @@ stree = create_tree(spoints, nmin=5)
 kmat = assembler(logkernel, spoints, spoints)
 hmat = HMatrix(asmpackage, stree, stree)
 
+@printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
 
-v = rand(N)
-
-@printf("Accuracy test: %.2e\n", norm(hmat*v - kmat*v)/norm(kmat*v))
-
-@printf("Accuracy test: %.2e\n", norm(adjoint(hmat)*v - adjoint(kmat)*v)/norm(adjoint(kmat)*v))
 ## 
 asmpackage = (assembler, logkernel, spoints, tpoints)
 stree = create_tree(spoints, nmin=5)
@@ -60,9 +56,7 @@ kmat = assembler(logkernel, spoints, tpoints)
 hmat = HMatrix(asmpackage, stree, ttree)
 
 
-v = rand(N)
-
-@printf("Accuracy test: %.2e\n", norm(hmat*v - kmat*v)/norm(kmat*v))
+@printf("Accuracy test: %.2e\n", estimate_reldifference(hmat, kmat))
 
 v2 = rand(NT)
 @printf("Accuracy test: %.2e\n", norm(adjoint(hmat)*v2 - adjoint(kmat)*v2)/norm(adjoint(kmat)*v2))

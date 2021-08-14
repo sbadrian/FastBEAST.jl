@@ -105,7 +105,7 @@ function *(almv::Adjoint{LMT}, vecin::VT) where {LMT <: LowRankMatrixView, VT <:
     return vecout
 end
 
-abstract type AbstractHierarchicalMatrix{T} <: AbstractMatrix{T} end
+abstract type AbstractHierarchicalMatrix{T} end
 
 struct HMatrix{T} <: AbstractHierarchicalMatrix{T}
     matrixviews::Vector{MatrixView{T}}
@@ -168,6 +168,12 @@ function *(hmat::HT, vecin::VT)  where {HT <: HMatrix, VT <: AbstractVector}
     return vecout
 end
 
+#function *(adjA::Adjoint{<:Any,<:AbstractMatrix{T}}, x::AbstractVector{S}) where {T,S}
+#    TS = promote_op(matprod, T, S)
+#    mul!(similar(x, TS, size(adjA, 1)), adjA, x)
+#end
+
+#function *(hmat::Adjoint{<:Any,<:AbstractHierarchicalMatrix{K}}, vecin::AbstractVector{S})  where {K,S}
 function *(hmat::Adjoint{HT}, vecin::VT)  where {HT <: HMatrix, VT <: AbstractVector}
     if length(vecin) != hmat.mv.rowdim
         error("HMatrix vector and matrix have not matching dimensions")
@@ -184,7 +190,7 @@ function *(hmat::Adjoint{HT}, vecin::VT)  where {HT <: HMatrix, VT <: AbstractVe
     return vecout
 end
 
-function estimate_norm(mat::AbstractMatrix; tol=1e-4)
+function estimate_norm(mat; tol=1e-4)
     v = rand(size(mat,2))
 
     v = norm(v)
@@ -203,14 +209,14 @@ function estimate_norm(mat::AbstractMatrix; tol=1e-4)
     return sqrt(σnew)
 end
 
-function estimate_reldifference(hmat::AbstractMatrix, refmat::AbstractMatrix; tol=1e-4)
-    if size(hmat) != size(refmat)
-        error("Dimensions of matrices do not match")
-    end
+function estimate_reldifference(hmat, refmat; tol=1e-4)
+    #if size(hmat) != size(refmat)
+    #    error("Dimensions of matrices do not match")
+    #end
     
     v = rand(size(hmat,2))
 
-    v = norm(v)
+    v = v/norm(v)
     itermin = 3
     i = 1
     σold = 1

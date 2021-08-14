@@ -32,5 +32,5 @@ v3 = rand(3)
 A = rand(100,100)
 B = rand(100,100)
 using LinearAlgebra
-@test opnorm(A) ≈ estimate_norm(A) atol=1e-4
-@test opnorm(A-B)/opnorm(B) ≈ estimate_reldifference(A,B) atol=1e-4
+@test opnorm(A) ≈ estimate_norm(A) atol=1e-3
+@test opnorm(A-B)/opnorm(B) ≈ estimate_reldifference(A,B) atol=1e-3
