@@ -41,14 +41,16 @@ plot(S, yaxis=:log, marker=:x)
 
 ##
 asmpackage = (assembler, logkernel, spoints, spoints)
-stree = create_tree(spoints, nmin=200)
+stree = create_tree(spoints, nmin=5)
 kmat = assembler(logkernel, spoints, spoints)
 hmat = HMatrix(asmpackage, stree, stree)
 
 
 v = rand(N)
 
-@printf("Accuracy test: %.2e", norm(hmat*v - kmat*v)/norm(kmat*v))
+@printf("Accuracy test: %.2e\n", norm(hmat*v - kmat*v)/norm(kmat*v))
+
+@printf("Accuracy test: %.2e\n", norm(adjoint(hmat)*v - adjoint(kmat)*v)/norm(adjoint(kmat)*v))
 ## 
 asmpackage = (assembler, logkernel, spoints, tpoints)
 stree = create_tree(spoints, nmin=200)
@@ -59,4 +61,4 @@ hmat = HMatrix(asmpackage, stree, ttree)
 
 v = rand(N)
 
-@printf("Accuracy test: %.2e", norm(hmat*v - kmat*v)/norm(kmat*v))
+@printf("Accuracy test: %.2e\n", norm(hmat*v - kmat*v)/norm(kmat*v))

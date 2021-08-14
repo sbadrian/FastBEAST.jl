@@ -8,16 +8,16 @@ function eltype(mv::MT) where MT <:MatrixView
     return typeof(mv).parameters[1]
 end
 
-struct Adjoint{T <: MatrixView} 
+struct Adjoint{T} 
     mv::T
 end
 
 import Base.:adjoint
-function adjoint(mv::T) where T <: MatrixView
+function adjoint(mv::T) where T
     return Adjoint(mv)
 end
 
-function adjoint(adjmv::Adjoint{T}) where T <: MatrixView
+function adjoint(adjmv::Adjoint{T}) where T
     return adjmv.mv
 end
 
@@ -63,10 +63,6 @@ function *(afmv::Adjoint{FMT}, vecin::VT) where {FMT <:FullMatrixView, VT <: Abs
 
     vecout[afmv.mv.rightindices] = adjoint(afmv.mv.matrix) * vecin[afmv.mv.leftindices]
     return vecout
-end
-
-function *(adjmv::Adjoint{T}) where T <: MatrixView
-
 end
 
 struct LowRankMatrixView{T} <: MatrixView{T}
@@ -118,11 +114,20 @@ struct HMatrix{T} <: AbstractHierarchicalMatrix{T}
     columndim::Integer
 end
 
-function eltype(hmatrix::T) where {T <: AbstractHierarchicalMatrix}
-    return typeof(hmatrix).parameters[1]
+function adjoint(mv::HMatrix)
+    return Adjoint(mv)
+end
+
+function eltype(hmat::HT) where HT <:AbstractHierarchicalMatrix
+    return typeof(hmat).parameters[1]
+end
+
+function eltype(hmat::Adjoint{HT}) where HT <:AbstractHierarchicalMatrix
+    return typeof(adjoint(hmat)).parameters[1]
 end
 
 function *(hmat::HT, vecin::VT)  where {HT <: HMatrix, VT <: AbstractVector}
+
     if length(vecin) != hmat.columndim
         error("HMatrix vector and matrix have not matching dimensions")
     end
@@ -133,6 +138,22 @@ function *(hmat::HT, vecin::VT)  where {HT <: HMatrix, VT <: AbstractVector}
 
     for mv in hmat.matrixviews
         vecout += mv*vecin
+    end
+
+    return vecout
+end
+
+function *(hmat::Adjoint{HT}, vecin::VT)  where {HT <: HMatrix, VT <: AbstractVector}
+    if length(vecin) != hmat.mv.rowdim
+        error("HMatrix vector and matrix have not matching dimensions")
+    end
+
+    T = promote_type(eltype(hmat), eltype(vecin))
+
+    vecout = zeros(T, hmat.mv.columndim)
+
+    for mv in hmat.mv.matrixviews
+        vecout += adjoint(mv)*vecin
     end
 
     return vecout
