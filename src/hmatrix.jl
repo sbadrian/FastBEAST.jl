@@ -65,32 +65,6 @@ function *(afmv::Adjoint{FMT}, vecin::VT) where {FMT <:FullMatrixView, VT <: Abs
     return vecout
 end
 
-import Base.:size
-
-function size(hmat::AbstractHierarchicalMatrix, dim=nothing)
-    if dim === nothing
-        return (hmat.rowdim, hmat.columndim)
-    elseif dim == 1
-        return hmat.rowdim
-    elseif dim == 2
-        return hmat.columndim
-    else
-        error("dim must be either 1 or 2")
-    end
-end
-
-function size(hmat::Adjoint{T}, dim=nothing) where T <: AbstractHierarchicalMatrix
-    if dim === nothing
-        return reverse(size(adjoint(hmat)))
-    elseif dim == 1
-        return size(adjoint(hmat),2)
-    elseif dim == 2
-        return size(adjoint(hmat),1)
-    else
-        error("dim must be either 1 or 2")
-    end
-end
-
 struct LowRankMatrixView{T} <: MatrixView{T}
     rightmatrix::Matrix{T}
     leftmatrix::Matrix{T}
@@ -131,11 +105,7 @@ function *(almv::Adjoint{LMT}, vecin::VT) where {LMT <: LowRankMatrixView, VT <:
     return vecout
 end
 
-function isapprox(hmat::AbstractHierarchicalMatrix, mat::AbstractMatrix)
-    
-end
-
-abstract type AbstractHierarchicalMatrix{T} end
+abstract type AbstractHierarchicalMatrix{T} <: AbstractMatrix{T} end
 
 struct HMatrix{T} <: AbstractHierarchicalMatrix{T}
     matrixviews::Vector{MatrixView{T}}
@@ -143,9 +113,9 @@ struct HMatrix{T} <: AbstractHierarchicalMatrix{T}
     columndim::Integer
 end
 
-function adjoint(mv::HMatrix)
-    return Adjoint(mv)
-end
+#function adjoint(mv::HMatrix)
+#    return Adjoint(mv)
+#end
 
 function eltype(hmat::HT) where HT <:AbstractHierarchicalMatrix
     return typeof(hmat).parameters[1]
@@ -153,6 +123,32 @@ end
 
 function eltype(hmat::Adjoint{HT}) where HT <:AbstractHierarchicalMatrix
     return typeof(adjoint(hmat)).parameters[1]
+end
+
+import Base.:size
+
+function size(hmat::AbstractHierarchicalMatrix, dim=nothing)
+    if dim === nothing
+        return (hmat.rowdim, hmat.columndim)
+    elseif dim == 1
+        return hmat.rowdim
+    elseif dim == 2
+        return hmat.columndim
+    else
+        error("dim must be either 1 or 2")
+    end
+end
+
+function size(hmat::Adjoint{T}, dim=nothing) where T <: AbstractHierarchicalMatrix
+    if dim === nothing
+        return reverse(size(adjoint(hmat)))
+    elseif dim == 1
+        return size(adjoint(hmat),2)
+    elseif dim == 2
+        return size(adjoint(hmat),1)
+    else
+        error("dim must be either 1 or 2")
+    end
 end
 
 function *(hmat::HT, vecin::VT)  where {HT <: HMatrix, VT <: AbstractVector}
@@ -188,6 +184,51 @@ function *(hmat::Adjoint{HT}, vecin::VT)  where {HT <: HMatrix, VT <: AbstractVe
     return vecout
 end
 
+function estimate_norm(mat::AbstractMatrix; tol=1e-4)
+    v = rand(size(mat,2))
+
+    v = norm(v)
+    itermin = 3
+    i = 1
+    σold = 1
+    σnew = 1
+    while norm(sqrt(σold)-sqrt(σnew))/norm(sqrt(σold)) > tol || i < itermin
+        σold = σnew
+        w = mat*v
+        x = adjoint(mat)*w
+        σnew = norm(x)
+        v = x/norm(x)
+        i += 1
+    end
+    return sqrt(σnew)
+end
+
+function estimate_reldifference(hmat::AbstractMatrix, refmat::AbstractMatrix; tol=1e-4)
+    if size(hmat) != size(refmat)
+        error("Dimensions of matrices do not match")
+    end
+    
+    v = rand(size(hmat,2))
+
+    v = norm(v)
+    itermin = 3
+    i = 1
+    σold = 1
+    σnew = 1
+    while norm(sqrt(σold)-sqrt(σnew))/norm(sqrt(σold)) > tol || i < itermin
+        σold = σnew
+        w = hmat*v - refmat*v
+        x = adjoint(hmat)*w - adjoint(refmat)*w
+        σnew = norm(x)
+        v = x/norm(x)
+        i += 1
+    end
+
+    norm_refmat = estimate_norm(refmat, tol=tol)
+
+    return sqrt(σnew)/norm_refmat
+end
+
 function HMatrix(asmpackage::Tuple, 
                  sourcetree::BoxTreeNode, 
                  testtree::BoxTreeNode)
@@ -207,14 +248,6 @@ function HMatrix(asmpackage::Tuple,
                     length(testpoints),
                     length(sourcepoints))
 end
-
-
-function adjoint(hmat::T) where T <: AbstractHierarchicalMatrix
-
-end
-#function * (hmatrix::HT, matrix::MT) where {HT <:AbstractHierarchicalMatrix, MT <: AbstractMatrix}
-#
-#end
 
 function hmatrixassembler!(asmpackage::Tuple, 
     matrixviews::Vector{MT},

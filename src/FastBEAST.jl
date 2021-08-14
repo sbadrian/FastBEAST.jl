@@ -15,5 +15,7 @@ export create_tree
 export HMatrix
 export buildhmatrix
 export adjoint
+export estimate_norm
+export estimate_reldifference
 
 end

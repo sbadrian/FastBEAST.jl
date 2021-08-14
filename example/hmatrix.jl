@@ -64,4 +64,5 @@ v = rand(N)
 
 @printf("Accuracy test: %.2e\n", norm(hmat*v - kmat*v)/norm(kmat*v))
 
-@printf("Accuracy test: %.2e\n", norm(hmat*v - kmat*v)/norm(kmat*v))
+v2 = rand(NT)
+@printf("Accuracy test: %.2e\n", norm(adjoint(hmat)*v2 - adjoint(kmat)*v2)/norm(adjoint(kmat)*v2))
