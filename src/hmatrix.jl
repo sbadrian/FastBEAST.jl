@@ -2,27 +2,35 @@ using LinearAlgebra
 
 abstract type MatrixView{T} end
 
-struct FullMatrixView{T} <: MatrixView{T}
-    matrix::Matrix{T}
-    rightindices::Vector{Integer}
-    leftindices::Vector{Integer}
-    rowdim::Integer
-    columndim::Integer
-end
-
 import Base.:eltype
 
 function eltype(mv::MT) where MT <:MatrixView
     return typeof(mv).parameters[1]
 end
 
-import Base.:*
-function *(fmv::FMT, vecin::VT) where {FMT <:FullMatrixView, VT <: AbstractVector}
-    T = promote_type(eltype(fmv), eltype(vecin))
-    vecout = zeros(T, fmv.rowdim)
+struct Adjoint{T <: MatrixView} 
+    mv::T
+end
 
-    vecout[fmv.leftindices] = fmv.matrix * vecin[fmv.rightindices]
-    return vecout
+import Base.:adjoint
+function adjoint(mv::T) where T <: MatrixView
+    return Adjoint(mv)
+end
+
+function adjoint(adjmv::Adjoint{T}) where T <: MatrixView
+    return adjmv.mv
+end
+
+function eltype(mv::Adjoint{MT}) where MT <:MatrixView
+    return typeof(adjoint(mv)).parameters[1]
+end
+
+struct FullMatrixView{T} <: MatrixView{T}
+    matrix::Matrix{T}
+    rightindices::Vector{Integer}
+    leftindices::Vector{Integer}
+    rowdim::Integer
+    columndim::Integer
 end
 
 function FullMatrixView(matrix::Matrix{T}, 
@@ -36,6 +44,29 @@ function FullMatrixView(matrix::Matrix{T},
                              leftindices, 
                              rowdim, 
                              columndim)
+end
+
+
+
+import Base.:*
+function *(fmv::FMT, vecin::VT) where {FMT <:FullMatrixView, VT <: AbstractVector}
+    T = promote_type(eltype(fmv), eltype(vecin))
+    vecout = zeros(T, fmv.rowdim)
+
+    vecout[fmv.leftindices] = fmv.matrix * vecin[fmv.rightindices]
+    return vecout
+end
+
+function *(afmv::Adjoint{FMT}, vecin::VT) where {FMT <:FullMatrixView, VT <: AbstractVector}
+    T = promote_type(eltype(afmv), eltype(vecin))
+    vecout = zeros(T, afmv.mv.columndim)
+
+    vecout[afmv.mv.rightindices] = adjoint(afmv.mv.matrix) * vecin[afmv.mv.leftindices]
+    return vecout
+end
+
+function *(adjmv::Adjoint{T}) where T <: MatrixView
+
 end
 
 struct LowRankMatrixView{T} <: MatrixView{T}
@@ -69,6 +100,15 @@ function *(lmv::LMT, vecin::VT) where {LMT <:LowRankMatrixView, VT <: AbstractVe
     vecout[lmv.leftindices] = lmv.leftmatrix*(lmv.rightmatrix' * vecin[lmv.rightindices])
     return vecout
 end
+
+function *(almv::Adjoint{LMT}, vecin::VT) where {LMT <: LowRankMatrixView, VT <: AbstractVector}
+    T = promote_type(eltype(almv), eltype(vecin))
+    vecout = zeros(T, almv.mv.columndim)
+
+    vecout[almv.mv.rightindices] = almv.mv.rightmatrix*(almv.mv.leftmatrix' * vecin[almv.mv.leftindices])
+    return vecout
+end
+
 
 abstract type AbstractHierarchicalMatrix{T} end
 

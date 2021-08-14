@@ -14,4 +14,6 @@ export create_tree
 
 export HMatrix
 export buildhmatrix
+export adjoint
+
 end
