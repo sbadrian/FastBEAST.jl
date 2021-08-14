@@ -65,6 +65,32 @@ function *(afmv::Adjoint{FMT}, vecin::VT) where {FMT <:FullMatrixView, VT <: Abs
     return vecout
 end
 
+import Base.:size
+
+function size(hmat::AbstractHierarchicalMatrix, dim=nothing)
+    if dim === nothing
+        return (hmat.rowdim, hmat.columndim)
+    elseif dim == 1
+        return hmat.rowdim
+    elseif dim == 2
+        return hmat.columndim
+    else
+        error("dim must be either 1 or 2")
+    end
+end
+
+function size(hmat::Adjoint{T}, dim=nothing) where T <: AbstractHierarchicalMatrix
+    if dim === nothing
+        return reverse(size(adjoint(hmat)))
+    elseif dim == 1
+        return size(adjoint(hmat),2)
+    elseif dim == 2
+        return size(adjoint(hmat),1)
+    else
+        error("dim must be either 1 or 2")
+    end
+end
+
 struct LowRankMatrixView{T} <: MatrixView{T}
     rightmatrix::Matrix{T}
     leftmatrix::Matrix{T}
@@ -105,6 +131,9 @@ function *(almv::Adjoint{LMT}, vecin::VT) where {LMT <: LowRankMatrixView, VT <:
     return vecout
 end
 
+function isapprox(hmat::AbstractHierarchicalMatrix, mat::AbstractMatrix)
+    
+end
 
 abstract type AbstractHierarchicalMatrix{T} end
 
