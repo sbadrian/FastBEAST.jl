@@ -118,6 +118,10 @@ function HMatrix(asmpackage::Tuple,
                     length(sourcepoints))
 end
 
+
+function adjoint(hmat::T) where T <: AbstractHierarchicalMatrix
+
+end
 #function * (hmatrix::HT, matrix::MT) where {HT <:AbstractHierarchicalMatrix, MT <: AbstractMatrix}
 #
 #end
@@ -157,27 +161,42 @@ function hmatrixassembler!(asmpackage::Tuple,
         length(sourcepoints))
     end
 
+    function build_interaction(asmpackage, matrixviews, schild, tchild)
+        if length(schild.data) > 0 && length(tchild.data) > 0
+            if iscompressable(schild, tchild)
+                push!(matrixviews, getcompressedmatrix(asmpackage, schild, tchild))
+            else
+                hmatrixassembler!(asmpackage, matrixviews, schild, tchild)
+            end
+        end
+    end
+
+    if iscompressable(sourcenode, testnode)
+        if sourcenode.level == 0 && testnode.level == 0
+            push!(matrixviews, getcompressedmatrix(asmpackage, sourcenode, testnode))
+            return
+        else
+            error("We do not expect this behavior")
+        end
+    end
+
     if sourcenode.children === nothing && testnode.children === nothing
         push!(matrixviews, getfullmatrixview(asmpackage, sourcenode, testnode))
-    elseif sourcenode.children !== nothing || testnode.children !== nothing
+    else
         if sourcenode.children === nothing
+            schild = sourcenode
             for tchild in testnode.children
-                push!(matrixviews, getfullmatrixview(asmpackage, sourcenode, tchild))
+                build_interaction(asmpackage, matrixviews, schild, tchild)
             end
         elseif testnode.children === nothing
+            tchild = testnode
             for schild in sourcenode.children
-                push!(matrixviews, getfullmatrixview(asmpackage, schild, testnode))
+                build_interaction(asmpackage, matrixviews, schild, tchild)
             end
         else
             for schild in sourcenode.children
                 for tchild in testnode.children
-                    if length(schild.data) > 0 && length(tchild.data) > 0
-                        if iscompressable(schild, tchild)
-                            push!(matrixviews, getcompressedmatrix(asmpackage, schild, tchild))
-                        else
-                            hmatrixassembler!(asmpackage, matrixviews, schild, tchild)
-                        end
-                    end
+                    build_interaction(asmpackage, matrixviews, schild, tchild)
                 end
             end
         end
