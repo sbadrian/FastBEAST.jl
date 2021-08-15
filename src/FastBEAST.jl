@@ -2,8 +2,9 @@ module FastBEAST
 
 include("tree/boundingbox.jl")
 include("tree/basetree.jl")
-include("hmatrix.jl")
 include("aca.jl")
+include("hmatrix.jl")
+
 
 
 export BoundingBox
@@ -14,11 +15,13 @@ export whichchildbox
 export BoxTreeNode
 export create_tree
 
+export aca_compression
+
 export HMatrix
 export buildhmatrix
 export adjoint
 export estimate_norm
 export estimate_reldifference
-
-export aca_compression
+export nnz
+export compressionrate
 end

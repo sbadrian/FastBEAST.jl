@@ -46,8 +46,6 @@ function FullMatrixView(matrix::Matrix{T},
                              columndim)
 end
 
-
-
 import Base.:*
 function *(fmv::FMT, vecin::VT) where {FMT <:FullMatrixView, VT <: AbstractVector}
     T = promote_type(eltype(fmv), eltype(vecin))
@@ -63,6 +61,10 @@ function *(afmv::Adjoint{FMT}, vecin::VT) where {FMT <:FullMatrixView, VT <: Abs
 
     vecout[afmv.mv.rightindices] = adjoint(afmv.mv.matrix) * vecin[afmv.mv.leftindices]
     return vecout
+end
+
+function nnz(fmv::FullMatrixView)
+    return size(fmv.matrix,1)*size(fmv.matrix,2)
 end
 
 struct LowRankMatrixView{T} <: MatrixView{T}
@@ -105,14 +107,28 @@ function *(almv::Adjoint{LMT}, vecin::VT) where {LMT <: LowRankMatrixView, VT <:
     return vecout
 end
 
+function nnz(lmv::LowRankMatrixView)
+    return size(lmv.rightmatrix,1)*size(lmv.rightmatrix,2) + 
+            size(lmv.leftmatrix,1)*size(lmv.leftmatrix,2)
+end
+
 abstract type AbstractHierarchicalMatrix{T} end
 
 struct HMatrix{T} <: AbstractHierarchicalMatrix{T}
     matrixviews::Vector{MatrixView{T}}
     rowdim::Integer
     columndim::Integer
+    nnz::Integer
 end
 
+function nnz(hmat::HT) where HT <:AbstractHierarchicalMatrix
+    return hmat.nnz
+end
+
+function compressionrate(hmat::HT) where HT <:AbstractHierarchicalMatrix
+    fullsize = hmat.rowdim*hmat.columndim
+    return (fullsize - nnz(hmat))/fullsize
+end
 #function adjoint(mv::HMatrix)
 #    return Adjoint(mv)
 #end
@@ -245,14 +261,16 @@ function HMatrix(asmpackage::Tuple,
 
     matrixviews = MatrixView{T}[]
 
-    hmatrixassembler!(asmpackage, 
+
+    nonzeros = hmatrixassembler!(asmpackage, 
                         matrixviews,
                         sourcetree, 
                         testtree)
 
     return HMatrix{T}(matrixviews, 
                     length(testpoints),
-                    length(sourcepoints))
+                    length(sourcepoints),
+                    nonzeros)
 end
 
 function hmatrixassembler!(asmpackage::Tuple, 
@@ -293,24 +311,32 @@ function hmatrixassembler!(asmpackage::Tuple,
     function build_interaction(asmpackage, matrixviews, schild, tchild)
         if length(schild.data) > 0 && length(tchild.data) > 0
             if iscompressable(schild, tchild)
-                push!(matrixviews, getcompressedmatrix(asmpackage, schild, tchild))
+                nmv = getcompressedmatrix(asmpackage, schild, tchild)
+                push!(matrixviews, nmv)
+                nonzeros += nnz(nmv)
             else
-                hmatrixassembler!(asmpackage, matrixviews, schild, tchild)
+                nonzeros += hmatrixassembler!(asmpackage, matrixviews, schild, tchild)
             end
         end
     end
 
+    nonzeros = 0
+
     if iscompressable(sourcenode, testnode)
         if sourcenode.level == 0 && testnode.level == 0
-            push!(matrixviews, getcompressedmatrix(asmpackage, sourcenode, testnode))
-            return
+            nmv = getcompressedmatrix(asmpackage, sourcenode, testnode)
+            push!(matrixviews, nmv)
+            nonzeros += nnz(nmv)
+            return nonzeros
         else
             error("We do not expect this behavior")
         end
     end
 
     if sourcenode.children === nothing && testnode.children === nothing
-        push!(matrixviews, getfullmatrixview(asmpackage, sourcenode, testnode))
+        nmv = getfullmatrixview(asmpackage, sourcenode, testnode)
+        push!(matrixviews, nmv)
+        nonzeros += nnz(nmv)
     else
         if sourcenode.children === nothing
             schild = sourcenode
@@ -331,6 +357,7 @@ function hmatrixassembler!(asmpackage::Tuple,
         end
     end
     
+    return nonzeros
     #if iswellseparated(sourcenode, testnode)
     #
     #end

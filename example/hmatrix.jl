@@ -47,7 +47,7 @@ kmat = assembler(logkernel, spoints, spoints)
 hmat = HMatrix(asmpackage, stree, stree)
 
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
-
+@printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
 ## 
 asmpackage = (assembler, logkernel, spoints, tpoints)
 stree = create_tree(spoints, nmin=5)
@@ -60,3 +60,4 @@ hmat = HMatrix(asmpackage, stree, ttree)
 
 v2 = rand(NT)
 @printf("Accuracy test: %.2e\n", norm(adjoint(hmat)*v2 - adjoint(kmat)*v2)/norm(adjoint(kmat)*v2))
+@printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
