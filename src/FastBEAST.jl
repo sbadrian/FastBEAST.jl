@@ -20,4 +20,5 @@ export adjoint
 export estimate_norm
 export estimate_reldifference
 
+export aca_compression
 end

@@ -5,4 +5,5 @@ using Test
     include("boundingbox.jl")
     include("boxtree.jl")
     include("hmatrix.jl")
+    include("aca.jl")
 end
