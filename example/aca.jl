@@ -35,21 +35,20 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14)
 
     push!(acacolumnindices, nextcolumnindex)
 
-    V = next_global_row[rowindices] / next_global_row[nextcolumnindex]
+    V = next_global_row[colindices] / next_global_row[nextcolumnindex]
 
     next_global_column = matrix(rowindices,colindices[nextcolumnindex])
-    
-    U = next_global_column[colindices]
-
+    println(size(next_global_column))
+    U = next_global_column[rowindices]
 
     normUVlastupdate = norm(U)*norm(V)
     normUVsqared = normUVlastupdate^2
     i = 2
     while normUVlastupdate > sqrt(normUVsqared)*tol && i <= length(rowindices) &&  i <= length(colindices)
-        println("Iteration: ", i)
-        println("Should we have stopped? ", normUVlastupdate > sqrt(normUVsqared)*tol ? "No" : "Yes")
+        #println("Iteration: ", i)
+        #println("Should we have stopped? ", normUVlastupdate > sqrt(normUVsqared)*tol ? "No" : "Yes")
         nextrowindex, maxval = smartmaxlocal(U[:,end], acausedrowindices)
-        println("nextrowindex: ", nextrowindex)
+        #println("nextrowindex: ", nextrowindex)
         if nextrowindex == -1
             error("Failed to find new row index: ", nextrowindex)
         end
@@ -61,19 +60,18 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14)
 
         next_global_row =  matrix(rowindices[nextrowindex],colindices[:])
 
-        next_global_row[rowindices] -= (U[nextrowindex:nextrowindex, :]*V')'
+        next_global_row[colindices] -= (U[nextrowindex:nextrowindex, :]*V')'
+        nextcolumnindex, maxval = smartmaxlocal(next_global_row, acausedcolumnindices)
 
-        if (isapprox(next_global_row[rowindices[nextrowindex]],0.0))
+        if (isapprox(next_global_row[colindices[nextcolumnindex]],0.0))
             normUVlastupdate = 0.0
             println("Matrix seems to have exact rank: ", length(acarowindices))
         else
             push!(acarowindices, nextrowindex)
 
-            nextcolumnindex, maxval = smartmaxlocal(next_global_row, acausedcolumnindices)
+            V = hcat(V, next_global_row[colindices] / next_global_row[colindices[nextcolumnindex]])
 
-            V = hcat(V, next_global_row[rowindices] / next_global_row[rowindices[nextcolumnindex]])
-
-            println("nextcolumnindex: ", nextcolumnindex, " and ", maxval)
+            #println("nextcolumnindex: ", nextcolumnindex, " and ", maxval)
             if nextcolumnindex == -1
                 error("Failed to find new column index: ", nextcolumnindex)
             end
@@ -86,8 +84,8 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14)
             push!(acacolumnindices, nextcolumnindex)
             next_global_column = matrix(rowindices,colindices[nextcolumnindex])
 
-            next_global_column[colindices] -= U*V[nextcolumnindex:nextcolumnindex, 1:end-1]'
-            U = hcat(U,next_global_column[colindices])
+            next_global_column[rowindices] -= U*V[nextcolumnindex:nextcolumnindex, 1:end-1]'
+            U = hcat(U,next_global_column[rowindices])
 
             normUVlastupdate = norm(U[:,end])*norm(V[:,end])
 
@@ -96,8 +94,8 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14)
                 normUVsqared += 2*abs(dot(U[:,end], U[:,j])*dot(V[:,end], V[:,j]))
             end
 
-            println("normUVlastupdate: ", normUVlastupdate)
-            println("normUV: ", sqrt(normUVsqared))
+            #println("normUVlastupdate: ", normUVlastupdate)
+            #println("normUV: ", sqrt(normUVsqared))
         end
         i += 1
     end
@@ -115,11 +113,46 @@ U,S,V = svd(A)
 S = [ i < 15 ? 10.0^(-i) : 0.0 for i = 1:N ]
 
 A = U*diagm(S)*V'
-##
 
 V, U, acarowindices, acacolumnindices = aca_compression(fct, 1:N, 1:N)
 
-@test U*V' ≈ A atol = 1e-4
+@test U*V' ≈ A atol = 1e-14
+
+##
+Ns = 200
+Nt = 100
+A = rand(Nt,Ns)
+
+fct(x,y) =  A[x,y]
+
+U,S,V = svd(A)
+
+S .= 0
+S[1:15] = [10.0^(-i) for i = 1:15 ]
+
+A = U*diagm(S)*V'
+
+V, U, acarowindices, acacolumnindices = aca_compression(fct, 1:Nt, 1:Ns)
+
+@test U*V' ≈ A atol = 1e-14
+
+##
+Ns = 100
+Nt = 200
+A = rand(Nt,Ns)
+
+fct(x,y) =  A[x,y]
+
+U,S,V = svd(A)
+
+S .= 0
+S[1:15] = [10.0^(-i) for i = 1:15 ]
+
+A = U*diagm(S)*V'
+
+V, U, acarowindices, acacolumnindices = aca_compression(fct, 1:Nt, 1:Ns)
+
+@test U*V' ≈ A atol = 1e-14
 
 ##
 a = [1.0 0.0 0.0 0.0 0.0]
