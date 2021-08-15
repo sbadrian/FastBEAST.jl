@@ -97,7 +97,7 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14)
             end
 
             println("normUVlastupdate: ", normUVlastupdate)
-            println("normUVsqared: ", sqrt(normUVsqared))
+            println("normUV: ", sqrt(normUVsqared))
         end
         i += 1
     end
@@ -105,14 +105,14 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14)
     return V,U, acarowindices, acacolumnindices
 end
 ##
-N = 10
+N = 1000
 A = rand(N,N)
 
 fct(x,y) =  A[x,y]
 
 U,S,V = svd(A)
 
-S[3:end] .= 0
+S = [ i < 15 ? 10.0^(-i) : 0.0 for i = 1:N ]
 
 A = U*diagm(S)*V'
 ##
