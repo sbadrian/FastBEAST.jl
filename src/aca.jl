@@ -52,7 +52,7 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14)
         end
         if isapprox(maxval, 0.0)
             println("Future V entry is close to zero. Abort.")
-            return V, U
+            return U, V
         end
         acausedrowindices[nextrowindex] = true
 
@@ -98,5 +98,5 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14)
         i += 1
     end
 
-    return V,U
+    return U, V
 end
