@@ -1,11 +1,9 @@
 module FastBEAST
 
-include("tree/boundingbox.jl")
-include("tree/basetree.jl")
+include("boundingbox.jl")
+include("boxtree.jl")
 include("aca.jl")
 include("hmatrix.jl")
-
-
 
 export BoundingBox
 export getboxframe
