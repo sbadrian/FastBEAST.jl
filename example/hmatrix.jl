@@ -41,19 +41,19 @@ println("Condition number: ", S[1] / S[end])
 plot(S, yaxis=:log, marker=:x)
 
 ##
-asmpackage = (assembler, logkernel, spoints, spoints)
+logkernelassembler(sdata, tdata) = assembler(logkernel, spoints[sdata], spoints[tdata])
 stree = create_tree(spoints, nmin=5)
 kmat = assembler(logkernel, spoints, spoints)
-hmat = HMatrix(asmpackage, stree, stree)
+hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive)
 
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
 @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
 ## 
-asmpackage = (assembler, logkernel, spoints, tpoints)
+logkernelassembler(sdata, tdata) = assembler(logkernel, spoints[sdata], tpoints[tdata])
 stree = create_tree(spoints, nmin=5)
 ttree = create_tree(tpoints, nmin=5)
 kmat = assembler(logkernel, spoints, tpoints)
-hmat = HMatrix(asmpackage, stree, ttree)
+hmat = HMatrix(logkernelassembler, stree, ttree)
 
 
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat, kmat))

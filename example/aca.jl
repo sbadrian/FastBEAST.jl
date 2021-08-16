@@ -28,10 +28,11 @@ function assembler(kernel, sourcepoints::Vector{SVector{2,T}}, testpoints::Vecto
     return kernelmatrix
 end
 
-asmpackage = (assembler, logkernel, spoints, spoints)
+logkernelassembler(sdata, tdata) = assembler(logkernel, spoints[sdata], spoints[tdata])
+
 stree = create_tree(spoints, nmin=200)
 kmat = assembler(logkernel, spoints, spoints)
-@time hmat = HMatrix(asmpackage, stree, stree, compressor=:aca)
+@time hmat = HMatrix(logkernelassembler, stree, stree, compressor=:aca)
 
 @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
 
