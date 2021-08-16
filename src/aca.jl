@@ -24,7 +24,7 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14)
 
     acacolumnindices = Integer[]
 
-    next_global_row =  matrix(rowindices[nextrowindex],colindices[:])
+    next_global_row =  matrix(rowindices[nextrowindex:nextrowindex],colindices[:])'
 
     nextcolumnindex, maxval = smartmaxlocal(next_global_row, acausedcolumnindices)
     acausedcolumnindices[nextcolumnindex] = true
@@ -34,7 +34,7 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14)
 
     V = next_global_row / next_global_row[nextcolumnindex]
 
-    next_global_column = matrix(rowindices,colindices[nextcolumnindex])
+    next_global_column = matrix(rowindices,colindices[nextcolumnindex:nextcolumnindex])
     #println(size(next_global_column))
     U = next_global_column
 
@@ -56,7 +56,7 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14)
         end
         acausedrowindices[nextrowindex] = true
 
-        next_global_row =  matrix(rowindices[nextrowindex],colindices[:])
+        next_global_row =  matrix(rowindices[nextrowindex:nextrowindex],colindices[:])'
 
         next_global_row -= (U[nextrowindex:nextrowindex, :]*V')'
         nextcolumnindex, maxval = smartmaxlocal(next_global_row, acausedcolumnindices)
@@ -80,7 +80,7 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14)
             acausedcolumnindices[nextcolumnindex] = true
 
             push!(acacolumnindices, nextcolumnindex)
-            next_global_column = matrix(rowindices,colindices[nextcolumnindex])
+            next_global_column = matrix(rowindices,colindices[nextcolumnindex:nextcolumnindex])
 
             next_global_column -= U*V[nextcolumnindex:nextcolumnindex, 1:end-1]'
             U = hcat(U,next_global_column)

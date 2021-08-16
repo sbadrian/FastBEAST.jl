@@ -253,7 +253,8 @@ end
 
 function HMatrix(asmpackage::Tuple, 
                  sourcetree::BoxTreeNode, 
-                 testtree::BoxTreeNode)
+                 testtree::BoxTreeNode;
+                 compressor=:naive)
     
     assembler, kernel, sourcepoints, testpoints = asmpackage
 
@@ -265,7 +266,8 @@ function HMatrix(asmpackage::Tuple,
     nonzeros = hmatrixassembler!(asmpackage, 
                         matrixviews,
                         sourcetree, 
-                        testtree)
+                        testtree,
+                        compressor=compressor)
 
     return HMatrix{T}(matrixviews, 
                     length(testpoints),
@@ -276,7 +278,8 @@ end
 function hmatrixassembler!(asmpackage::Tuple, 
     matrixviews::Vector{MT},
     sourcenode::BoxTreeNode, 
-    testnode::BoxTreeNode) where MT <: MatrixView
+    testnode::BoxTreeNode;
+    compressor=:aca) where MT <: MatrixView
 
 
     function getfullmatrixview(asmpackage, sourcenode, testnode)
@@ -289,29 +292,46 @@ function hmatrixassembler!(asmpackage::Tuple,
         length(sourcepoints))
     end
 
-    function getcompressedmatrix(asmpackage, sourcenode, testnode; tol = 1e-4)
+    function getcompressedmatrix(asmpackage, sourcenode, testnode; tol = 1e-4, compressor=:aca)
         assembler, kernel, sourcepoints, testpoints = asmpackage
 
-        fullmat = assembler(kernel, sourcepoints[sourcenode.data], testpoints[testnode.data])
+        if compressor==:naive
+            fullmat = assembler(kernel, sourcepoints[sourcenode.data], testpoints[testnode.data])
 
-        U,S,V = svd(fullmat)
-        k = 1
-        while k < length(S) && S[k] > S[1]*tol
-            k += 1
+            U,S,V = svd(fullmat)
+            k = 1
+            while k < length(S) && S[k] > S[1]*tol
+                k += 1
+            end
+
+            return LowRankMatrixView(V[:, 1:k],
+            U[:, 1:k]*diagm(S[1:k]),
+            sourcenode.data,
+            testnode.data,
+            length(testpoints),
+            length(sourcepoints))
+        elseif compressor==:aca
+            matrixassembler(tdata, sdata) = assembler(kernel, sourcepoints[sdata], testpoints[tdata])
+            #U, V = aca_compression2(assembler, kernel, testpoints, sourcepoints, 
+            #testnode.data, sourcenode.data; tol=tol)
+            matrixassembler(tdata, sdata) = assembler(kernel, sourcepoints[sdata], testpoints[tdata])
+            U, V = aca_compression(matrixassembler, testnode.data, sourcenode.data; tol=tol)
+
+            return LowRankMatrixView(V,
+            U,
+            sourcenode.data,
+            testnode.data,
+            length(testpoints),
+            length(sourcepoints))
+        else
+            error("Terium non datur")
         end
-
-        return LowRankMatrixView(V[:, 1:k],
-        U[:, 1:k]*diagm(S[1:k]),
-        sourcenode.data,
-        testnode.data,
-        length(testpoints),
-        length(sourcepoints))
     end
 
     function build_interaction(asmpackage, matrixviews, schild, tchild)
         if length(schild.data) > 0 && length(tchild.data) > 0
             if iscompressable(schild, tchild)
-                nmv = getcompressedmatrix(asmpackage, schild, tchild)
+                nmv = getcompressedmatrix(asmpackage, schild, tchild, compressor=compressor)
                 push!(matrixviews, nmv)
                 nonzeros += nnz(nmv)
             else
@@ -324,7 +344,7 @@ function hmatrixassembler!(asmpackage::Tuple,
 
     if iscompressable(sourcenode, testnode)
         if sourcenode.level == 0 && testnode.level == 0
-            nmv = getcompressedmatrix(asmpackage, sourcenode, testnode)
+            nmv = getcompressedmatrix(asmpackage, sourcenode, testnode, compressor=compressor)
             push!(matrixviews, nmv)
             nonzeros += nnz(nmv)
             return nonzeros
