@@ -94,8 +94,7 @@ end
 function *(lmv::LMT, vecin::VT) where {LMT <:LowRankMatrixView, VT <: AbstractVector}
     T = promote_type(eltype(lmv), eltype(vecin))
     vecout = zeros(T, lmv.rowdim)
-
-    vecout[lmv.leftindices] = lmv.leftmatrix*(lmv.rightmatrix' * vecin[lmv.rightindices])
+    vecout[lmv.leftindices] = lmv.leftmatrix*(lmv.rightmatrix * vecin[lmv.rightindices])
     return vecout
 end
 
@@ -103,7 +102,7 @@ function *(almv::Adjoint{LMT}, vecin::VT) where {LMT <: LowRankMatrixView, VT <:
     T = promote_type(eltype(almv), eltype(vecin))
     vecout = zeros(T, almv.mv.columndim)
 
-    vecout[almv.mv.rightindices] = almv.mv.rightmatrix*(almv.mv.leftmatrix' * vecin[almv.mv.leftindices])
+    vecout[almv.mv.rightindices] = almv.mv.rightmatrix'*(almv.mv.leftmatrix' * vecin[almv.mv.leftindices])
     return vecout
 end
 
@@ -254,7 +253,9 @@ end
 function HMatrix(matrixassembler::Function, 
                  sourcetree::BoxTreeNode, 
                  testtree::BoxTreeNode;
-                 compressor=:naive)
+                 compressor=:naive,
+                 isdebug=false,
+                 tol=1e-4)
     
     T = Float64 #promote_type(eltype(sourcepoints[1]), eltype(testpoints[1]))
 
@@ -269,12 +270,14 @@ function HMatrix(matrixassembler::Function,
                         testtree,
                         rowdim,
                         coldim,
-                        compressor=compressor)
+                        compressor=compressor,
+                        tol=tol,
+                        isdebug=isdebug)
 
     return HMatrix{T}(matrixviews, 
                       rowdim,
                       coldim,
-                    nonzeros)
+                      nonzeros)
 end
 
 function hmatrixassembler!(matrixassembler::Function, 
@@ -283,8 +286,9 @@ function hmatrixassembler!(matrixassembler::Function,
     testnode::BoxTreeNode,
     rowdim::Integer,
     coldim::Integer;
-    compressor=:aca) where MT <: MatrixView
-
+    compressor=:aca,
+    tol=1e-4,
+    isdebug=false) where MT <: MatrixView
 
     function getfullmatrixview(matrixassembler, sourcenode, testnode)
 
@@ -296,7 +300,7 @@ function hmatrixassembler!(matrixassembler::Function,
     end
 
     function getcompressedmatrix(matrixassembler::Function, sourcenode, testnode; 
-                                tol = 1e-4, compressor=:aca)
+                                tol = 1e-4, compressor=:aca, isdebug=false)
 
         if compressor==:naive
             fullmat = matrixassembler(sourcenode.data, testnode.data)
@@ -307,7 +311,7 @@ function hmatrixassembler!(matrixassembler::Function,
                 k += 1
             end
 
-            return LowRankMatrixView(V[:, 1:k],
+            return LowRankMatrixView(copy(V[:, 1:k]'),
             U[:, 1:k]*diagm(S[1:k]),
             sourcenode.data,
             testnode.data,
@@ -317,7 +321,7 @@ function hmatrixassembler!(matrixassembler::Function,
             #U, V = aca_compression2(assembler, kernel, testpoints, sourcepoints, 
             #testnode.data, sourcenode.data; tol=tol)
             swappedmatrixassembler(tdata, sdata) = matrixassembler(sdata, tdata)
-            U, V = aca_compression(swappedmatrixassembler, testnode.data, sourcenode.data; tol=tol)
+            U, V = aca_compression(swappedmatrixassembler, testnode.data, sourcenode.data; tol=tol, isdebug=isdebug)
 
             return LowRankMatrixView(V,
             U,
