@@ -6,7 +6,7 @@ using Printf
 plotlyjs()
 function logkernel(sourcepoint::SVector{2,T}, testpoint::SVector{2,T}) where T
     if isapprox(sourcepoint, testpoint, rtol=eps()*1e1)
-        return 0
+        return 0.0
     else
         return - 2*π*log(norm(sourcepoint - testpoint))
     end
@@ -61,3 +61,4 @@ hmat = HMatrix(logkernelassembler, stree, ttree)
 v2 = rand(NT)
 @printf("Accuracy test: %.2e\n", norm(adjoint(hmat)*v2 - adjoint(kmat)*v2)/norm(adjoint(kmat)*v2))
 @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
+
