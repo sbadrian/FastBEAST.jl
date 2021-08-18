@@ -20,14 +20,14 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, is
     acacolumnindicescounter = 1
 
     nextrowindex = 1
-    acarowindices = [nextrowindex]
+    #acarowindices = [nextrowindex]
     acausedrowindices[nextrowindex] = true
 
     U = zeros(Float64, length(rowindices), maxrank)
     V = zeros(Float64, maxrank, length(colindices))
 
     i = 1
-    acacolumnindices = Integer[]
+    #acacolumnindices = Integer[]
 
     V[acarowindicescounter:acarowindicescounter, :] =  matrix(rowindices[nextrowindex:nextrowindex],colindices[:])
 
@@ -35,7 +35,7 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, is
     acausedcolumnindices[nextcolumnindex] = true
     #println("nextcolumnindex: ", nextcolumnindex)
 
-    push!(acacolumnindices, nextcolumnindex)
+    #push!(acacolumnindices, nextcolumnindex)
 
     V[acarowindicescounter:acarowindicescounter, :] /= V[acarowindicescounter, nextcolumnindex]
 
@@ -74,9 +74,9 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, is
             normUVlastupdate = 0.0
             V[acarowindicescounter:acarowindicescounter, :] .= 0.0
             acarowindicescounter -= 1
-            println("Matrix seems to have exact rank: ", length(acarowindices))
+            println("Matrix seems to have exact rank: ", acarowindicescounter)
         else
-            push!(acarowindices, nextrowindex)
+            #push!(acarowindices, nextrowindex)
 
             V[acarowindicescounter:acarowindicescounter, :] /= V[acarowindicescounter, nextcolumnindex]
 
@@ -91,7 +91,7 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, is
 
             acausedcolumnindices[nextcolumnindex] = true
 
-            push!(acacolumnindices, nextcolumnindex)
+            #push!(acacolumnindices, nextcolumnindex)
 
             acacolumnindicescounter += 1
             U[:, acacolumnindicescounter] = matrix(rowindices,colindices[nextcolumnindex:nextcolumnindex])

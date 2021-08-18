@@ -324,24 +324,37 @@ function hmatrixassembler!(matrixassembler::Function,
             U, V = aca_compression(swappedmatrixassembler, testnode.data, sourcenode.data; tol=tol, isdebug=isdebug)
 
             return LowRankMatrixView(V,
-            U,
-            sourcenode.data,
-            testnode.data,
-            rowdim,
-            coldim)
+                                     U,
+                                     sourcenode.data,
+                                     testnode.data,
+                                     rowdim,
+                                     coldim)
         else
             error("Terium non datur")
         end
     end
 
-    function build_interaction(matrixassembler, matrixviews, schild, tchild)
+    function build_interaction(matrixassembler, matrixviews, schild, tchild; tol=1e-4, isdebug=false)
         if length(schild.data) > 0 && length(tchild.data) > 0
             if iscompressable(schild, tchild)
-                nmv = getcompressedmatrix(matrixassembler, schild, tchild, compressor=compressor)
+                nmv = getcompressedmatrix(matrixassembler,
+                                            schild,
+                                            tchild,
+                                            compressor=compressor,
+                                            tol=tol,
+                                            isdebug=isdebug)
                 push!(matrixviews, nmv)
                 nonzeros += nnz(nmv)
             else
-                nonzeros += hmatrixassembler!(matrixassembler, matrixviews, schild, tchild, rowdim, coldim, compressor=compressor)
+                nonzeros += hmatrixassembler!(matrixassembler,
+                                                matrixviews,
+                                                schild,
+                                                tchild,
+                                                rowdim,
+                                                coldim,
+                                                compressor=compressor,
+                                                tol=tol,
+                                                isdebug=isdebug)
             end
         end
     end
@@ -350,7 +363,12 @@ function hmatrixassembler!(matrixassembler::Function,
 
     if iscompressable(sourcenode, testnode)
         if sourcenode.level == 0 && testnode.level == 0
-            nmv = getcompressedmatrix(matrixassembler, sourcenode, testnode, compressor=compressor)
+            nmv = getcompressedmatrix(matrixassembler,
+                                        sourcenode,
+                                        testnode,
+                                        compressor=compressor,
+                                        tol=tol,
+                                        isdebug=isdebug)
             push!(matrixviews, nmv)
             nonzeros += nnz(nmv)
             return nonzeros
@@ -367,17 +385,17 @@ function hmatrixassembler!(matrixassembler::Function,
         if sourcenode.children === nothing
             schild = sourcenode
             for tchild in testnode.children
-                build_interaction(matrixassembler, matrixviews, schild, tchild)
+                build_interaction(matrixassembler, matrixviews, schild, tchild, tol=tol, isdebug=isdebug)
             end
         elseif testnode.children === nothing
             tchild = testnode
             for schild in sourcenode.children
-                build_interaction(matrixassembler, matrixviews, schild, tchild)
+                build_interaction(matrixassembler, matrixviews, schild, tchild, tol=tol, isdebug=isdebug)
             end
         else
             for schild in sourcenode.children
                 for tchild in testnode.children
-                    build_interaction(matrixassembler, matrixviews, schild, tchild)
+                    build_interaction(matrixassembler, matrixviews, schild, tchild, tol=tol, isdebug=isdebug)
                 end
             end
         end
