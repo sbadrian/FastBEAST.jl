@@ -4,11 +4,11 @@ using LinearAlgebra
 using Plots
 using Printf
 plotlyjs()
-function logkernel(sourcepoint::SVector{2,T}, testpoint::SVector{2,T}) where T
-    if isapprox(sourcepoint, testpoint, rtol=eps()*1e1)
+function logkernel(testpoint::SVector{2,T}, sourcepoint::SVector{2,T}) where T
+    if isapprox(testpoint, sourcepoint, rtol=eps()*1e1)
         return 0.0
     else
-        return - 2*π*log(norm(sourcepoint - testpoint))
+        return - 2*π*log(norm(testpoint - sourcepoint))
     end
 end
 
@@ -19,7 +19,7 @@ spoints = [@SVector rand(2) for i = 1:N]
 
 tpoints = 0.1*[@SVector rand(2) for i = 1:NT] + [SVector(3.5, 3.5) for i = 1:NT]
 
-function assembler(kernel, sourcepoints, testpoints)
+function assembler(kernel, testpoints, sourcepoints)
     kernelmatrix = zeros(promote_type(eltype(testpoints[1]),eltype(sourcepoints[1])), 
                    length(testpoints), length(sourcepoints))
 
@@ -32,7 +32,7 @@ function assembler(kernel, sourcepoints, testpoints)
     return kernelmatrix
 end
 
-kmat = assembler(logkernel, spoints, tpoints)
+kmat = assembler(logkernel, tpoints, spoints)
 
 U, S, V = svd(kmat)
 
@@ -41,19 +41,20 @@ println("Condition number: ", S[1] / S[end])
 plot(S, yaxis=:log, marker=:x)
 
 ##
-logkernelassembler(sdata, tdata) = assembler(logkernel, spoints[sdata], spoints[tdata])
+logkernelassembler(tdata, sdata) = assembler(logkernel, spoints[tdata], spoints[sdata])
 stree = create_tree(spoints, nmin=5)
 kmat = assembler(logkernel, spoints, spoints)
 hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive)
 
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
 @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
+
 ## 
-logkernelassembler(sdata, tdata) = assembler(logkernel, spoints[sdata], tpoints[tdata])
-stree = create_tree(spoints, nmin=5)
-ttree = create_tree(tpoints, nmin=5)
-kmat = assembler(logkernel, spoints, tpoints)
-hmat = HMatrix(logkernelassembler, stree, ttree)
+logkernelassembler(tdata, sdata) = assembler(logkernel, tpoints[tdata], spoints[sdata])
+stree = create_tree(spoints, nmin=100)
+ttree = create_tree(tpoints, nmin=100)
+kmat = assembler(logkernel, tpoints, spoints)
+hmat = HMatrix(logkernelassembler, ttree, stree)
 
 
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat, kmat))

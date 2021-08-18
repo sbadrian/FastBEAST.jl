@@ -250,9 +250,9 @@ function estimate_reldifference(hmat, refmat; tol=1e-4)
     return sqrt(σnew)/norm_refmat
 end
 
-function HMatrix(matrixassembler::Function, 
-                 sourcetree::BoxTreeNode, 
-                 testtree::BoxTreeNode;
+function HMatrix(matrixassembler::Function,
+                 testtree::BoxTreeNode,
+                 sourcetree::BoxTreeNode;
                  compressor=:naive,
                  isdebug=false,
                  tol=1e-4)
@@ -266,8 +266,8 @@ function HMatrix(matrixassembler::Function,
 
     nonzeros = hmatrixassembler!(matrixassembler, 
                         matrixviews,
-                        sourcetree, 
                         testtree,
+                        sourcetree,
                         rowdim,
                         coldim,
                         compressor=compressor,
@@ -280,30 +280,30 @@ function HMatrix(matrixassembler::Function,
                       nonzeros)
 end
 
-function hmatrixassembler!(matrixassembler::Function, 
+function hmatrixassembler!(matrixassembler::Function,
     matrixviews::Vector{MT},
-    sourcenode::BoxTreeNode, 
     testnode::BoxTreeNode,
+    sourcenode::BoxTreeNode,
     rowdim::Integer,
     coldim::Integer;
     compressor=:aca,
     tol=1e-4,
     isdebug=false) where MT <: MatrixView
 
-    function getfullmatrixview(matrixassembler, sourcenode, testnode)
+    function getfullmatrixview(matrixassembler, testnode, sourcenode)
 
-        return FullMatrixView(matrixassembler(sourcenode.data, testnode.data),
+        return FullMatrixView(matrixassembler(testnode.data, sourcenode.data),
         sourcenode.data,
         testnode.data,
         rowdim,
         coldim)
     end
 
-    function getcompressedmatrix(matrixassembler::Function, sourcenode, testnode; 
+    function getcompressedmatrix(matrixassembler::Function, testnode, sourcenode; 
                                 tol = 1e-4, compressor=:aca, isdebug=false)
 
         if compressor==:naive
-            fullmat = matrixassembler(sourcenode.data, testnode.data)
+            fullmat = matrixassembler(testnode.data, sourcenode.data)
 
             U,S,V = svd(fullmat)
             k = 1
@@ -320,8 +320,8 @@ function hmatrixassembler!(matrixassembler::Function,
         elseif compressor==:aca
             #U, V = aca_compression2(assembler, kernel, testpoints, sourcepoints, 
             #testnode.data, sourcenode.data; tol=tol)
-            swappedmatrixassembler(tdata, sdata) = matrixassembler(sdata, tdata)
-            U, V = aca_compression(swappedmatrixassembler, testnode.data, sourcenode.data; tol=tol, isdebug=isdebug)
+
+            U, V = aca_compression(matrixassembler, testnode.data, sourcenode.data; tol=tol, isdebug=isdebug)
 
             return LowRankMatrixView(V,
                                      U,
@@ -330,16 +330,16 @@ function hmatrixassembler!(matrixassembler::Function,
                                      rowdim,
                                      coldim)
         else
-            error("Terium non datur")
+            error("Tertium non datur")
         end
     end
 
-    function build_interaction(matrixassembler, matrixviews, schild, tchild; tol=1e-4, isdebug=false)
+    function build_interaction(matrixassembler, matrixviews, tchild, schild; tol=1e-4, isdebug=false)
         if length(schild.data) > 0 && length(tchild.data) > 0
             if iscompressable(schild, tchild)
                 nmv = getcompressedmatrix(matrixassembler,
-                                            schild,
                                             tchild,
+                                            schild,
                                             compressor=compressor,
                                             tol=tol,
                                             isdebug=isdebug)
@@ -348,8 +348,8 @@ function hmatrixassembler!(matrixassembler::Function,
             else
                 nonzeros += hmatrixassembler!(matrixassembler,
                                                 matrixviews,
-                                                schild,
                                                 tchild,
+                                                schild,
                                                 rowdim,
                                                 coldim,
                                                 compressor=compressor,
@@ -364,8 +364,8 @@ function hmatrixassembler!(matrixassembler::Function,
     if iscompressable(sourcenode, testnode)
         if sourcenode.level == 0 && testnode.level == 0
             nmv = getcompressedmatrix(matrixassembler,
-                                        sourcenode,
                                         testnode,
+                                        sourcenode,
                                         compressor=compressor,
                                         tol=tol,
                                         isdebug=isdebug)
@@ -378,24 +378,24 @@ function hmatrixassembler!(matrixassembler::Function,
     end
 
     if sourcenode.children === nothing && testnode.children === nothing
-        nmv = getfullmatrixview(matrixassembler, sourcenode, testnode)
+        nmv = getfullmatrixview(matrixassembler, testnode, sourcenode)
         push!(matrixviews, nmv)
         nonzeros += nnz(nmv)
     else
         if sourcenode.children === nothing
             schild = sourcenode
             for tchild in testnode.children
-                build_interaction(matrixassembler, matrixviews, schild, tchild, tol=tol, isdebug=isdebug)
+                build_interaction(matrixassembler, matrixviews, tchild, schild, tol=tol, isdebug=isdebug)
             end
         elseif testnode.children === nothing
             tchild = testnode
             for schild in sourcenode.children
-                build_interaction(matrixassembler, matrixviews, schild, tchild, tol=tol, isdebug=isdebug)
+                build_interaction(matrixassembler, matrixviews, tchild, schild, tol=tol, isdebug=isdebug)
             end
         else
             for schild in sourcenode.children
                 for tchild in testnode.children
-                    build_interaction(matrixassembler, matrixviews, schild, tchild, tol=tol, isdebug=isdebug)
+                    build_interaction(matrixassembler, matrixviews, tchild, schild, tol=tol, isdebug=isdebug)
                 end
             end
         end
