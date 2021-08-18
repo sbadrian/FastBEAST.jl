@@ -15,19 +15,19 @@ adjoint_adjointfmv = adjoint(adjointfmv)
 v2 = rand(10)
 @test adjoint(matrix)*v2 == adjoint(fmv)*v2
 
-rightmatrix = matrix
+rightmatrix = rand(5,10)
 leftmatrix = rand(3,5)
 
 lmv = FastBEAST.LowRankMatrixView(rightmatrix, leftmatrix, Vector(1:10), Vector(1:3), 3, 10)
 
-@test lmv.rightmatrix == matrix
+@test lmv.rightmatrix == rightmatrix
 @test lmv.leftmatrix == leftmatrix
 
-@test lmv*v2  ==  leftmatrix*(adjoint(matrix)*v2)
+@test lmv*v2  ==  leftmatrix*(rightmatrix*v2)
 
 v3 = rand(3)
 
-@test adjoint(lmv)*v3  ==  matrix*(adjoint(leftmatrix)*v3)
+@test adjoint(lmv)*v3  ==  adjoint(rightmatrix)*(adjoint(leftmatrix)*v3)
 
 A = rand(100,100)
 B = rand(100,100)
