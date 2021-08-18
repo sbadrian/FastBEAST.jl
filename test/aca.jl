@@ -12,7 +12,7 @@ A = U*diagm(S)*V'
 
 U, V = aca_compression(fct, 1:N, 1:N)
 
-@test U*V' ≈ A atol = 1e-14
+@test U*V ≈ A atol = 1e-14
 
 ##
 Ns = 200
@@ -30,7 +30,7 @@ A = U*diagm(S)*V'
 
 U, V = aca_compression(fct, 1:Nt, 1:Ns)
 
-@test U*V' ≈ A atol = 1e-14
+@test U*V ≈ A atol = 1e-14
 
 ##
 Ns = 100
@@ -48,7 +48,7 @@ A = U*diagm(S)*V'
 
 U, V = aca_compression(fct, 1:Nt, 1:Ns)
 
-@test U*V' ≈ A atol = 1e-14
+@test U*V ≈ A atol = 1e-14
 
 ##
 a = [1.0 0.0 0.0 0.0 0.0]
@@ -59,7 +59,7 @@ fct(x,y) =  A[x,y]
 
 U, V = aca_compression(fct, 1:5, 1:5)
 
-@test U*V' == A
+@test U*V == A
 
 ##
 a = [1.0 -2.0 6.0 4.0 5.0]
@@ -70,7 +70,7 @@ fct(x,y) =  A[x,y]
 
 U, V = aca_compression(fct, 1:5, 1:5)
 
-@test U*V' == A
+@test U*V == A
 
 ##
 a1 = [1.0 -2.0 6.0 4.0 5.0]
@@ -85,7 +85,7 @@ A = a1'*b1 + a2'*b2 #+ a3'*b3
 fct(x,y) =  A[x,y]
 U, V = aca_compression(fct, 1:5, 1:5)
 
-@test U*V' ≈ A atol = 1e-14
+@test U*V ≈ A atol = 1e-14
 
 ##
 Ns = 100
@@ -114,18 +114,18 @@ fct(x,y) =  B[x,y]
 
 U, V = aca_compression(fct, rowindices, colindices)
 
-@test U*V' ≈ A atol = 1e-14
+@test U*V ≈ A atol = 1e-14
 
 ##
 A = rand(2,1)
 
 fct(x,y) =  A[x,y]
 U, V = aca_compression(fct, 1:2, 1:1)
-@test U*V' ≈ A atol = 1e-14
+@test U*V ≈ A atol = 1e-14
 
 ##
 A = rand(1,1)
 
 fct(x,y) =  A[x,y]
 U, V = aca_compression(fct, 1:1, 1:1)
-@test U*V' ≈ A atol = 1e-14
+@test U*V ≈ A atol = 1e-14

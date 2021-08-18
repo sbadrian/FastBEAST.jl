@@ -12,7 +12,6 @@ function OneoverRkernel(sourcepoint::SVector{3,T}, testpoint::SVector{3,T}) wher
     end
 end
 
-
 function assembler(kernel, sourcepoints, testpoints)
     kernelmatrix = zeros(promote_type(eltype(testpoints[1]),eltype(sourcepoints[1])), 
                 length(testpoints), length(sourcepoints))
@@ -22,10 +21,8 @@ function assembler(kernel, sourcepoints, testpoints)
             kernelmatrix[i,j] = kernel(testpoints[i], sourcepoints[j])
         end
     end
-
     return kernelmatrix
 end
-
 
 ##
 
@@ -46,7 +43,7 @@ hmat = HMatrix(OneoverRkernelassembler, stree, ttree, compressor=:naive)
 
 
 ##
-N = 4000
+N = 1000
 NT = N
 
 spoints = [@SVector rand(3) for i = 1:N]
@@ -54,15 +51,29 @@ spoints = [@SVector rand(3) for i = 1:N]
 OneoverRkernelassembler(sdata, tdata) = assembler(OneoverRkernel, spoints[sdata], spoints[tdata])
 stree = create_tree(spoints, nmin=100)
 kmat = assembler(OneoverRkernel, spoints, spoints)
-hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca)
+hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, isdebug=false)
 
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
 @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
 
-
+##
 totalspoints = 0
 for child in stree.children
     totalspoints += length(child.data)
 end
 
 @assert totalspoints == N
+
+
+##
+N = 40000
+NT = N
+
+spoints = [@SVector rand(3) for i = 1:N]
+
+OneoverRkernelassembler(sdata, tdata) = assembler(OneoverRkernel, spoints[sdata], spoints[tdata])
+stree = create_tree(spoints, nmin=100)
+
+@time hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, isdebug=false)
+
+@printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)

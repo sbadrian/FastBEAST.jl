@@ -1,4 +1,4 @@
-function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14)
+function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, isdebug=false, maxrank=50)
 
     function smartmaxlocal(roworcolumn, acausedindices)
         maxval = -1
@@ -16,87 +16,100 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14)
 
     acausedrowindices = zeros(Bool,length(rowindices))
     acausedcolumnindices = zeros(Bool,length(colindices))
+    acarowindicescounter = 1
+    acacolumnindicescounter = 1
 
     nextrowindex = 1
-    acarowindices = [nextrowindex]
+    #acarowindices = [nextrowindex]
     acausedrowindices[nextrowindex] = true
-    #println("nextrowindex: ", nextrowindex)
 
-    acacolumnindices = Integer[]
+    U = zeros(Float64, length(rowindices), maxrank)
+    V = zeros(Float64, maxrank, length(colindices))
 
-    next_global_row =  matrix(rowindices[nextrowindex:nextrowindex],colindices[:])'
+    i = 1
+    #acacolumnindices = Integer[]
 
-    nextcolumnindex, maxval = smartmaxlocal(next_global_row, acausedcolumnindices)
+    V[acarowindicescounter:acarowindicescounter, :] =  matrix(rowindices[nextrowindex:nextrowindex],colindices[:])
+
+    nextcolumnindex, maxval = smartmaxlocal(V[acarowindicescounter, :], acausedcolumnindices)
     acausedcolumnindices[nextcolumnindex] = true
     #println("nextcolumnindex: ", nextcolumnindex)
 
-    push!(acacolumnindices, nextcolumnindex)
+    #push!(acacolumnindices, nextcolumnindex)
 
-    V = next_global_row / next_global_row[nextcolumnindex]
+    V[acarowindicescounter:acarowindicescounter, :] /= V[acarowindicescounter, nextcolumnindex]
 
-    next_global_column = matrix(rowindices,colindices[nextcolumnindex:nextcolumnindex])
-    #println(size(next_global_column))
-    U = next_global_column
+    U[:, acacolumnindicescounter] = matrix(rowindices,colindices[nextcolumnindex:nextcolumnindex])
 
-    normUVlastupdate = norm(U)*norm(V)
+    normUVlastupdate = norm(U[:, 1])*norm(V[1, :])
     normUVsqared = normUVlastupdate^2
-    i = 2
+   
     while normUVlastupdate > sqrt(normUVsqared)*tol && 
-            i <= length(rowindices) &&  i <= length(colindices)
-        #println("Iteration: ", i)
-        #println("Should we have stopped? ", normUVlastupdate > sqrt(normUVsqared)*tol ? "No" : "Yes")
-        nextrowindex, maxval = smartmaxlocal(U[:,end], acausedrowindices)
-        #println("nextrowindex: ", nextrowindex)
+            i <= length(rowindices)-1 &&  i <= length(colindices)-1 && acacolumnindicescounter < maxrank
+
+        i += 1
+
+        nextrowindex, maxval = smartmaxlocal(U[:,acacolumnindicescounter], acausedrowindices)
+
         if nextrowindex == -1
             error("Failed to find new row index: ", nextrowindex)
         end
+
         if isapprox(maxval, 0.0)
             println("Future V entry is close to zero. Abort.")
-            return U, V
+            return U[:,1:acacolumnindicescounter], V[1:acarowindicescounter, :]
         end
+
         acausedrowindices[nextrowindex] = true
 
-        next_global_row =  matrix(rowindices[nextrowindex:nextrowindex],colindices[:])'
+        acarowindicescounter += 1
+        V[acarowindicescounter:acarowindicescounter, :] =  matrix(rowindices[nextrowindex:nextrowindex],colindices[:])
 
-        next_global_row -= (U[nextrowindex:nextrowindex, :]*V')'
-        nextcolumnindex, maxval = smartmaxlocal(next_global_row, acausedcolumnindices)
+        #println("A: ", size(U[nextrowindex:nextrowindex, 1:acacolumnindicescounter]*V[1:(acarowindicescounter-1), :]))
+        #println("B: ", size(V[acarowindicescounter:acarowindicescounter, :]))
+        V[acarowindicescounter:acarowindicescounter, :] -= U[nextrowindex:nextrowindex, 1:acacolumnindicescounter]*V[1:(acarowindicescounter-1), :]
+        nextcolumnindex, maxval = smartmaxlocal(V[acarowindicescounter, :], acausedcolumnindices)
 
-        if (isapprox(next_global_row[nextcolumnindex],0.0))
+        if (isapprox(V[acarowindicescounter, nextcolumnindex],0.0))
             normUVlastupdate = 0.0
-            println("Matrix seems to have exact rank: ", length(acarowindices))
+            V[acarowindicescounter:acarowindicescounter, :] .= 0.0
+            acarowindicescounter -= 1
+            println("Matrix seems to have exact rank: ", acarowindicescounter)
         else
-            push!(acarowindices, nextrowindex)
+            #push!(acarowindices, nextrowindex)
 
-            V = hcat(V, next_global_row / next_global_row[nextcolumnindex])
+            V[acarowindicescounter:acarowindicescounter, :] /= V[acarowindicescounter, nextcolumnindex]
 
-            #println("nextcolumnindex: ", nextcolumnindex, " and ", maxval)
             if nextcolumnindex == -1
                 error("Failed to find new column index: ", nextcolumnindex)
             end
+
             if isapprox(maxval, 0.0)
                 println("Future U entry is close to zero. Abort.")
-                return V[:,1:end-1], U
+                return U[:,1:acacolumnindicescounter], V[1:acarowindicescounter-1,:]
             end
+
             acausedcolumnindices[nextcolumnindex] = true
 
-            push!(acacolumnindices, nextcolumnindex)
-            next_global_column = matrix(rowindices,colindices[nextcolumnindex:nextcolumnindex])
+            #push!(acacolumnindices, nextcolumnindex)
 
-            next_global_column -= U*V[nextcolumnindex:nextcolumnindex, 1:end-1]'
-            U = hcat(U,next_global_column)
+            acacolumnindicescounter += 1
+            U[:, acacolumnindicescounter] = matrix(rowindices,colindices[nextcolumnindex:nextcolumnindex])
 
-            normUVlastupdate = norm(U[:,end])*norm(V[:,end])
+            U[:, acacolumnindicescounter] -= U[:, 1:(acacolumnindicescounter-1)]*V[1:(acarowindicescounter-1),nextcolumnindex:nextcolumnindex]
+            
+            normUVlastupdate = norm(U[:,acacolumnindicescounter])*norm(V[acarowindicescounter,:])
 
             normUVsqared += normUVlastupdate^2
-            for j = 1:(length(acacolumnindices))
-                normUVsqared += 2*abs(dot(U[:,end], U[:,j])*dot(V[:,end], V[:,j]))
+            for j = 1:(acacolumnindicescounter-1)
+                normUVsqared += 2*abs(dot(U[:,acacolumnindicescounter], U[:,j])*dot(V[acarowindicescounter,:], V[j,:]))
             end
-
-            #println("normUVlastupdate: ", normUVlastupdate)
-            #println("normUV: ", sqrt(normUVsqared))
         end
-        i += 1
     end
 
-    return U, V
+    if acacolumnindicescounter == maxrank
+        println("WARNING: aborted ACA after maximum allowed rank")
+    end
+
+    return U[:,1:acacolumnindicescounter], V[1:acarowindicescounter,:]
 end
