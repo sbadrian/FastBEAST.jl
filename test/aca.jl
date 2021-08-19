@@ -2,7 +2,13 @@
 N = 1000
 A = rand(N,N)
 
-fct(x,y) =  A[x,y]
+function fct(B, x, y)
+    for i in eachindex(x)
+        for j in eachindex(y)
+            B[i,j] = A[x[i],y[j]]
+        end
+    end
+end
 
 U,S,V = svd(A)
 
@@ -10,7 +16,7 @@ S = [ i < 15 ? 10.0^(-i) : 0.0 for i = 1:N ]
 
 A = U*diagm(S)*V'
 
-U, V = aca_compression(fct, 1:N, 1:N)
+U, V = aca_compression(fct, 1:N, 1:N, T=Float64)
 
 @test U*V ≈ A atol = 1e-14
 
@@ -19,7 +25,13 @@ Ns = 200
 Nt = 100
 A = rand(Nt,Ns)
 
-fct(x,y) =  A[x,y]
+function fct(B, x, y)
+    for i in eachindex(x)
+        for j in eachindex(y)
+            B[i,j] = A[x[i],y[j]]
+        end
+    end
+end
 
 U,S,V = svd(A)
 
@@ -28,7 +40,7 @@ S[1:15] = [10.0^(-i) for i = 1:15 ]
 
 A = U*diagm(S)*V'
 
-U, V = aca_compression(fct, 1:Nt, 1:Ns)
+U, V = aca_compression(fct, 1:Nt, 1:Ns, T=Float64)
 
 @test U*V ≈ A atol = 1e-14
 
@@ -37,7 +49,13 @@ Ns = 100
 Nt = 200
 A = rand(Nt,Ns)
 
-fct(x,y) =  A[x,y]
+function fct(B, x, y)
+    for i in eachindex(x)
+        for j in eachindex(y)
+            B[i,j] = A[x[i],y[j]]
+        end
+    end
+end
 
 U,S,V = svd(A)
 
@@ -46,7 +64,7 @@ S[1:15] = [10.0^(-i) for i = 1:15 ]
 
 A = U*diagm(S)*V'
 
-U, V = aca_compression(fct, 1:Nt, 1:Ns)
+U, V = aca_compression(fct, 1:Nt, 1:Ns, T=Float64)
 
 @test U*V ≈ A atol = 1e-14
 
@@ -55,9 +73,15 @@ a = [1.0 0.0 0.0 0.0 0.0]
 b = [7.0 3.0 1.0 9.0 1.0]
 A = a'*b
 
-fct(x,y) =  A[x,y]
+function fct(B, x, y)
+    for i in eachindex(x)
+        for j in eachindex(y)
+            B[i,j] = A[x[i],y[j]]
+        end
+    end
+end
 
-U, V = aca_compression(fct, 1:5, 1:5)
+U, V = aca_compression(fct, 1:5, 1:5, T=Float64)
 
 @test U*V == A
 
@@ -66,9 +90,15 @@ a = [1.0 -2.0 6.0 4.0 5.0]
 b = [7.0 3.0 1.0 9.0 1.0]
 A = a'*b
 
-fct(x,y) =  A[x,y]
+function fct(B, x, y)
+    for i in eachindex(x)
+        for j in eachindex(y)
+            B[i,j] = A[x[i],y[j]]
+        end
+    end
+end
 
-U, V = aca_compression(fct, 1:5, 1:5)
+U, V = aca_compression(fct, 1:5, 1:5, T=Float64)
 
 @test U*V == A
 
@@ -81,9 +111,15 @@ b2 = [5.0 4.0 3.0 1.0 -4.0]
 #b3 = [-11.0 4.0 3.0 1.0 -4.0]
 A = a1'*b1 + a2'*b2 #+ a3'*b3
 
+function fct(B, x, y)
+    for i in eachindex(x)
+        for j in eachindex(y)
+            B[i,j] = A[x[i],y[j]]
+        end
+    end
+end
 
-fct(x,y) =  A[x,y]
-U, V = aca_compression(fct, 1:5, 1:5)
+U, V = aca_compression(fct, 1:5, 1:5, T=Float64)
 
 @test U*V ≈ A atol = 1e-14
 
@@ -110,22 +146,42 @@ for i = 1:Ns
     end
 end
 
-fct(x,y) =  B[x,y]
+function fct(C, x, y)
+    for i in eachindex(x)
+        for j in eachindex(y)
+            C[i,j] = B[x[i],y[j]]
+        end
+    end
+end
 
-U, V = aca_compression(fct, rowindices, colindices)
+U, V = aca_compression(fct, rowindices, colindices, T=Float64)
 
 @test U*V ≈ A atol = 1e-14
 
 ##
 A = rand(2,1)
 
-fct(x,y) =  A[x,y]
-U, V = aca_compression(fct, 1:2, 1:1)
+function fct(B, x, y)
+    for i in eachindex(x)
+        for j in eachindex(y)
+            B[i,j] = A[x[i],y[j]]
+        end
+    end
+end
+
+U, V = aca_compression(fct, 1:2, 1:1, T=Float64)
 @test U*V ≈ A atol = 1e-14
 
 ##
 A = rand(1,1)
 
-fct(x,y) =  A[x,y]
-U, V = aca_compression(fct, 1:1, 1:1)
+function fct(B, x, y)
+    for i in eachindex(x)
+        for j in eachindex(y)
+            B[i,j] = A[x[i],y[j]]
+        end
+    end
+end
+
+U, V = aca_compression(fct, 1:1, 1:1, T=Float64)
 @test U*V ≈ A atol = 1e-14
