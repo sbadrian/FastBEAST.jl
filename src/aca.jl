@@ -1,4 +1,4 @@
-function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, isdebug=false, maxrank=10)
+function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, isdebug=false, maxrank=40)
 
     function smartmaxlocal(roworcolumn, acausedindices)
         maxval = -1
@@ -54,14 +54,14 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, is
 
         @views nextrowindex, maxval = smartmaxlocal(U[:,acacolumnindicescounter], acausedrowindices)
 
-        if nextrowindex == -1
-            error("Failed to find new row index: ", nextrowindex)
-        end
+        #if nextrowindex == -1
+        #    error("Failed to find new row index: ", nextrowindex)
+        #end
 
-        if isapprox(maxval, 0.0)
-            println("Future V entry is close to zero. Abort.")
-            return U[:,1:acacolumnindicescounter], V[1:acarowindicescounter, :]
-        end
+        #if isapprox(maxval, 0.0)
+        #    println("Future V entry is close to zero. Abort.")
+        #    return U[:,1:acacolumnindicescounter], V[1:acarowindicescounter, :]
+        #end
 
         acausedrowindices[nextrowindex] = true
 
@@ -83,14 +83,14 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, is
 
             @views V[acarowindicescounter:acarowindicescounter, :] /= V[acarowindicescounter, nextcolumnindex]
 
-            if nextcolumnindex == -1
-                error("Failed to find new column index: ", nextcolumnindex)
-            end
+            #if nextcolumnindex == -1
+            #    error("Failed to find new column index: ", nextcolumnindex)
+            #end
 
-            if isapprox(maxval, 0.0)
-                println("Future U entry is close to zero. Abort.")
-                return U[:,1:acacolumnindicescounter], V[1:acarowindicescounter-1,:]
-            end
+            #if isapprox(maxval, 0.0)
+            #    println("Future U entry is close to zero. Abort.")
+            #    return U[:,1:acacolumnindicescounter], V[1:acarowindicescounter-1,:]
+            #end
 
             acausedcolumnindices[nextcolumnindex] = true
 
@@ -113,8 +113,39 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, is
     end
 
     if acacolumnindicescounter == maxrank
-    #    println("WARNING: aborted ACA after maximum allowed rank")
+        println("WARNING: aborted ACA after maximum allowed rank")
     end
 
     return U[:,1:acacolumnindicescounter], V[1:acarowindicescounter,:]
+end
+
+
+function aca_compression(matrix::Function, testnode::BoxTreeNode, sourcenode::BoxTreeNode; 
+                        tol=1e-14, isdebug=false, maxrank=40)
+    U, V = aca_compression(matrix, testnode.data, sourcenode.data,
+                             tol=tol, isdebug=isdebug, maxrank=maxrank)
+
+    if size(U,2) >= 30
+        println("Rank of compressed ACA is too large")
+        println("Size of U: ", size(U))
+        println("   Testnode box")
+        println("    - Center: ", testnode.boundingbox.center)
+        println("    - Halflength: ", testnode.boundingbox.halflength)
+        println("    - Nodes: ", length(testnode.data))
+        println("    - Level: ", testnode.level)
+        println("   Sourcenode box")
+        println("    - Center: ", sourcenode.boundingbox.center)
+        println("    - Halflength: ", sourcenode.boundingbox.halflength)
+        println("    - Nodes: ", length(sourcenode.data))
+        println("    - Level: ", sourcenode.level)
+        #UU, SS, VV = svd(U*V)
+        #k = 1
+        #while k < length(SS) && SS[k] > SS[1]*tol
+        #    k += 1
+        #end
+        #println("   Actual rank: ", k)
+        #error("emergency stop")
+    end
+
+    return U, V
 end

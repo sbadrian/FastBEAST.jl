@@ -75,14 +75,19 @@ end
 
 
 ##
-N = 80000
-NT = N
 
-spoints = [@SVector rand(3) for i = 1:N]
 
-@views OneoverRkernelassembler(matrix, tdata, sdata) = assembler(OneoverRkernel, matrix, spoints[tdata], spoints[sdata])
-stree = create_tree(spoints, nmin=50)
 
-@time hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, isdebug=false)
+function hmatrix3d_benchmark(N)
+    spoints = [@SVector rand(3) for i = 1:N]
+    
+    @views OneoverRkernelassembler(matrix, tdata, sdata) = assembler(OneoverRkernel, matrix, spoints[tdata], spoints[sdata])
+    stree = create_tree(spoints, nmin=400)
+    
+    @time hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, tol=1e-4, isdebug=false)
+    
+    @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
+    return hmat;
+end
 
-@printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
+
