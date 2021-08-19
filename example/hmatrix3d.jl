@@ -86,8 +86,9 @@ function hmatrix3d_benchmark(N)
     
     @time hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, tol=1e-4, isdebug=false)
     
+    @printf("Memory usage: %.2f GiB\n", nnz(hmat)*8/(1024*1024*1024.0))
     @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
-    return hmat;
+    return stree, hmat
 end
 
 
