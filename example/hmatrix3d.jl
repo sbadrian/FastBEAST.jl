@@ -41,7 +41,7 @@ NT = N
 spoints = [@SVector rand(3) for i = 1:N]
 tpoints = 0.1*[@SVector rand(3) for i = 1:NT] + [1.0*SVector(3.5, 3.5, 3.5) for i = 1:NT]
 
-OneoverRkernelassembler(matrix, tdata, sdata) = assembler(OneoverRkernel, matrix, tpoints[tdata], spoints[sdata])
+@views OneoverRkernelassembler(matrix, tdata, sdata) = assembler(OneoverRkernel, matrix, tpoints[tdata], spoints[sdata])
 stree = create_tree(spoints, nmin=50)
 ttree = create_tree(tpoints, nmin=50)
 kmat = assembler(OneoverRkernel, tpoints, spoints)
@@ -57,7 +57,7 @@ NT = N
 
 spoints = [@SVector rand(3) for i = 1:N]
 ##
-OneoverRkernelassembler(matrix, tdata, sdata) = assembler(OneoverRkernel, matrix, spoints[tdata], spoints[sdata])
+@views OneoverRkernelassembler(matrix, tdata, sdata) = assembler(OneoverRkernel, matrix, spoints[tdata], spoints[sdata])
 stree = create_tree(spoints, nmin=100)
 kmat = assembler(OneoverRkernel, spoints, spoints)
 hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, isdebug=false)
@@ -75,12 +75,12 @@ end
 
 
 ##
-N = 40000
+N = 80000
 NT = N
 
 spoints = [@SVector rand(3) for i = 1:N]
 
-OneoverRkernelassembler(matrix, tdata, sdata) = assembler(OneoverRkernel, matrix, spoints[tdata], spoints[sdata])
+@views OneoverRkernelassembler(matrix, tdata, sdata) = assembler(OneoverRkernel, matrix, spoints[tdata], spoints[sdata])
 stree = create_tree(spoints, nmin=50)
 
 @time hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, isdebug=false)
