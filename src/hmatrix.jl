@@ -425,7 +425,7 @@ function build_interaction(matrixassembler, matrixviews, ttchild, sschild, rowdi
         if iscompressable(sschild, ttchild)
             nlrmv += 1
             #println(nlrmv)
-            #matrixviews[nlrmv] = 
+            matrixviews[nlrmv] = 
             getcompressedmatrix(matrixassembler,
                                         ttchild,
                                         sschild,
@@ -435,8 +435,8 @@ function build_interaction(matrixassembler, matrixviews, ttchild, sschild, rowdi
                                         compressor=compressor,
                                         isdebug=isdebug)
             #push!(matrixviews, nmv)
-            #newnonzeros::Int64 = nnz(matrixviews[nlrmv])
-            newnonzeros = 1
+            newnonzeros::Int64 = nnz(matrixviews[nlrmv])
+            #newnonzeros = 1
             return newnonzeros, nlrmv
             #return 1, 1
         else
