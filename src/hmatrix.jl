@@ -291,8 +291,9 @@ function hmatrixassembler!(matrixassembler::Function,
     isdebug=false) where MT <: MatrixView
 
     function getfullmatrixview(matrixassembler, testnode, sourcenode)
-
-        return FullMatrixView(matrixassembler(testnode.data, sourcenode.data),
+        matrix = zeros(Float64, length(testnode.data), length(sourcenode.data))
+        matrixassembler(matrix, testnode.data, sourcenode.data)
+        return FullMatrixView(matrix,
         sourcenode.data,
         testnode.data,
         rowdim,
@@ -303,9 +304,11 @@ function hmatrixassembler!(matrixassembler::Function,
                                 tol = 1e-4, compressor=:aca, isdebug=false)
 
         if compressor==:naive
-            fullmat = matrixassembler(testnode.data, sourcenode.data)
+            matrix = zeros(Float64, length(testnode.data), length(sourcenode.data))
 
-            U,S,V = svd(fullmat)
+            matrixassembler(matrix, testnode.data, sourcenode.data)
+
+            U,S,V = svd(matrix)
             k = 1
             while k < length(S) && S[k] > S[1]*tol
                 k += 1

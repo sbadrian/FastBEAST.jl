@@ -29,7 +29,9 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, is
     i = 1
     #acacolumnindices = Integer[]
 
-    V[acarowindicescounter:acarowindicescounter, :] =  matrix(rowindices[nextrowindex:nextrowindex],colindices[:])
+    matrix(view(V, acarowindicescounter:acarowindicescounter, :), 
+                rowindices[nextrowindex:nextrowindex],
+                colindices[:])
 
     nextcolumnindex, maxval = smartmaxlocal(V[acarowindicescounter, :], acausedcolumnindices)
     acausedcolumnindices[nextcolumnindex] = true
@@ -39,7 +41,9 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, is
 
     V[acarowindicescounter:acarowindicescounter, :] /= V[acarowindicescounter, nextcolumnindex]
 
-    U[:, acacolumnindicescounter] = matrix(rowindices,colindices[nextcolumnindex:nextcolumnindex])
+    matrix(view(U, :, acacolumnindicescounter:acacolumnindicescounter), 
+            rowindices, 
+            colindices[nextcolumnindex:nextcolumnindex])
 
     normUVlastupdate = norm(U[:, 1])*norm(V[1, :])
     normUVsqared = normUVlastupdate^2
@@ -63,7 +67,9 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, is
         acausedrowindices[nextrowindex] = true
 
         acarowindicescounter += 1
-        V[acarowindicescounter:acarowindicescounter, :] =  matrix(rowindices[nextrowindex:nextrowindex],colindices[:])
+        matrix(view(V, acarowindicescounter:acarowindicescounter, :), 
+                rowindices[nextrowindex:nextrowindex],
+                colindices[:])
 
         #println("A: ", size(U[nextrowindex:nextrowindex, 1:acacolumnindicescounter]*V[1:(acarowindicescounter-1), :]))
         #println("B: ", size(V[acarowindicescounter:acarowindicescounter, :]))
@@ -94,7 +100,9 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, is
             #push!(acacolumnindices, nextcolumnindex)
 
             acacolumnindicescounter += 1
-            U[:, acacolumnindicescounter] = matrix(rowindices,colindices[nextcolumnindex:nextcolumnindex])
+            matrix(view(U, :, acacolumnindicescounter:acacolumnindicescounter), 
+                    rowindices,
+                    colindices[nextcolumnindex:nextcolumnindex])
 
             U[:, acacolumnindicescounter] -= U[:, 1:(acacolumnindicescounter-1)]*V[1:(acarowindicescounter-1),nextcolumnindex:nextcolumnindex]
             

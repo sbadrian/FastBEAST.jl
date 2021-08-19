@@ -32,6 +32,14 @@ function assembler(kernel, testpoints, sourcepoints)
     return kernelmatrix
 end
 
+function assembler(kernel, matrix, testpoints, sourcepoints)
+    for i = 1:length(testpoints)
+        for j = 1:length(sourcepoints)
+            matrix[i,j] = kernel(testpoints[i], sourcepoints[j])
+        end
+    end
+end
+
 kmat = assembler(logkernel, tpoints, spoints)
 
 U, S, V = svd(kmat)
@@ -41,7 +49,7 @@ println("Condition number: ", S[1] / S[end])
 plot(S, yaxis=:log, marker=:x)
 
 ##
-logkernelassembler(tdata, sdata) = assembler(logkernel, spoints[tdata], spoints[sdata])
+logkernelassembler(matrix, tdata, sdata) = assembler(logkernel, matrix, spoints[tdata], spoints[sdata])
 stree = create_tree(spoints, nmin=5)
 kmat = assembler(logkernel, spoints, spoints)
 hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive)
@@ -50,7 +58,7 @@ hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive)
 @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
 
 ## 
-logkernelassembler(tdata, sdata) = assembler(logkernel, tpoints[tdata], spoints[sdata])
+logkernelassembler(matrix, tdata, sdata) = assembler(logkernel, matrix, tpoints[tdata], spoints[sdata])
 stree = create_tree(spoints, nmin=100)
 ttree = create_tree(tpoints, nmin=100)
 kmat = assembler(logkernel, tpoints, spoints)
