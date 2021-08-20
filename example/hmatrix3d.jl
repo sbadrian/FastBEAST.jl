@@ -88,7 +88,7 @@ function hmatrix3d_benchmark(N)
     
     @printf("Memory usage: %.2f GiB\n", nnz(hmat)*8/(1024*1024*1024.0))
     @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
-    return stree, hmat
+    return nothing #stree, hmat
 end
 
 
