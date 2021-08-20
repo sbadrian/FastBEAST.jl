@@ -147,11 +147,12 @@ function HMatrix(matrixassembler::Function,
                  tol=1e-4)
     
     T = Float64 #promote_type(eltype(sourcepoints[1]), eltype(testpoints[1]))
+    I = Int64
 
     #estimated_nlevel = maximum(log(8,length(testtree.data)), log(8,length(sourcetree.data)))
     #estimate_ninteractions = 
     maxsources = max(length(testtree.data), length(sourcetree.data))
-    matrixviews = Vector{LowRankMatrixView{T}}(undef, 2*maxsources)
+    matrixviews = Vector{LowRankMatrixView{Float64, Int64}}(undef, 0)
 
     rowdim = length(testtree.data)
     coldim = length(sourcetree.data)
@@ -176,7 +177,7 @@ function HMatrix(matrixassembler::Function,
 end
 
 function hmatrixassembler!(matrixassembler::Function,
-    matrixviews::Vector{LowRankMatrixView{Float64}},
+    matrixviews,
     testnode::BoxTreeNode,
     sourcenode::BoxTreeNode,
     rowdim::Integer,
@@ -192,7 +193,7 @@ function hmatrixassembler!(matrixassembler::Function,
         if sourcenode.level == 0 && testnode.level == 0
             nlrmv += 1
             #matrixviews[nlrmv] = 
-            getcompressedmatrix(matrixassembler,
+            aux = getcompressedmatrix(matrixassembler,
                                         testnode,
                                         sourcenode,
                                         rowdim,
@@ -201,7 +202,8 @@ function hmatrixassembler!(matrixassembler::Function,
                                         tol=tol,
                                         isdebug=isdebug)
 
-            #nonzeros += nnz(matrixviews[nlrmv])
+            nonzeros += nnz(aux)
+            push!(matrixviews, aux)
             return nonzeros, nlrmv
         else
             error("We do not expect this behavior")
@@ -314,7 +316,7 @@ function build_interaction(matrixassembler, matrixviews, ttchild, sschild, rowdi
         if iscompressable(sschild, ttchild)
             nlrmv += 1
             #println(nlrmv)
-            matrixviews[nlrmv] = 
+            aux = 
             getcompressedmatrix(matrixassembler,
                                         ttchild,
                                         sschild,
@@ -323,8 +325,8 @@ function build_interaction(matrixassembler, matrixviews, ttchild, sschild, rowdi
                                         tol=tol,
                                         compressor=compressor,
                                         isdebug=isdebug)
-            #push!(matrixviews, nmv)
-            newnonzeros::Int64 = nnz(matrixviews[nlrmv])
+            push!(matrixviews, aux)
+            newnonzeros::Int64 = nnz(aux)
             #newnonzeros = 1
             return newnonzeros, nlrmv
             #return 1, 1

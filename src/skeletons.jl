@@ -1,4 +1,4 @@
-abstract type MatrixView{T} end
+abstract type MatrixView{F <:Real, I <: Integer} end
 
 import Base.:eltype
 
@@ -23,47 +23,29 @@ function eltype(mv::Adjoint{MT}) where MT <:MatrixView
     return typeof(adjoint(mv)).parameters[1]
 end
 
-mutable struct FullMatrixView{T} <: MatrixView{T}
-    matrix::Matrix{T}
-    rightindices::Vector{Integer}
-    leftindices::Vector{Integer}
-    rowdim::Integer
-    columndim::Integer
+struct FullMatrixView{F,I} <: MatrixView{F,I}
+    matrix::Matrix{F}
+    rightindices::Vector{I}
+    leftindices::Vector{I}
+    rowdim::I
+    columndim::I
 end
 
-mutable struct FullMatrixView2
-    matrix::Matrix{Float64}
-    rightindices::Vector{Int64}
-    leftindices::Vector{Int64}
-    rowdim::Int64
-    columndim::Int64
-end
 
-function FullMatrixView(matrix::Matrix{T}, 
-                        rightindices::Vector{I}, 
-                        leftindices::Vector{I},
-                        rowdim::Integer,
-                        columndim::Integer) where {T, I <: Integer}
+# function FullMatrixView(matrix::Matrix{T}, 
+#                         rightindices::Vector{I}, 
+#                         leftindices::Vector{I},
+#                         rowdim::Integer,
+#                         columndim::Integer) where {T, I <: Integer}
 
-    return FullMatrixView{T}(matrix, 
-                             rightindices, 
-                             leftindices, 
-                             rowdim, 
-                             columndim)
-end
+#     return FullMatrixView{T}(matrix, 
+#                              rightindices, 
+#                              leftindices, 
+#                              rowdim, 
+#                              columndim)
+# end
 
-function FullMatrixView2(matrix::Matrix{Float64}, 
-    rightindices::Vector{I}, 
-    leftindices::Vector{I},
-    rowdim::Integer,
-    columndim::Integer) where {I <: Int64}
 
-return FullMatrixView2(matrix, 
-         rightindices, 
-         leftindices, 
-         rowdim, 
-         columndim)
-end
 
 import Base.:*
 function *(fmv::FMT, vecin::VT) where {FMT <:FullMatrixView, VT <: AbstractVector}
@@ -86,29 +68,30 @@ function nnz(fmv::FullMatrixView)
     return size(fmv.matrix,1)*size(fmv.matrix,2)
 end
 
-mutable struct LowRankMatrixView{T} <: MatrixView{T}
-    rightmatrix::Matrix{T}
-    leftmatrix::Matrix{T}
-    rightindices::Vector{Integer}
-    leftindices::Vector{Integer}
-    rowdim::Integer
-    columndim::Integer
+struct LowRankMatrixView{F,I} <: MatrixView{F,I}
+    rightmatrix::Matrix{F}
+    leftmatrix::Matrix{F}
+    rightindices::Vector{I}
+    leftindices::Vector{I}
+    rowdim::I
+    columndim::I
 end
 
-function LowRankMatrixView(rightmatrix::Matrix{T}, 
-                            leftmatrix::Matrix{T}, 
-                            rightindices::Vector{I},
-                            leftindices::Vector{I},
-                            rowdim::Integer,
-                            columndim::Integer) where {T, I <: Integer}
 
-    return LowRankMatrixView{T}(rightmatrix,
-                                leftmatrix,
-                                rightindices, 
-                                leftindices, 
-                                rowdim, 
-                                columndim)
-end
+# function LowRankMatrixView(rightmatrix::Matrix{T}, 
+#                             leftmatrix::Matrix{T}, 
+#                             rightindices::Vector{I},
+#                             leftindices::Vector{I},
+#                             rowdim::Integer,
+#                             columndim::Integer) where {T, I <: Integer}
+
+#     return LowRankMatrixView{T}(rightmatrix,
+#                                 leftmatrix,
+#                                 rightindices, 
+#                                 leftindices, 
+#                                 rowdim, 
+#                                 columndim)
+# end
 
 function *(lmv::LMT, vecin::VT) where {LMT <:LowRankMatrixView, VT <: AbstractVector}
     T = promote_type(eltype(lmv), eltype(vecin))
