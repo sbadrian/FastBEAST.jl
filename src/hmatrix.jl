@@ -1,120 +1,11 @@
 using LinearAlgebra
-
-abstract type MatrixView{T} end
-
-import Base.:eltype
-
-function eltype(mv::MT) where MT <:MatrixView
-    return typeof(mv).parameters[1]
-end
-
-struct Adjoint{T} 
-    mv::T
-end
-
-import Base.:adjoint
-function adjoint(mv::T) where T
-    return Adjoint(mv)
-end
-
-function adjoint(adjmv::Adjoint{T}) where T
-    return adjmv.mv
-end
-
-function eltype(mv::Adjoint{MT}) where MT <:MatrixView
-    return typeof(adjoint(mv)).parameters[1]
-end
-
-struct FullMatrixView{T} <: MatrixView{T}
-    matrix::Matrix{T}
-    rightindices::Vector{Integer}
-    leftindices::Vector{Integer}
-    rowdim::Integer
-    columndim::Integer
-end
-
-function FullMatrixView(matrix::Matrix{T}, 
-                        rightindices::Vector{I}, 
-                        leftindices::Vector{I},
-                        rowdim::Integer,
-                        columndim::Integer) where {T, I <: Integer}
-
-    return FullMatrixView{T}(matrix, 
-                             rightindices, 
-                             leftindices, 
-                             rowdim, 
-                             columndim)
-end
-
-import Base.:*
-function *(fmv::FMT, vecin::VT) where {FMT <:FullMatrixView, VT <: AbstractVector}
-    T = promote_type(eltype(fmv), eltype(vecin))
-    vecout = zeros(T, fmv.rowdim)
-
-    vecout[fmv.leftindices] = fmv.matrix * vecin[fmv.rightindices]
-    return vecout
-end
-
-function *(afmv::Adjoint{FMT}, vecin::VT) where {FMT <:FullMatrixView, VT <: AbstractVector}
-    T = promote_type(eltype(afmv), eltype(vecin))
-    vecout = zeros(T, afmv.mv.columndim)
-
-    vecout[afmv.mv.rightindices] = adjoint(afmv.mv.matrix) * vecin[afmv.mv.leftindices]
-    return vecout
-end
-
-function nnz(fmv::FullMatrixView)
-    return size(fmv.matrix,1)*size(fmv.matrix,2)
-end
-
-struct LowRankMatrixView{T} <: MatrixView{T}
-    rightmatrix::Matrix{T}
-    leftmatrix::Matrix{T}
-    rightindices::Vector{Integer}
-    leftindices::Vector{Integer}
-    rowdim::Integer
-    columndim::Integer
-end
-
-function LowRankMatrixView(rightmatrix::Matrix{T}, 
-                            leftmatrix::Matrix{T}, 
-                            rightindices::Vector{I},
-                            leftindices::Vector{I},
-                            rowdim::Integer,
-                            columndim::Integer) where {T, I <: Integer}
-
-    return LowRankMatrixView{T}(rightmatrix,
-                                leftmatrix,
-                                rightindices, 
-                                leftindices, 
-                                rowdim, 
-                                columndim)
-end
-
-function *(lmv::LMT, vecin::VT) where {LMT <:LowRankMatrixView, VT <: AbstractVector}
-    T = promote_type(eltype(lmv), eltype(vecin))
-    vecout = zeros(T, lmv.rowdim)
-    vecout[lmv.leftindices] = lmv.leftmatrix*(lmv.rightmatrix * vecin[lmv.rightindices])
-    return vecout
-end
-
-function *(almv::Adjoint{LMT}, vecin::VT) where {LMT <: LowRankMatrixView, VT <: AbstractVector}
-    T = promote_type(eltype(almv), eltype(vecin))
-    vecout = zeros(T, almv.mv.columndim)
-
-    vecout[almv.mv.rightindices] = almv.mv.rightmatrix'*(almv.mv.leftmatrix' * vecin[almv.mv.leftindices])
-    return vecout
-end
-
-function nnz(lmv::LowRankMatrixView)
-    return size(lmv.rightmatrix,1)*size(lmv.rightmatrix,2) + 
-            size(lmv.leftmatrix,1)*size(lmv.leftmatrix,2)
-end
+using ProgressMeter
 
 abstract type AbstractHierarchicalMatrix{T} end
 
 struct HMatrix{T} <: AbstractHierarchicalMatrix{T}
-    matrixviews::Vector{MatrixView{T}}
+    fullmatrixviews::Vector{FullMatrixView{T}}
+    matrixviews::Vector{LowRankMatrixView{T}}
     rowdim::Integer
     columndim::Integer
     nnz::Integer
@@ -176,8 +67,12 @@ function *(hmat::HT, vecin::VT)  where {HT <: HMatrix, VT <: AbstractVector}
 
     vecout = zeros(T, hmat.rowdim)
 
-    for mv in hmat.matrixviews
-        vecout += mv*vecin
+    for fmv in hmat.fullmatrixviews
+        vecout[fmv.leftindices] += fmv.matrix * vecin[fmv.rightindices]
+    end
+
+    for lmv in hmat.matrixviews
+        vecout[lmv.leftindices] = lmv.leftmatrix*(lmv.rightmatrix * vecin[lmv.rightindices])
     end
 
     return vecout
@@ -198,8 +93,12 @@ function *(hmat::Adjoint{HT}, vecin::VT)  where {HT <: HMatrix, VT <: AbstractVe
 
     vecout = zeros(T, hmat.mv.columndim)
 
-    for mv in hmat.mv.matrixviews
-        vecout += adjoint(mv)*vecin
+    for afmv in hmat.mv.fullmatrixviews
+        vecout[afmv.rightindices] = adjoint(afmv.matrix) * vecin[afmv.leftindices]
+    end
+
+    for almv in hmat.mv.matrixviews
+        vecout[almv.rightindices] = almv.rightmatrix'*(almv.leftmatrix' * vecin[almv.leftindices])
     end
 
     return vecout
@@ -255,167 +154,151 @@ function HMatrix(matrixassembler::Function,
                  sourcetree::BoxTreeNode;
                  compressor=:naive,
                  isdebug=false,
-                 tol=1e-4)
+                 tol=1e-4,
+                 T=ComplexF64,
+                 I=Int64)
     
-    T = Float64 #promote_type(eltype(sourcepoints[1]), eltype(testpoints[1]))
+    fullinteractions = SVector{2,BoxTreeNode}[]
+    compressableinteractions = SVector{2,BoxTreeNode}[]
 
-    matrixviews = MatrixView{T}[]
+    computerinteractions!(testtree,
+                            sourcetree,
+                            fullinteractions,
+                            compressableinteractions)
+
+    fullmatrixviews = FullMatrixView{T, I}[]
+    matrixviews = LowRankMatrixView{T, I}[]
 
     rowdim = length(testtree.data)
     coldim = length(sourcetree.data)
 
-    nonzeros = hmatrixassembler!(matrixassembler, 
-                        matrixviews,
-                        testtree,
-                        sourcetree,
-                        rowdim,
-                        coldim,
-                        compressor=compressor,
-                        tol=tol,
-                        isdebug=isdebug)
+    nonzeros = 0
+    println("Number of full interactions: ", length(fullinteractions))
+    println("Number of compressable interactions: ", length(compressableinteractions))
 
-    return HMatrix{T}(matrixviews, 
+    @showprogress "Computing full interactions: " for fullinteraction in fullinteractions
+        nonzeros += length(fullinteraction[1].data)*length(fullinteraction[2].data)
+        push!(fullmatrixviews, getfullmatrixview(matrixassembler, fullinteraction[1], fullinteraction[2], rowdim, coldim))
+    end
+
+    @showprogress "Compressing far interactions: " for compressableinteraction in compressableinteractions
+        push!(matrixviews, getcompressedmatrix(matrixassembler,
+                                                compressableinteraction[1],
+                                                compressableinteraction[2],
+                                                rowdim,
+                                                coldim,
+                                                compressor=compressor,
+                                                tol=tol,
+                                                isdebug=isdebug))
+        nonzeros += nnz(matrixviews[end])
+
+    end
+
+    return HMatrix{T}(fullmatrixviews,
+                      matrixviews, 
                       rowdim,
                       coldim,
                       nonzeros)
 end
 
-function hmatrixassembler!(matrixassembler::Function,
-    matrixviews::Vector{MT},
-    testnode::BoxTreeNode,
-    sourcenode::BoxTreeNode,
-    rowdim::Integer,
-    coldim::Integer;
-    compressor=:aca,
-    tol=1e-4,
-    isdebug=false) where MT <: MatrixView
-
-    function getfullmatrixview(matrixassembler, testnode, sourcenode)
-
-        return FullMatrixView(matrixassembler(testnode.data, sourcenode.data),
-        sourcenode.data,
-        testnode.data,
-        rowdim,
-        coldim)
-    end
-
-    function getcompressedmatrix(matrixassembler::Function, testnode, sourcenode; 
-                                tol = 1e-4, compressor=:aca, isdebug=false)
-
-        if compressor==:naive
-            fullmat = matrixassembler(testnode.data, sourcenode.data)
-
-            U,S,V = svd(fullmat)
-            k = 1
-            while k < length(S) && S[k] > S[1]*tol
-                k += 1
-            end
-
-            return LowRankMatrixView(copy(V[:, 1:k]'),
-            U[:, 1:k]*diagm(S[1:k]),
-            sourcenode.data,
-            testnode.data,
-            rowdim,
-            coldim)
-        elseif compressor==:aca
-            #U, V = aca_compression2(assembler, kernel, testpoints, sourcepoints, 
-            #testnode.data, sourcenode.data; tol=tol)
-
-            U, V = aca_compression(matrixassembler, testnode.data, sourcenode.data; tol=tol, isdebug=isdebug)
-
-            return LowRankMatrixView(V,
-                                     U,
-                                     sourcenode.data,
-                                     testnode.data,
-                                     rowdim,
-                                     coldim)
-        else
-            error("Tertium non datur")
-        end
-    end
-
-    function build_interaction(matrixassembler, matrixviews, tchild, schild; tol=1e-4, isdebug=false)
-        if length(schild.data) > 0 && length(tchild.data) > 0
-            if iscompressable(schild, tchild)
-                nmv = getcompressedmatrix(matrixassembler,
-                                            tchild,
-                                            schild,
-                                            compressor=compressor,
-                                            tol=tol,
-                                            isdebug=isdebug)
-                push!(matrixviews, nmv)
-                nonzeros += nnz(nmv)
-            else
-                nonzeros += hmatrixassembler!(matrixassembler,
-                                                matrixviews,
-                                                tchild,
-                                                schild,
-                                                rowdim,
-                                                coldim,
-                                                compressor=compressor,
-                                                tol=tol,
-                                                isdebug=isdebug)
-            end
-        end
-    end
-
-    nonzeros = 0
+function computerinteractions!(testnode::BoxTreeNode,
+                                sourcenode::BoxTreeNode,
+                                fullinteractions::Vector{SVector{2,BoxTreeNode}},
+                                compressableinteractions::Vector{SVector{2,BoxTreeNode}})
 
     if iscompressable(sourcenode, testnode)
         if sourcenode.level == 0 && testnode.level == 0
-            nmv = getcompressedmatrix(matrixassembler,
-                                        testnode,
-                                        sourcenode,
-                                        compressor=compressor,
-                                        tol=tol,
-                                        isdebug=isdebug)
-            push!(matrixviews, nmv)
-            nonzeros += nnz(nmv)
-            return nonzeros
+            push!(compressableinteractions, SVector(testnode, sourcenode))
+            return
         else
             error("We do not expect this behavior")
         end
     end
 
     if sourcenode.children === nothing && testnode.children === nothing
-        nmv = getfullmatrixview(matrixassembler, testnode, sourcenode)
-        push!(matrixviews, nmv)
-        nonzeros += nnz(nmv)
+        push!(fullinteractions, SVector(testnode, sourcenode))
+        return
     else
         if sourcenode.children === nothing
             schild = sourcenode
             for tchild in testnode.children
-                build_interaction(matrixassembler, matrixviews, tchild, schild, tol=tol, isdebug=isdebug)
+                decide_compression(tchild, 
+                                    schild, 
+                                    fullinteractions, 
+                                    compressableinteractions)
             end
         elseif testnode.children === nothing
             tchild = testnode
             for schild in sourcenode.children
-                build_interaction(matrixassembler, matrixviews, tchild, schild, tol=tol, isdebug=isdebug)
+                decide_compression(tchild, 
+                                    schild, 
+                                    fullinteractions, 
+                                    compressableinteractions)
             end
         else
             for schild in sourcenode.children
                 for tchild in testnode.children
-                    build_interaction(matrixassembler, matrixviews, tchild, schild, tol=tol, isdebug=isdebug)
+                    decide_compression(tchild, 
+                                        schild, 
+                                        fullinteractions, 
+                                        compressableinteractions)
                 end
             end
         end
     end
-    
-    return nonzeros
-    #if iswellseparated(sourcenode, testnode)
-    #
-    #end
 end
 
+function decide_compression(ttchild, sschild, fullinteractions, compressableinteractions)
+    if length(ttchild.data) > 0 && length(sschild.data) > 0
+        if iscompressable(ttchild, sschild)
+            push!(compressableinteractions, SVector(ttchild, sschild))
+
+            return
+        else
+            computerinteractions!(ttchild,
+                                    sschild,
+                                    fullinteractions,
+                                    compressableinteractions)
+        end
+    end
+end
 
 function iscompressable(sourcenode::BoxTreeNode, testnode::BoxTreeNode)
     mindistance = sqrt(length(sourcenode.boundingbox.center))*sourcenode.boundingbox.halflength 
     mindistance += sqrt(length(testnode.boundingbox.center))*testnode.boundingbox.halflength 
 
     distance_centers = norm(sourcenode.boundingbox.center - testnode.boundingbox.center)
-    if distance_centers > mindistance
+    if distance_centers > 1.1*mindistance
         return true
     else 
         return false
     end
+end
+
+function getfullmatrixview(matrixassembler, testnode, sourcenode, rowdim, coldim; T=ComplexF64)
+    matrix = zeros(T, length(testnode.data), length(sourcenode.data))
+    matrixassembler(matrix, testnode.data, sourcenode.data)
+    return FullMatrixView(matrix,
+                            sourcenode.data,
+                            testnode.data,
+                            rowdim,
+                            coldim)
+end
+
+function getcompressedmatrix(matrixassembler::Function, testnode, sourcenode, rowdim, coldim; 
+                            tol = 1e-4, compressor=:aca, T=ComplexF64)
+
+        #U, V = aca_compression2(assembler, kernel, testpoints, sourcepoints, 
+        #testnode.data, sourcenode.data; tol=tol)
+        #println("Confirm level: ", sourcenode.level)
+        U, V = aca_compression(matrixassembler, testnode, sourcenode; tol=tol, T=T)
+
+        lm = LowRankMatrixView(V,
+                                 U,
+                                 sourcenode.data,
+                                 testnode.data,
+                                 rowdim,
+                                 coldim)
+
+    return lm
 end

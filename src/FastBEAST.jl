@@ -3,6 +3,7 @@ module FastBEAST
 include("boundingbox.jl")
 include("boxtree.jl")
 include("aca.jl")
+include("skeletons.jl")
 include("hmatrix.jl")
 
 export BoundingBox
@@ -14,6 +15,8 @@ export BoxTreeNode
 export create_tree
 
 export aca_compression
+
+export FullMatrixView, FullMatrixView2, MatrixView, LowRankMatrixView
 
 export HMatrix
 export buildhmatrix
