@@ -1,9 +1,8 @@
 using LinearAlgebra
+using LinearMaps
 using ProgressMeter
 
-abstract type AbstractHierarchicalMatrix{T} end
-
-struct HMatrix{T} <: AbstractHierarchicalMatrix{T}
+struct HMatrix{T} <: LinearMaps.LinearMap{T}
     fullmatrixviews::Vector{FullMatrixView{T}}
     matrixviews::Vector{LowRankMatrixView{T}}
     rowdim::Integer
@@ -11,26 +10,18 @@ struct HMatrix{T} <: AbstractHierarchicalMatrix{T}
     nnz::Integer
 end
 
-function nnz(hmat::HT) where HT <:AbstractHierarchicalMatrix
+function nnz(hmat::HMatrix) where HT <: HMatrix
     return hmat.nnz
 end
 
-function compressionrate(hmat::HT) where HT <:AbstractHierarchicalMatrix
+function compressionrate(hmat::HT) where HT <: HMatrix
     fullsize = hmat.rowdim*hmat.columndim
     return (fullsize - nnz(hmat))/fullsize
 end
 
-function eltype(hmat::HT) where HT <:AbstractHierarchicalMatrix
-    return typeof(hmat).parameters[1]
-end
-
-function eltype(hmat::Adjoint{HT}) where HT <:AbstractHierarchicalMatrix
-    return typeof(adjoint(hmat)).parameters[1]
-end
-
 import Base.:size
 
-function size(hmat::AbstractHierarchicalMatrix, dim=nothing)
+function size(hmat::HMatrix, dim=nothing)
     if dim === nothing
         return (hmat.rowdim, hmat.columndim)
     elseif dim == 1
@@ -42,7 +33,7 @@ function size(hmat::AbstractHierarchicalMatrix, dim=nothing)
     end
 end
 
-function size(hmat::Adjoint{T}, dim=nothing) where T <: AbstractHierarchicalMatrix
+function size(hmat::Adjoint{T}, dim=nothing) where T <: HMatrix
     if dim === nothing
         return reverse(size(adjoint(hmat)))
     elseif dim == 1
@@ -54,90 +45,41 @@ function size(hmat::Adjoint{T}, dim=nothing) where T <: AbstractHierarchicalMatr
     end
 end
 
-function *(hmat::HT, vecin::VT)  where {HT <: HMatrix, VT <: AbstractVector}
+function LinearAlgebra.mul!(y::AbstractVecOrMat, A::HMatrix, x::AbstractVector)
+    LinearMaps.check_dim_mul(y, A, x)
 
-    if length(vecin) != hmat.columndim
-        error("HMatrix vector and matrix have not matching dimensions")
+    fill!(y, zero(eltype(y)))
+
+    for fmv in A.fullmatrixviews
+        y[fmv.leftindices] += fmv.matrix * x[fmv.rightindices]
     end
 
-    T = promote_type(eltype(hmat), eltype(vecin))
-
-    vecout = zeros(T, hmat.rowdim)
-
-    for fmv in hmat.fullmatrixviews
-        vecout[fmv.leftindices] += fmv.matrix * vecin[fmv.rightindices]
+    for lmv in A.matrixviews
+        y[lmv.leftindices] += lmv.leftmatrix*(lmv.rightmatrix * x[lmv.rightindices])
     end
 
-    for lmv in hmat.matrixviews
-        vecout[lmv.leftindices] += lmv.leftmatrix*(lmv.rightmatrix * vecin[lmv.rightindices])
-    end
-
-    return vecout
+    return y
 end
 
-function *(hmat::Adjoint{HT}, vecin::VT)  where {HT <: HMatrix, VT <: AbstractVector}
-    if length(vecin) != hmat.mv.rowdim
-        error("HMatrix vector and matrix have not matching dimensions")
+
+function LinearAlgebra.mul!(
+    y::AbstractVecOrMat,
+    transA::LinearMaps.TransposeMap{<:Any,<:HMatrix},
+    x::AbstractVector
+)
+    LinearMaps.check_dim_mul(y, transA, x)
+
+    fill!(y, zero(eltype(y)))
+
+    for afmv in transA.lmap.fullmatrixviews
+        y[afmv.rightindices] += adjoint(afmv.matrix) * x[afmv.leftindices]
     end
 
-    T = promote_type(eltype(hmat), eltype(vecin))
-
-    vecout = zeros(T, hmat.mv.columndim)
-
-    for afmv in hmat.mv.fullmatrixviews
-        vecout[afmv.rightindices] += adjoint(afmv.matrix) * vecin[afmv.leftindices]
+    for almv in transA.lmap.matrixviews
+        y[almv.rightindices] += almv.rightmatrix'*(almv.leftmatrix' * x[almv.leftindices])
     end
 
-    for almv in hmat.mv.matrixviews
-        vecout[almv.rightindices] += almv.rightmatrix'*(almv.leftmatrix' * vecin[almv.leftindices])
-    end
-
-    return vecout
-end
-
-function estimate_norm(mat; tol=1e-4, itmax = 1000)
-    v = rand(size(mat,2))
-
-    v = v/norm(v)
-    itermin = 3
-    i = 1
-    σold = 1
-    σnew = 1
-    while (norm(sqrt(σold)-sqrt(σnew))/norm(sqrt(σold)) > tol || i < itermin) && i < itmax
-        σold = σnew
-        w = mat*v
-        x = adjoint(mat)*w
-        σnew = norm(x)
-        v = x/norm(x)
-        i += 1
-    end
-    return sqrt(σnew)
-end
-
-function estimate_reldifference(hmat, refmat; tol=1e-4)
-    #if size(hmat) != size(refmat)
-    #    error("Dimensions of matrices do not match")
-    #end
-    
-    v = rand(size(hmat,2))
-
-    v = v/norm(v)
-    itermin = 3
-    i = 1
-    σold = 1
-    σnew = 1
-    while norm(sqrt(σold)-sqrt(σnew))/norm(sqrt(σold)) > tol || i < itermin
-        σold = σnew
-        w = hmat*v - refmat*v
-        x = adjoint(hmat)*w - adjoint(refmat)*w
-        σnew = norm(x)
-        v = x/norm(x)
-        i += 1
-    end
-
-    norm_refmat = estimate_norm(refmat, tol=tol)
-
-    return sqrt(σnew)/norm_refmat
+    return y
 end
 
 function HMatrix(matrixassembler::Function,

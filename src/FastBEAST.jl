@@ -4,6 +4,7 @@ include("boundingbox.jl")
 include("boxtree.jl")
 include("aca.jl")
 include("skeletons.jl")
+include("utils.jl")
 include("hmatrix.jl")
 
 export BoundingBox
