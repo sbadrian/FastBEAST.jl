@@ -33,4 +33,4 @@ A = rand(100,100)
 B = rand(100,100)
 using LinearAlgebra
 @test opnorm(A) ≈ estimate_norm(A) atol=1e-3
-@test opnorm(A-B)/opnorm(B) ≈ estimate_reldifference(A,B) atol=1e-3
+@test opnorm(A-B)/opnorm(B) ≈ estimate_reldifference(A,B, tol=1e-6) atol=1e-3

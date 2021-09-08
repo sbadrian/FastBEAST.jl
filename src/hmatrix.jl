@@ -19,9 +19,6 @@ function compressionrate(hmat::HT) where HT <:AbstractHierarchicalMatrix
     fullsize = hmat.rowdim*hmat.columndim
     return (fullsize - nnz(hmat))/fullsize
 end
-#function adjoint(mv::HMatrix)
-#    return Adjoint(mv)
-#end
 
 function eltype(hmat::HT) where HT <:AbstractHierarchicalMatrix
     return typeof(hmat).parameters[1]
@@ -72,18 +69,12 @@ function *(hmat::HT, vecin::VT)  where {HT <: HMatrix, VT <: AbstractVector}
     end
 
     for lmv in hmat.matrixviews
-        vecout[lmv.leftindices] = lmv.leftmatrix*(lmv.rightmatrix * vecin[lmv.rightindices])
+        vecout[lmv.leftindices] += lmv.leftmatrix*(lmv.rightmatrix * vecin[lmv.rightindices])
     end
 
     return vecout
 end
 
-#function *(adjA::Adjoint{<:Any,<:AbstractMatrix{T}}, x::AbstractVector{S}) where {T,S}
-#    TS = promote_op(matprod, T, S)
-#    mul!(similar(x, TS, size(adjA, 1)), adjA, x)
-#end
-
-#function *(hmat::Adjoint{<:Any,<:AbstractHierarchicalMatrix{K}}, vecin::AbstractVector{S})  where {K,S}
 function *(hmat::Adjoint{HT}, vecin::VT)  where {HT <: HMatrix, VT <: AbstractVector}
     if length(vecin) != hmat.mv.rowdim
         error("HMatrix vector and matrix have not matching dimensions")
@@ -94,25 +85,25 @@ function *(hmat::Adjoint{HT}, vecin::VT)  where {HT <: HMatrix, VT <: AbstractVe
     vecout = zeros(T, hmat.mv.columndim)
 
     for afmv in hmat.mv.fullmatrixviews
-        vecout[afmv.rightindices] = adjoint(afmv.matrix) * vecin[afmv.leftindices]
+        vecout[afmv.rightindices] += adjoint(afmv.matrix) * vecin[afmv.leftindices]
     end
 
     for almv in hmat.mv.matrixviews
-        vecout[almv.rightindices] = almv.rightmatrix'*(almv.leftmatrix' * vecin[almv.leftindices])
+        vecout[almv.rightindices] += almv.rightmatrix'*(almv.leftmatrix' * vecin[almv.leftindices])
     end
 
     return vecout
 end
 
-function estimate_norm(mat; tol=1e-4)
+function estimate_norm(mat; tol=1e-4, itmax = 1000)
     v = rand(size(mat,2))
 
-    v = norm(v)
+    v = v/norm(v)
     itermin = 3
     i = 1
     σold = 1
     σnew = 1
-    while norm(sqrt(σold)-sqrt(σnew))/norm(sqrt(σold)) > tol || i < itermin
+    while (norm(sqrt(σold)-sqrt(σnew))/norm(sqrt(σold)) > tol || i < itermin) && i < itmax
         σold = σnew
         w = mat*v
         x = adjoint(mat)*w
@@ -178,7 +169,12 @@ function HMatrix(matrixassembler::Function,
 
     @showprogress "Computing full interactions: " for fullinteraction in fullinteractions
         nonzeros += length(fullinteraction[1].data)*length(fullinteraction[2].data)
-        push!(fullmatrixviews, getfullmatrixview(matrixassembler, fullinteraction[1], fullinteraction[2], rowdim, coldim))
+        push!(fullmatrixviews, getfullmatrixview(matrixassembler, 
+                                                fullinteraction[1], 
+                                                fullinteraction[2], 
+                                                rowdim, 
+                                                coldim, 
+                                                T=T))
     end
 
     @showprogress "Compressing far interactions: " for compressableinteraction in compressableinteractions
@@ -189,7 +185,7 @@ function HMatrix(matrixassembler::Function,
                                                 coldim,
                                                 compressor=compressor,
                                                 tol=tol,
-                                                isdebug=isdebug))
+                                                T=T))
         nonzeros += nnz(matrixviews[end])
 
     end

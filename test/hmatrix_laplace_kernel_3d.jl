@@ -2,8 +2,6 @@ using FastBEAST
 using StaticArrays
 using LinearAlgebra
 
-using Printf
-
 function OneoverRkernel(testpoint::SVector{3,T}, sourcepoint::SVector{3,T}) where T
     if isapprox(testpoint, sourcepoint, rtol=eps()*1e1)
         return 0.0
@@ -35,7 +33,7 @@ end
 
 ##
 
-N =  100
+N =  1000
 NT = N
 
 spoints = [@SVector rand(3) for i = 1:N]
@@ -47,44 +45,20 @@ ttree = create_tree(tpoints, nmin=50)
 kmat = assembler(OneoverRkernel, tpoints, spoints)
 hmat = HMatrix(OneoverRkernelassembler, ttree, stree, compressor=:naive, T=Float64)
 
-@printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
-@printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
+@test estimate_reldifference(hmat,kmat) ≈ 0 atol=1e-4
+@test compressionrate(hmat)*100 ≈ 99 atol=0.1
 
 
 ##
-N = 3000
+N = 4000
 NT = N
 
 spoints = [@SVector rand(3) for i = 1:N]
 ##
 @views OneoverRkernelassembler(matrix, tdata, sdata) = assembler(OneoverRkernel, matrix, spoints[tdata], spoints[sdata])
-stree = create_tree(spoints, nmin=100)
+stree = create_tree(spoints, nmin=400)
 kmat = assembler(OneoverRkernel, spoints, spoints)
 hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, T=Float64)
 
-@printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
-@printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
-
-##
-totalspoints = 0
-for child in stree.children
-    totalspoints += length(child.data)
-end
-
-@assert totalspoints == N
-
-
-##
-
-function hmatrix3d_benchmark(N)
-    spoints = [@SVector rand(3) for i = 1:N]
-    
-    @views OneoverRkernelassembler(matrix, tdata, sdata) = assembler(OneoverRkernel, matrix, spoints[tdata], spoints[sdata])
-    stree = create_tree(spoints, nmin=400)
-    
-    @time hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, tol=1e-4, T=Float64)
-    
-    @printf("Memory usage: %.2f GiB\n", nnz(hmat)*8/(1024*1024*1024.0))
-    @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
-    return nothing #stree, hmat
-end
+@test estimate_reldifference(hmat,kmat) ≈ 0 atol=1e-4
+@test compressionrate(hmat)*100 ≈ 48 atol=1
