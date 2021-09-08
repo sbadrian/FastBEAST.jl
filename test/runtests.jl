@@ -2,10 +2,10 @@ using FastBEAST
 using Test
 
 @testset "FastBEAST.jl" begin
-    include("boundingbox.jl")
-    include("boxtree.jl")
-    include("skeletons.jl")
-    include("aca.jl")
-    include("hmatrix_laplace_kernel_3d.jl")
-    include("beast.jl")
+    include("test_boundingbox.jl")
+    include("test_boxtree.jl")
+    include("test_skeletons.jl")
+    include("test_aca.jl")
+    include("test_hmatrix.jl")
+    include("test_beast.jl")
 end

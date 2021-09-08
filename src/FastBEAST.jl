@@ -6,6 +6,7 @@ include("aca.jl")
 include("skeletons.jl")
 include("utils.jl")
 include("hmatrix.jl")
+include("beast.jl")
 
 export BoundingBox
 export getboxframe
@@ -26,4 +27,6 @@ export estimate_norm
 export estimate_reldifference
 export nnz
 export compressionrate
+
+export hassemble
 end

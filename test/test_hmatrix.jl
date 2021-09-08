@@ -2,6 +2,8 @@ using FastBEAST
 using StaticArrays
 using LinearAlgebra
 
+# Do a 3D test with Laplace kernel
+
 function OneoverRkernel(testpoint::SVector{3,T}, sourcepoint::SVector{3,T}) where T
     if isapprox(testpoint, sourcepoint, rtol=eps()*1e1)
         return 0.0
@@ -46,7 +48,7 @@ kmat = assembler(OneoverRkernel, tpoints, spoints)
 hmat = HMatrix(OneoverRkernelassembler, ttree, stree, compressor=:naive, T=Float64)
 
 @test estimate_reldifference(hmat,kmat) ≈ 0 atol=1e-4
-@test compressionrate(hmat)*100 ≈ 99 atol=0.1
+@test compressionrate(hmat)*100 ≈ 99 atol=1
 
 
 ##
