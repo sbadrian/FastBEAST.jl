@@ -7,5 +7,5 @@ using Test
     include("skeletons.jl")
     include("aca.jl")
     include("hmatrix_laplace_kernel_3d.jl")
-    #include("beast.jl")
+    include("beast.jl")
 end

@@ -1,6 +1,5 @@
 using CompScienceMeshes
 using BEAST
-using Printf
 using LinearAlgebra
 using FastBEAST
 
@@ -8,10 +7,6 @@ CM = CompScienceMeshes
 ##
 function test_beast_laplace_singlelayer(h)
     Γ = CM.meshsphere(1, h) # CM.read_gmsh_mesh(fn)
-
-
-    @show CM.numcells(Γ)
-    @show CM.numvertices(Γ)
 
     X = lagrangecxd0(Γ)
     @show numfunctions(X)
@@ -33,7 +28,6 @@ function test_beast_laplace_singlelayer(h)
     @time hmat = HMatrix(singlelayerassembler, stree, stree, 
                          compressor=:svd, T=Float64, tol=1e-4)
 
-    @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
 
     mat = assemble(𝒱,X,X)
     return mat, hmat
