@@ -99,7 +99,7 @@ function HMatrix(matrixassembler::Function,
                             fullinteractions,
                             compressableinteractions)
 
-    fullmatrixviews = FullMatrixView{T, I}[]
+    fullmatrixviews_perthread = Vector{FullMatrixView{T, I}}[]
     matrixviews = LowRankMatrixView{T, I}[]
 
     rowdim = length(testtree.data)
@@ -109,17 +109,32 @@ function HMatrix(matrixassembler::Function,
     println("Number of full interactions: ", length(fullinteractions))
     println("Number of compressable interactions: ", length(compressableinteractions))
 
-    @showprogress "Computing full interactions: " for fullinteraction in fullinteractions
+    p = Progress(length(fullinteractions), desc="Computing full interactions: ")
+
+    for i in 1:Threads.nthreads()
+        push!(fullmatrixviews_perthread, FullMatrixView{T, I}[])
+    end
+
+    Threads.@threads for fullinteraction in fullinteractions
         nonzeros += length(fullinteraction[1].data)*length(fullinteraction[2].data)
-        push!(fullmatrixviews, getfullmatrixview(matrixassembler, 
+        push!(fullmatrixviews_perthread[Threads.threadid()], getfullmatrixview(matrixassembler, 
                                                 fullinteraction[1], 
                                                 fullinteraction[2], 
                                                 rowdim, 
                                                 coldim, 
                                                 T=T))
+        next!(p)
     end
 
-    @showprogress "Compressing far interactions: " for compressableinteraction in compressableinteractions
+    fullmatrixviews = FullMatrixView{T, I}[]
+
+    for i in 1:Threads.nthreads()
+        append!(fullmatrixviews, fullmatrixviews_perthread[i])
+    end
+
+    p = Progress(length(fullinteractions), desc="Compressing far interactions: ")
+
+    for compressableinteraction in compressableinteractions
         push!(matrixviews, getcompressedmatrix(matrixassembler,
                                                 compressableinteraction[1],
                                                 compressableinteraction[2],
@@ -129,7 +144,7 @@ function HMatrix(matrixassembler::Function,
                                                 tol=tol,
                                                 T=T))
         nonzeros += nnz(matrixviews[end])
-
+        next!(p)
     end
 
     return HMatrix{T}(fullmatrixviews,
