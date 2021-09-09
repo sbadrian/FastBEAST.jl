@@ -128,7 +128,7 @@ function HMatrix(matrixassembler::Function,
 
     fullmatrixviews = FullMatrixView{T, I}[]
 
-    for i in 1:Threads.nthreads()
+    for i in eachindex(fullmatrixviews_perthread)
         append!(fullmatrixviews, fullmatrixviews_perthread[i])
     end
 
