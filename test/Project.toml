@@ -1,6 +1,7 @@
 [deps]
 BEAST = "bb4162c7-ba94-5a20-af32-d8ec4428bdd1"
 CompScienceMeshes = "3e66a162-7b8c-5da0-b8f8-124ecd2c3ae1"
+IterativeSolvers = "42fd0dbc-a981-5370-80f2-aaf504508153"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
