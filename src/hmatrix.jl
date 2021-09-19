@@ -90,7 +90,8 @@ function HMatrix(matrixassembler::Function,
                  tol=1e-4,
                  T=ComplexF64,
                  I=Int64,
-                 threading=:single)
+                 threading=:single,
+                 farmatrixassembler = matrixassembler)
     
     fullinteractions = SVector{2,BoxTreeNode}[]
     compressableinteractions = SVector{2,BoxTreeNode}[]
@@ -153,7 +154,7 @@ function HMatrix(matrixassembler::Function,
 
     if threading == :single
         for compressableinteraction in compressableinteractions
-            push!(matrixviews, getcompressedmatrix(matrixassembler,
+            push!(matrixviews, getcompressedmatrix(farmatrixassembler,
                                                     compressableinteraction[1],
                                                     compressableinteraction[2],
                                                     rowdim,
