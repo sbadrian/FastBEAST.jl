@@ -6,23 +6,32 @@ using IterativeSolvers
 
 CM = CompScienceMeshes
 
-function test_beast_laplace_singlelayer(h)
+function test_beast_laplace_singlelayer(h; threading=:single)
     Γ = CM.meshsphere(1, h)
 
     X = lagrangecxd0(Γ)
  
     𝒱 = Helmholtz3D.singlelayer(wavenumber=0.0)
 
-    hmat = hassemble(𝒱,X,X, nmin=50)
+    hmat = hassemble(𝒱,X,X, nmin=50, threading=threading)
 
     mat = assemble(𝒱,X,X)
     return mat, hmat
 end
 
-mat, hmat = test_beast_laplace_singlelayer(0.1) 
+mat, hmat_single = test_beast_laplace_singlelayer(0.1) 
 
-@test compressionrate(hmat) > 0.3
-@test estimate_reldifference(hmat,mat) ≈ 0 atol=1e-4
+@test nnz(hmat_single) == 3917257
+
+@test compressionrate(hmat_single) > 0.3
+@test estimate_reldifference(hmat_single, mat) ≈ 0 atol=1e-4
+
+mat, hmat_multi = test_beast_laplace_singlelayer(0.1, threading=:multi) 
+
+@test nnz(hmat_multi) == 3917257
+
+@test compressionrate(hmat_multi) > 0.3
+@test estimate_reldifference(hmat_multi, mat) ≈ 0 atol=1e-4
 
 #function test_beast_laplace_singlelayer_manufactured(h)
 
