@@ -89,7 +89,8 @@ function HMatrix(matrixassembler::Function,
                  isdebug=false,
                  tol=1e-4,
                  T=ComplexF64,
-                 I=Int64)
+                 I=Int64,
+                 threading=:single)
     
     fullinteractions = SVector{2,BoxTreeNode}[]
     compressableinteractions = SVector{2,BoxTreeNode}[]
@@ -99,44 +100,98 @@ function HMatrix(matrixassembler::Function,
                             fullinteractions,
                             compressableinteractions)
 
+    fullmatrixviews_perthread = Vector{FullMatrixView{T, I}}[]
     fullmatrixviews = FullMatrixView{T, I}[]
-    matrixviews = LowRankMatrixView{T, I}[]
 
     rowdim = length(testtree.data)
     coldim = length(sourcetree.data)
 
+    nonzeros_perthread = Int64[]
     nonzeros = 0
     println("Number of full interactions: ", length(fullinteractions))
     println("Number of compressable interactions: ", length(compressableinteractions))
 
-    @showprogress "Computing full interactions: " for fullinteraction in fullinteractions
-        nonzeros += length(fullinteraction[1].data)*length(fullinteraction[2].data)
-        push!(fullmatrixviews, getfullmatrixview(matrixassembler, 
-                                                fullinteraction[1], 
-                                                fullinteraction[2], 
-                                                rowdim, 
-                                                coldim, 
-                                                T=T))
+    p = Progress(length(fullinteractions), desc="Computing full interactions: ")
+
+    if threading == :single
+        for fullinteraction in fullinteractions
+            nonzeros += length(fullinteraction[1].data)*length(fullinteraction[2].data)
+            push!(fullmatrixviews, getfullmatrixview(matrixassembler,
+                                                    fullinteraction[1],
+                                                    fullinteraction[2],
+                                                    rowdim,
+                                                    coldim,
+                                                    T=T))
+            next!(p)
+        end
+    elseif threading == :multi
+        for i in 1:Threads.nthreads()
+            push!(fullmatrixviews_perthread, FullMatrixView{T, I}[])
+            push!(nonzeros_perthread, 0)
+        end
+
+        Threads.@threads for fullinteraction in fullinteractions
+            nonzeros_perthread[Threads.threadid()] += length(fullinteraction[1].data)*length(fullinteraction[2].data)
+            push!(fullmatrixviews_perthread[Threads.threadid()], getfullmatrixview(matrixassembler,
+                                                    fullinteraction[1],
+                                                    fullinteraction[2],
+                                                    rowdim,
+                                                    coldim,
+                                                    T=T))
+            next!(p)
+        end
+
+        for i in eachindex(fullmatrixviews_perthread)
+            append!(fullmatrixviews, fullmatrixviews_perthread[i])
+        end
     end
 
-    @showprogress "Compressing far interactions: " for compressableinteraction in compressableinteractions
-        push!(matrixviews, getcompressedmatrix(matrixassembler,
-                                                compressableinteraction[1],
-                                                compressableinteraction[2],
-                                                rowdim,
-                                                coldim,
-                                                compressor=compressor,
-                                                tol=tol,
-                                                T=T))
-        nonzeros += nnz(matrixviews[end])
+    matrixviews_perthread = Vector{LowRankMatrixView{T, I}}[]
+    matrixviews = LowRankMatrixView{T, I}[]
 
+    p = Progress(length(fullinteractions), desc="Compressing far interactions: ")
+
+    if threading == :single
+        for compressableinteraction in compressableinteractions
+            push!(matrixviews, getcompressedmatrix(matrixassembler,
+                                                    compressableinteraction[1],
+                                                    compressableinteraction[2],
+                                                    rowdim,
+                                                    coldim,
+                                                    compressor=compressor,
+                                                    tol=tol,
+                                                    T=T))
+            nonzeros += nnz(matrixviews[end])
+            next!(p)
+        end
+    elseif threading == :multi
+        for i in 1:Threads.nthreads()
+            push!(matrixviews_perthread, LowRankMatrixView{T, I}[])
+        end
+
+        Threads.@threads for compressableinteraction in compressableinteractions
+            push!(matrixviews_perthread[Threads.threadid()], getcompressedmatrix(matrixassembler,
+                                                    compressableinteraction[1],
+                                                    compressableinteraction[2],
+                                                    rowdim,
+                                                    coldim,
+                                                    compressor=compressor,
+                                                    tol=tol,
+                                                    T=T))
+            nonzeros_perthread[Threads.threadid()] += nnz(matrixviews_perthread[Threads.threadid()][end])
+            next!(p)
+        end
+
+        for i in eachindex(matrixviews_perthread)
+            append!(matrixviews, matrixviews_perthread[i])
+        end
     end
 
     return HMatrix{T}(fullmatrixviews,
                       matrixviews, 
                       rowdim,
                       coldim,
-                      nonzeros)
+                      nonzeros + sum(nonzeros_perthread))
 end
 
 function computerinteractions!(testnode::BoxTreeNode,
