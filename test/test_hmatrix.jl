@@ -63,4 +63,4 @@ kmat = assembler(OneoverRkernel, spoints, spoints)
 hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, T=Float64)
 
 @test estimate_reldifference(hmat,kmat) ≈ 0 atol=1e-4
-@test compressionrate(hmat)*100 ≈ 48 atol=1
+@test compressionrate(hmat)*100 ≈ 54 atol=1

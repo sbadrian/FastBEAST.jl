@@ -81,7 +81,7 @@ function fct(B, x, y)
     end
 end
 
-U, V = aca_compression(fct, 1:5, 1:5, T=Float64)
+U, V = aca_compression(fct, 1:5, 1:5, T=Float64, svdrecompress=false)
 
 @test U*V == A
 
@@ -98,7 +98,7 @@ function fct(B, x, y)
     end
 end
 
-U, V = aca_compression(fct, 1:5, 1:5, T=Float64)
+U, V = aca_compression(fct, 1:5, 1:5, T=Float64, svdrecompress=false)
 
 @test U*V == A
 
@@ -121,7 +121,7 @@ end
 
 U, V = aca_compression(fct, 1:5, 1:5, T=Float64)
 
-@test U*V ≈ A atol = 1e-14
+@test U*V ≈ A atol = 1e-13
 
 ##
 Ns = 100

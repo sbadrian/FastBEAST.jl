@@ -108,7 +108,8 @@ function HMatrix(matrixassembler::Function,
                  I=Int64,
                  threading=:single,
                  farmatrixassembler=matrixassembler,
-                 verbose=false)
+                 verbose=false,
+                 svdrecompress=true)
     
     fullinteractions = SVector{2,BoxTreeNode}[]
     compressableinteractions = SVector{2,BoxTreeNode}[]
@@ -183,6 +184,7 @@ function HMatrix(matrixassembler::Function,
                                                     compressor=compressor,
                                                     tol=tol,
                                                     maxrank=maxrank,
+                                                    svdrecompress=svdrecompress,
                                                     T=T, I=I))
             nonzeros += nnz(matrixviews[end])
             verbose && next!(p)
@@ -201,6 +203,7 @@ function HMatrix(matrixassembler::Function,
                                                     compressor=compressor,
                                                     tol=tol,
                                                     maxrank=maxrank,
+                                                    svdrecompress=svdrecompress,
                                                     T=T, I=I))
             nonzeros_perthread[Threads.threadid()] += nnz(matrixviews_perthread[Threads.threadid()][end])
             verbose && next!(p)
@@ -304,12 +307,14 @@ function getfullmatrixview(matrixassembler, testnode, sourcenode, rowdim, coldim
 end
 
 function getcompressedmatrix(matrixassembler::Function, testnode, sourcenode, rowdim, coldim; 
-                            tol = 1e-4, maxrank=100,  compressor=:aca, T=ComplexF64, I=Int64)
+                            tol = 1e-4, maxrank=100,  compressor=:aca, svdrecompress=true, 
+                            T=ComplexF64, I=Int64)
 
         #U, V = aca_compression2(assembler, kernel, testpoints, sourcepoints, 
         #testnode.data, sourcenode.data; tol=tol)
         #println("Confirm level: ", sourcenode.level)
-        U, V = aca_compression(matrixassembler, testnode, sourcenode; tol=tol, maxrank=maxrank, T=T)
+        U, V = aca_compression(matrixassembler, testnode, sourcenode; 
+                                tol=tol, maxrank=maxrank, svdrecompress=svdrecompress, T=T)
 
         lm = LowRankMatrixView{T,I}(V,
                                  U,

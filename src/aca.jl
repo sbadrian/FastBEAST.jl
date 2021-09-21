@@ -1,4 +1,4 @@
-function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, T=ComplexF64, maxrank=40)
+function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, T=ComplexF64, maxrank=40, svdrecompress=true)
 
     function smartmaxlocal(roworcolumn, acausedindices)
         maxval = -1
@@ -116,14 +116,24 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, T=
         println("WARNING: aborted ACA after maximum allowed rank")
     end
 
-    return U[:,1:acacolumnindicescounter], V[1:acarowindicescounter,:]
+    if svdrecompress && acacolumnindicescounter > 1
+        @views Q,R = qr(U[:,1:acacolumnindicescounter])
+        @views U,s,V = svd(R*V[1:acarowindicescounter,:])
+        r′ = findfirst(x -> abs(x) < tol*s[1] ,s)
+        r′ == 0 && (r′ = acacolumnindicescounter)
+        A = (Q*U)[:,1:r′]
+        B = (diagm(s)*V')[1:r′,:]
+        return A, B
+    else
+        return U[:,1:acacolumnindicescounter], V[1:acarowindicescounter,:]
+    end    
 end
 
 
 function aca_compression(matrix::Function, testnode::BoxTreeNode, sourcenode::BoxTreeNode; 
-                        tol=1e-14, T=ComplexF64, maxrank=40)
+                        tol=1e-14, T=ComplexF64, maxrank=40, svdrecompress=true)
     U, V = aca_compression(matrix, testnode.data, sourcenode.data,
-                             tol=tol, T=T, maxrank=maxrank)
+                             tol=tol, T=T, maxrank=maxrank, svdrecompress=svdrecompress)
 
     if false == true && size(U,2) >= 30
         println("Rank of compressed ACA is too large")
