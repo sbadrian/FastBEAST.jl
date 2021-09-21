@@ -6,14 +6,33 @@ using IterativeSolvers
 
 CM = CompScienceMeshes
 
-function test_beast_laplace_singlelayer(h; threading=:single)
+function farquaddata(op::BEAST.Helmholtz3DOp, test_refspace::BEAST.LagrangeRefSpace,
+    trial_refspace::BEAST.LagrangeRefSpace, test_elements, trial_elements)
+
+    test_eval(x)  = test_refspace(x,  Val{:withcurl})
+    trial_eval(x) = trial_refspace(x, Val{:withcurl})
+
+    # The combinations of rules (6,7) and (5,7 are) BAAAADDDD
+    # they result in many near singularity evaluations with any
+    # resemblence of accuracy going down the drain! Simply don't!
+    # (same for (5,7) btw...).
+    # test_qp = quadpoints(test_eval,  test_elements,  (6,))
+    # bssi_qp = quadpoints(trial_eval, trial_elements, (7,))
+
+    test_qp = quadpoints(test_eval,  test_elements,  (1,))
+    bsis_qp = quadpoints(trial_eval, trial_elements, (1,))
+
+    return test_qp, bsis_qp
+end
+
+function test_beast_laplace_singlelayer(h; threading=:single, farquaddata=BEAST.quaddata)
     Γ = CM.meshsphere(1, h)
 
     X = lagrangecxd0(Γ)
  
     𝒱 = Helmholtz3D.singlelayer(wavenumber=0.0)
 
-    hmat = hassemble(𝒱,X,X, nmin=50, threading=threading)
+    hmat = hassemble(𝒱,X,X, nmin=50, threading=threading, farquaddata=farquaddata)
 
     mat = assemble(𝒱,X,X)
     return mat, hmat
@@ -32,6 +51,22 @@ mat, hmat_multi = test_beast_laplace_singlelayer(0.1, threading=:multi)
 
 @test compressionrate(hmat_multi) > 0.3
 @test estimate_reldifference(hmat_multi, mat) ≈ 0 atol=1e-4
+@test compressionrate(hmat) > 0.3
+
+mat, hmat_single = test_beast_laplace_singlelayer(0.1, farquaddata=quaddata) 
+
+@test nnz(hmat_single) == 3917257
+
+@test compressionrate(hmat_single) > 0.3
+@test estimate_reldifference(hmat_single, mat) ≈ 0 atol=1e-3
+
+mat, hmat_multi = test_beast_laplace_singlelayer(0.1, threading=:multi, farquaddata=quaddata) 
+
+@test nnz(hmat_multi) == 3917257
+
+@test compressionrate(hmat_multi) > 0.3
+@test estimate_reldifference(hmat_multi, mat) ≈ 0 atol=1e-3
+@test compressionrate(hmat) > 0.3
 
 #function test_beast_laplace_singlelayer_manufactured(h)
 
