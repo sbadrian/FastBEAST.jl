@@ -8,6 +8,7 @@ struct HMatrix{T,I} <: LinearMaps.LinearMap{T}
     rowdim::I
     columndim::I
     nnz::I
+    maxrank::I
 end
 
 function nnz(hmat::HMatrix) where HT <: HMatrix
@@ -50,13 +51,20 @@ end
 
     fill!(y, zero(eltype(y)))
 
+    b = zeros(eltype(y), 200)
+    c = zeros(eltype(y), size(A,1))
+    
     for fmv in A.fullmatrixviews
-        y[fmv.leftindices] += fmv.matrix * x[fmv.rightindices]
+        mul!(c[1:size(fmv.matrix,1)], fmv.matrix, x[fmv.rightindices])
+        y[fmv.leftindices] .+= c[1:size(fmv.matrix,1)]
+        #y[fmv.leftindices] += fmv.matrix * x[fmv.rightindices]
     end
-
+    
     for lmv in A.matrixviews
-        y[lmv.leftindices] += lmv.leftmatrix*(lmv.rightmatrix * x[lmv.rightindices])
-    end
+        mul!(b[1:size(lmv.rightmatrix,1)], lmv.rightmatrix, x[lmv.rightindices]) 
+        mul!(c[1:size(lmv.leftmatrix,1)], lmv.leftmatrix, b[1:size(lmv.rightmatrix,1)])
+        y[lmv.leftindices] .+= c[1:size(lmv.leftmatrix,1)]
+    end 
 
     return y
 end
@@ -71,12 +79,20 @@ end
 
     fill!(y, zero(eltype(y)))
 
+    b = zeros(eltype(y), 200)
+    c = zeros(eltype(y), size(transA,1))
+
     for afmv in transA.lmap.fullmatrixviews
-        y[afmv.rightindices] += adjoint(afmv.matrix) * x[afmv.leftindices]
+        mul!(c[1:size(adjoint(afmv.matrix),1)], adjoint(afmv.matrix), x[afmv.leftindices])
+        y[afmv.rightindices] .+= c[1:size(adjoint(afmv.matrix),1)]
+        #y[afmv.rightindices] += adjoint(afmv.matrix) * x[afmv.leftindices]
     end
 
     for almv in transA.lmap.matrixviews
-        y[almv.rightindices] += almv.rightmatrix'*(almv.leftmatrix' * x[almv.leftindices])
+        mul!(b[1:size(almv.leftmatrix,2)], almv.leftmatrix', x[almv.leftindices]) 
+        mul!(c[1:size(almv.rightmatrix,2)], almv.rightmatrix', b[1:size(almv.leftmatrix,2)])
+        y[almv.rightindices] .+= c[1:size(almv.rightmatrix,2)]
+        #y[almv.rightindices] += almv.rightmatrix'*(almv.leftmatrix' * x[almv.leftindices])
     end
 
     return y
@@ -86,8 +102,8 @@ function HMatrix(matrixassembler::Function,
                  testtree::BoxTreeNode,
                  sourcetree::BoxTreeNode;
                  compressor=:naive,
-                 isdebug=false,
                  tol=1e-4,
+                 maxrank=100,
                  T=ComplexF64,
                  I=Int64,
                  threading=:single,
@@ -166,6 +182,7 @@ function HMatrix(matrixassembler::Function,
                                                     coldim,
                                                     compressor=compressor,
                                                     tol=tol,
+                                                    maxrank=maxrank,
                                                     T=T, I=I))
             nonzeros += nnz(matrixviews[end])
             verbose && next!(p)
@@ -183,6 +200,7 @@ function HMatrix(matrixassembler::Function,
                                                     coldim,
                                                     compressor=compressor,
                                                     tol=tol,
+                                                    maxrank=maxrank,
                                                     T=T, I=I))
             nonzeros_perthread[Threads.threadid()] += nnz(matrixviews_perthread[Threads.threadid()][end])
             verbose && next!(p)
@@ -197,7 +215,8 @@ function HMatrix(matrixassembler::Function,
                       matrixviews, 
                       rowdim,
                       coldim,
-                      nonzeros + sum(nonzeros_perthread))
+                      nonzeros + sum(nonzeros_perthread),
+                      maxrank)
 end
 
 function computerinteractions!(testnode::BoxTreeNode,
@@ -285,12 +304,12 @@ function getfullmatrixview(matrixassembler, testnode, sourcenode, rowdim, coldim
 end
 
 function getcompressedmatrix(matrixassembler::Function, testnode, sourcenode, rowdim, coldim; 
-                            tol = 1e-4, compressor=:aca, T=ComplexF64, I=Int64)
+                            tol = 1e-4, maxrank=100,  compressor=:aca, T=ComplexF64, I=Int64)
 
         #U, V = aca_compression2(assembler, kernel, testpoints, sourcepoints, 
         #testnode.data, sourcenode.data; tol=tol)
         #println("Confirm level: ", sourcenode.level)
-        U, V = aca_compression(matrixassembler, testnode, sourcenode; tol=tol, T=T)
+        U, V = aca_compression(matrixassembler, testnode, sourcenode; tol=tol, maxrank=maxrank, T=T)
 
         lm = LowRankMatrixView{T,I}(V,
                                  U,

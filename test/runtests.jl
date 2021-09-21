@@ -8,4 +8,5 @@ using Test
     include("test_aca.jl")
     include("test_hmatrix.jl")
     include("test_beast.jl")
+    include("test_beast_efie.jl")
 end

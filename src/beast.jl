@@ -2,7 +2,7 @@
 using BEAST
 
 function hassemble(operator::BEAST.AbstractOperator, test_functions, trial_functions; 
-                   compressor=:aca, tol=1e-4, nmin=100, 
+                   compressor=:aca, tol=1e-4, nmin=100, maxrank=100, 
                    threading=:single, farquaddata=BEAST.quaddata, verbose=false)
 
     @views blkasm = BEAST.blockassembler(operator, test_functions, trial_functions)
@@ -24,7 +24,7 @@ function hassemble(operator::BEAST.AbstractOperator, test_functions, trial_funct
     trial_tree = create_tree(trial_functions.pos, nmin=nmin)
 
     @time hmat = HMatrix(assembler, test_tree, trial_tree, 
-                         compressor=compressor, T=scalartype(operator), tol=tol,
+                         compressor=compressor, T=scalartype(operator), tol=tol, maxrank=maxrank,
                          threading=threading, farmatrixassembler=farassembler, verbose=verbose)
     return hmat
 end

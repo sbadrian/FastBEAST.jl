@@ -63,7 +63,7 @@ X = raviartthomas(Γ)
 
 println("Number of RWG functions: ", numfunctions(X))
 
-T = hassemble(𝓣,X,X, nmin=80, threading=:multi, farquaddata=farquaddata)
+T = hassemble(𝓣,X,X, nmin=100, threading=:single, farquaddata=farquaddata, verbose=true)
 e = assemble(𝒆,X)
 
 println("Enter iterative solver")
