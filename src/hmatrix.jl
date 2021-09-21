@@ -2,12 +2,12 @@ using LinearAlgebra
 using LinearMaps
 using ProgressMeter
 
-struct HMatrix{T} <: LinearMaps.LinearMap{T}
-    fullmatrixviews::Vector{FullMatrixView{T}}
-    matrixviews::Vector{LowRankMatrixView{T}}
-    rowdim::Integer
-    columndim::Integer
-    nnz::Integer
+struct HMatrix{T,I} <: LinearMaps.LinearMap{T}
+    fullmatrixviews::Vector{FullMatrixView{T,I}}
+    matrixviews::Vector{LowRankMatrixView{T,I}}
+    rowdim::I
+    columndim::I
+    nnz::I
 end
 
 function nnz(hmat::HMatrix) where HT <: HMatrix
@@ -45,7 +45,7 @@ function size(hmat::Adjoint{T}, dim=nothing) where T <: HMatrix
     end
 end
 
-function LinearAlgebra.mul!(y::AbstractVecOrMat, A::HMatrix, x::AbstractVector)
+@views function LinearAlgebra.mul!(y::AbstractVecOrMat, A::HMatrix, x::AbstractVector)
     LinearMaps.check_dim_mul(y, A, x)
 
     fill!(y, zero(eltype(y)))
@@ -62,7 +62,7 @@ function LinearAlgebra.mul!(y::AbstractVecOrMat, A::HMatrix, x::AbstractVector)
 end
 
 
-function LinearAlgebra.mul!(
+@views function LinearAlgebra.mul!(
     y::AbstractVecOrMat,
     transA::LinearMaps.TransposeMap{<:Any,<:HMatrix},
     x::AbstractVector
@@ -91,7 +91,8 @@ function HMatrix(matrixassembler::Function,
                  T=ComplexF64,
                  I=Int64,
                  threading=:single,
-                 farmatrixassembler = matrixassembler)
+                 farmatrixassembler=matrixassembler,
+                 verbose=false)
     
     fullinteractions = SVector{2,BoxTreeNode}[]
     compressableinteractions = SVector{2,BoxTreeNode}[]
@@ -107,12 +108,14 @@ function HMatrix(matrixassembler::Function,
     rowdim = length(testtree.data)
     coldim = length(sourcetree.data)
 
-    nonzeros_perthread = Int64[]
+    nonzeros_perthread = I[]
     nonzeros = 0
-    println("Number of full interactions: ", length(fullinteractions))
-    println("Number of compressable interactions: ", length(compressableinteractions))
+    verbose && println("Number of full interactions: ", length(fullinteractions))
+    verbose && println("Number of compressable interactions: ", length(compressableinteractions))
 
-    p = Progress(length(fullinteractions), desc="Computing full interactions: ")
+    if verbose
+        p = Progress(length(fullinteractions), desc="Computing full interactions: ")
+    end
 
     if threading == :single
         for fullinteraction in fullinteractions
@@ -122,8 +125,8 @@ function HMatrix(matrixassembler::Function,
                                                     fullinteraction[2],
                                                     rowdim,
                                                     coldim,
-                                                    T=T))
-            next!(p)
+                                                    T=T, I=I))
+            verbose && next!(p)
         end
     elseif threading == :multi
         for i in 1:Threads.nthreads()
@@ -138,8 +141,8 @@ function HMatrix(matrixassembler::Function,
                                                     fullinteraction[2],
                                                     rowdim,
                                                     coldim,
-                                                    T=T))
-            next!(p)
+                                                    T=T, I=I))
+            verbose && next!(p)
         end
 
         for i in eachindex(fullmatrixviews_perthread)
@@ -150,7 +153,9 @@ function HMatrix(matrixassembler::Function,
     matrixviews_perthread = Vector{LowRankMatrixView{T, I}}[]
     matrixviews = LowRankMatrixView{T, I}[]
 
-    p = Progress(length(fullinteractions), desc="Compressing far interactions: ")
+    if verbose
+        p = Progress(length(compressableinteractions), desc="Compressing far interactions: ")
+    end
 
     if threading == :single
         for compressableinteraction in compressableinteractions
@@ -161,9 +166,9 @@ function HMatrix(matrixassembler::Function,
                                                     coldim,
                                                     compressor=compressor,
                                                     tol=tol,
-                                                    T=T))
+                                                    T=T, I=I))
             nonzeros += nnz(matrixviews[end])
-            next!(p)
+            verbose && next!(p)
         end
     elseif threading == :multi
         for i in 1:Threads.nthreads()
@@ -178,9 +183,9 @@ function HMatrix(matrixassembler::Function,
                                                     coldim,
                                                     compressor=compressor,
                                                     tol=tol,
-                                                    T=T))
+                                                    T=T, I=I))
             nonzeros_perthread[Threads.threadid()] += nnz(matrixviews_perthread[Threads.threadid()][end])
-            next!(p)
+            verbose && next!(p)
         end
 
         for i in eachindex(matrixviews_perthread)
@@ -188,7 +193,7 @@ function HMatrix(matrixassembler::Function,
         end
     end
 
-    return HMatrix{T}(fullmatrixviews,
+    return HMatrix{T,I}(fullmatrixviews,
                       matrixviews, 
                       rowdim,
                       coldim,
@@ -269,10 +274,10 @@ function iscompressable(sourcenode::BoxTreeNode, testnode::BoxTreeNode)
     end
 end
 
-function getfullmatrixview(matrixassembler, testnode, sourcenode, rowdim, coldim; T=ComplexF64)
+function getfullmatrixview(matrixassembler, testnode, sourcenode, rowdim, coldim; T=ComplexF64, I=Int64)
     matrix = zeros(T, length(testnode.data), length(sourcenode.data))
     matrixassembler(matrix, testnode.data, sourcenode.data)
-    return FullMatrixView(matrix,
+    return FullMatrixView{T,I}(matrix,
                             sourcenode.data,
                             testnode.data,
                             rowdim,
@@ -280,14 +285,14 @@ function getfullmatrixview(matrixassembler, testnode, sourcenode, rowdim, coldim
 end
 
 function getcompressedmatrix(matrixassembler::Function, testnode, sourcenode, rowdim, coldim; 
-                            tol = 1e-4, compressor=:aca, T=ComplexF64)
+                            tol = 1e-4, compressor=:aca, T=ComplexF64, I=Int64)
 
         #U, V = aca_compression2(assembler, kernel, testpoints, sourcepoints, 
         #testnode.data, sourcenode.data; tol=tol)
         #println("Confirm level: ", sourcenode.level)
         U, V = aca_compression(matrixassembler, testnode, sourcenode; tol=tol, T=T)
 
-        lm = LowRankMatrixView(V,
+        lm = LowRankMatrixView{T,I}(V,
                                  U,
                                  sourcenode.data,
                                  testnode.data,
