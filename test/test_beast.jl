@@ -25,14 +25,17 @@ function farquaddata(op::BEAST.Helmholtz3DOp, test_refspace::BEAST.LagrangeRefSp
     return test_qp, bsis_qp
 end
 
-function test_beast_laplace_singlelayer(h; threading=:single, farquaddata=BEAST.quaddata)
+function test_beast_laplace_singlelayer(h; threading=:single, 
+    farquaddata=BEAST.quaddata, svdrecompress=false)
+
     Γ = CM.meshsphere(1, h)
 
     X = lagrangecxd0(Γ)
  
     𝒱 = Helmholtz3D.singlelayer(wavenumber=0.0)
 
-    hmat = hassemble(𝒱,X,X, nmin=50, threading=threading, farquaddata=farquaddata)
+    hmat = hassemble(𝒱,X,X, nmin=50, threading=threading, 
+                    farquaddata=farquaddata, svdrecompress=svdrecompress)
 
     mat = assemble(𝒱,X,X)
     return mat, hmat
@@ -40,14 +43,14 @@ end
 
 mat, hmat_single = test_beast_laplace_singlelayer(0.1) 
 
-@test nnz(hmat_single) == 3917257
+@test nnz(hmat_single) == 3916760
 
 @test compressionrate(hmat_single) > 0.3
 @test estimate_reldifference(hmat_single, mat) ≈ 0 atol=1e-4
 
 mat, hmat_multi = test_beast_laplace_singlelayer(0.1, threading=:multi) 
 
-@test nnz(hmat_multi) == 3917257
+@test nnz(hmat_multi) == 3916760
 
 @test compressionrate(hmat_multi) > 0.3
 @test estimate_reldifference(hmat_multi, mat) ≈ 0 atol=1e-4
@@ -55,17 +58,25 @@ mat, hmat_multi = test_beast_laplace_singlelayer(0.1, threading=:multi)
 
 mat, hmat_single = test_beast_laplace_singlelayer(0.1, farquaddata=quaddata) 
 
-@test nnz(hmat_single) == 3917257
+@test nnz(hmat_single) == 3916760
 
 @test compressionrate(hmat_single) > 0.3
 @test estimate_reldifference(hmat_single, mat) ≈ 0 atol=1e-3
 
 mat, hmat_multi = test_beast_laplace_singlelayer(0.1, threading=:multi, farquaddata=quaddata) 
 
-@test nnz(hmat_multi) == 3917257
+@test nnz(hmat_multi) == 3916760
 
 @test compressionrate(hmat_multi) > 0.3
 @test estimate_reldifference(hmat_multi, mat) ≈ 0 atol=1e-3
+@test compressionrate(hmat) > 0.3
+
+mat, hmat_svdmulti = test_beast_laplace_singlelayer(0.1, threading=:multi, farquaddata=quaddata, svdrecompress=true) 
+
+@test nnz(hmat_svdmulti) == 3356811
+
+@test compressionrate(hmat_svdmulti) > 0.3
+@test estimate_reldifference(hmat_svdmulti, mat) ≈ 0 atol=1e-3
 @test compressionrate(hmat) > 0.3
 
 #function test_beast_laplace_singlelayer_manufactured(h)

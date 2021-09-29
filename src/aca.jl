@@ -119,10 +119,17 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, T=
     if svdrecompress && acacolumnindicescounter > 1
         @views Q,R = qr(U[:,1:acacolumnindicescounter])
         @views U,s,V = svd(R*V[1:acarowindicescounter,:])
-        r′ = findfirst(x -> abs(x) < tol*s[1] ,s)
-        r′ == 0 && (r′ = acacolumnindicescounter)
-        A = (Q*U)[:,1:r′]
-        B = (diagm(s)*V')[1:r′,:]
+
+        opt_r = length(s)
+        for i in eachindex(s)
+            if s[i] < tol*s[1]
+                opt_r = i
+                break
+            end
+        end
+
+        A = (Q*U)[:,1:opt_r]
+        B = (diagm(s)*V')[1:opt_r,:]
         return A, B
     else
         return U[:,1:acacolumnindicescounter], V[1:acarowindicescounter,:]
