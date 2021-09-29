@@ -72,7 +72,7 @@ end
 
 @views function LinearAlgebra.mul!(
     y::AbstractVecOrMat,
-    transA::LinearMaps.TransposeMap{<:Any,<:HMatrix},
+    transA::LinearMaps.AdjointMap{<:Any,<:HMatrix},
     x::AbstractVector
 )
     LinearMaps.check_dim_mul(y, transA, x)
@@ -195,7 +195,7 @@ function HMatrix(matrixassembler::Function,
         end
 
         Threads.@threads for compressableinteraction in compressableinteractions
-            push!(matrixviews_perthread[Threads.threadid()], getcompressedmatrix(matrixassembler,
+            push!(matrixviews_perthread[Threads.threadid()], getcompressedmatrix(farmatrixassembler,
                                                     compressableinteraction[1],
                                                     compressableinteraction[2],
                                                     rowdim,
