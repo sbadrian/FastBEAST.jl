@@ -72,6 +72,35 @@ end
 
 @views function LinearAlgebra.mul!(
     y::AbstractVecOrMat,
+    transA::LinearMaps.TransposeMap{<:Any,<:HMatrix},
+    x::AbstractVector
+)
+    LinearMaps.check_dim_mul(y, transA, x)
+
+    fill!(y, zero(eltype(y)))
+
+    b = zeros(eltype(y), 200)
+    c = zeros(eltype(y), size(transA,1))
+
+    for afmv in transA.lmap.fullmatrixviews
+        mul!(c[1:size(transpose(afmv.matrix),1)], transpose(afmv.matrix), x[afmv.leftindices])
+        y[afmv.rightindices] .+= c[1:size(adjoint(afmv.matrix),1)]
+        #y[afmv.rightindices] += adjoint(afmv.matrix) * x[afmv.leftindices]
+    end
+
+    for almv in transA.lmap.matrixviews
+        mul!(b[1:size(almv.leftmatrix,2)], transpose(almv.leftmatrix), x[almv.leftindices]) 
+        mul!(c[1:size(almv.rightmatrix,2)], transpose(almv.rightmatrix), b[1:size(almv.leftmatrix,2)])
+        y[almv.rightindices] .+= c[1:size(almv.rightmatrix,2)]
+        #y[almv.rightindices] += almv.rightmatrix'*(almv.leftmatrix' * x[almv.leftindices])
+    end
+
+    return y
+end
+
+
+@views function LinearAlgebra.mul!(
+    y::AbstractVecOrMat,
     transA::LinearMaps.AdjointMap{<:Any,<:HMatrix},
     x::AbstractVector
 )

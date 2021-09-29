@@ -5,7 +5,7 @@ using LinearAlgebra
 # Do a 3D test with Laplace kernel
 
 function OneoverRkernel(testpoint::SVector{3,T}, sourcepoint::SVector{3,T}) where T
-    if isapprox(testpoint, sourcepoint, rtol=eps()*1e1)
+    if isapprox(testpoint, sourcepoint, rtol=eps()*1e-4)
         return 0.0
     else
         return 1.0 / (norm(testpoint - sourcepoint))
