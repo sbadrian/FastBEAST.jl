@@ -81,11 +81,12 @@ M_bc = -0.5*G_nxbc_rt + K_bc
 
 ##
 # Note with farquaddata, we will have larger errors than 1e-4.
-#for (i, mv) in enumerate(K_bc.matrixviews)
-#    if norm(K_bc_full[mv.leftindices, mv.rightindices] - mv.leftmatrix*mv.rightmatrix) > 1e-4
-#        println("i: ", i)
-#    end
-#end
+#=
+for (i, mv) in enumerate(K_bc.matrixviews)
+    if norm(K_bc_full[mv.leftindices, mv.rightindices] - mv.leftmatrix*mv.rightmatrix) > 1e-3
+        println("i: ", i)
+    end
+end =#
 ##
 println("Enter iterative solver")
 @time j_BCMFIE, ch = IterativeSolvers.gmres(M_bc, h_bc, log=true, reltol=1e-4, maxiter=500)
