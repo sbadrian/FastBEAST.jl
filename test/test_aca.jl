@@ -250,3 +250,19 @@ end
 U, V = aca_compression(fct, 1:6, 1:2, tol = 1e-4, T=ComplexF64, dblsupport=false, svdrecompress=false)
 
 @test U*V ≈ A atol = 1e-4
+
+##
+
+A =  K_bc_full[mv.leftindices,mv.rightindices]
+
+function fct(B, x, y)
+    for i in eachindex(x)
+        for j in eachindex(y)
+            B[i,j] = A[x[i],y[j]]
+        end
+    end
+end
+
+U, V = aca_compression(fct, 1:14, 1:6, tol = 1e-4, T=ComplexF64, dblsupport=true, svdrecompress=false)
+
+@test U*V ≈ A atol = 1e-4

@@ -2,7 +2,7 @@ function aca_compression(matrix::Function, rowindices, colindices;
     tol=1e-14, T=ComplexF64, maxrank=40, svdrecompress=true, dblsupport=false)
 
     function smartmaxlocal(roworcolumn, acausedindices)
-        maxval = -1
+        maxval = 0.0
         index = -1
         for i=1:length(roworcolumn)
             if !acausedindices[i]
@@ -55,7 +55,7 @@ function aca_compression(matrix::Function, rowindices, colindices;
     # Maybe it is even reasonable to assume
     # that if a row is entirely zero, then
     # we are deadling with a zero matrix block
-    while j <= numrows
+    while j <= 2
         used_row_indices[pivot_row] = true
 
         @views matrix(V[row_indices_counter:row_indices_counter, :], 
@@ -64,10 +64,29 @@ function aca_compression(matrix::Function, rowindices, colindices;
 
         @views pivot_col, pivot_elem = smartmaxlocal(V[row_indices_counter, :], used_column_indices)
         if pivot_col == -1 || isapprox(pivot_elem, 0.0)
-      
+
+            if j==2
+                error("We should never arrive here")
+            end
+
+            @views matrix(U[:, 1:1], rowindices, colindices[1:1])
+
+            pivot_row, pivot_elem = smartmaxlocal(U[:, 1], used_row_indices)        
+
             j += 1
-            pivot_row += 1
-            if j > numrows
+            if pivot_row == -1 || isapprox(pivot_elem, 0.0)
+            #pivot_row += 1
+            #if j > numrows
+            #    A = zeros(T, numrows, numcols)
+            #    @views matrix(A, 
+            #    rowindices[:],
+             #   colindices[:])
+            
+
+             #   if norm(A) > 1e-12
+             #       println(A)
+            #   end
+                U[:, 1:1] .= 0.0
                 return U[:,1:1], V[1:1,:]
             end
         else
@@ -154,8 +173,8 @@ function aca_compression(matrix::Function, rowindices, colindices;
         @views V[row_indices_counter:row_indices_counter, :] -= U[pivot_row:pivot_row, 1:column_indices_counter]*V[1:(row_indices_counter-1), :]
         @views pivot_col, maxval = smartmaxlocal(V[row_indices_counter, :], used_column_indices)
 
-        if pivot_col == -1
-            println("i", i)
+        #=if pivot_col == -1
+            println("i ", i)
             println(used_column_indices)
             println("V[row_indices_counter, :]")
             println(V[row_indices_counter, :])
@@ -164,10 +183,10 @@ function aca_compression(matrix::Function, rowindices, colindices;
             println("V[1, :]")
             println(V[1, :])
             println("pivot_elem, ", pivot_elem)
-        end
+        end =#
         # TODO: comparing against zero: what atol should we use? 
         # PROPOSAL: put in relationship to maximum element so far
-        if (isapprox(V[row_indices_counter, pivot_col],0.0))
+        if pivot_col == -1 || (isapprox(V[row_indices_counter, pivot_col],0.0))
             # Annhiliate last step
             V[row_indices_counter:row_indices_counter, :] .= 0.0
             row_indices_counter -= 1
