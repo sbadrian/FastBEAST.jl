@@ -239,7 +239,6 @@ A = [0.00167465-0.000401981im  -0.00605516+0.00110134im;
  0.00254748-0.000508583im   -0.0114198+0.00135477im;
 -0.00244333+0.000318334im   -0.0131399+0.00149213im]
 
-A = real(A)
 function fct(B, x, y)
     for i in eachindex(x)
         for j in eachindex(y)
@@ -248,6 +247,6 @@ function fct(B, x, y)
     end
 end
 
-U, V = aca_compression(fct, 1:6, 1:2, tol = 1e-4, T=Float64, dblsupport=false, svdrecompress=false)
+U, V = aca_compression(fct, 1:6, 1:2, tol = 1e-4, T=ComplexF64, dblsupport=false, svdrecompress=false)
 
 @test U*V ≈ A atol = 1e-4
