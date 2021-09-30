@@ -16,8 +16,12 @@ S = [ i < 15 ? 10.0^(-i) : 0.0 for i = 1:N ]
 
 A = U*diagm(S)*V'
 
-U, V = aca_compression(fct, 1:N, 1:N, T=Float64)
+U, V = aca_compression(fct, 1:N, 1:N, T=Float64, svdrecompress=false)
+@test size(U,2) == 15
+@test U*V ≈ A atol = 1e-14
 
+U, V = aca_compression(fct, 1:N, 1:N, T=Float64, svdrecompress=true)
+@test size(U,2) == 15
 @test U*V ≈ A atol = 1e-14
 
 ##
@@ -40,8 +44,10 @@ S[1:15] = [10.0^(-i) for i = 1:15 ]
 
 A = U*diagm(S)*V'
 
-U, V = aca_compression(fct, 1:Nt, 1:Ns, T=Float64)
+U, V = aca_compression(fct, 1:Nt, 1:Ns, T=Float64, svdrecompress=false)
+@test U*V ≈ A atol = 1e-14
 
+U, V = aca_compression(fct, 1:Nt, 1:Ns, T=Float64, svdrecompress=true)
 @test U*V ≈ A atol = 1e-14
 
 ##
@@ -185,3 +191,63 @@ end
 
 U, V = aca_compression(fct, 1:1, 1:1, T=Float64)
 @test U*V ≈ A atol = 1e-14
+
+## Double-layer tests
+u1 = rand(10,3)
+v1 = rand(20,3)
+u2 = rand(10,3)
+v2 = rand(20,3)
+UV1 = u1*v1'
+UV2 = u2*v2'*1e-10
+A = [zeros(10,10) UV1; UV2' zeros(20,20)]
+
+function fct(B, x, y)
+    for i in eachindex(x)
+        for j in eachindex(y)
+            B[i,j] = A[x[i],y[j]]
+        end
+    end
+end
+
+U, V = aca_compression(fct, 1:30, 1:30, T=Float64, dblsupport=true, svdrecompress=false)
+@test U*V ≈ A atol = 1e-14
+
+##
+u1 = rand(10,3)
+v1 = rand(10,3)
+UV1 = u1*v1'
+A = [UV1; zeros(20,10)]
+
+function fct(B, x, y)
+    for i in eachindex(x)
+        for j in eachindex(y)
+            B[i,j] = A[x[i],y[j]]
+        end
+    end
+end
+
+U, V = aca_compression(fct, 1:30, 1:10, T=Float64, dblsupport=true, svdrecompress=false)
+
+@test U*V ≈ A atol = 1e-14
+
+##
+
+A = [0.00167465-0.000401981im  -0.00605516+0.00110134im;
+-0.00164186+0.000530566im  -0.00582023+0.00170625im;
+ 0.00283628-0.000816132im  0.000261947-2.70958e-5im;
+ 0.00121768-0.000243375im    0.0076166-0.00147568im;
+ 0.00254748-0.000508583im   -0.0114198+0.00135477im;
+-0.00244333+0.000318334im   -0.0131399+0.00149213im]
+
+A = real(A)
+function fct(B, x, y)
+    for i in eachindex(x)
+        for j in eachindex(y)
+            B[i,j] = A[x[i],y[j]]
+        end
+    end
+end
+
+U, V = aca_compression(fct, 1:6, 1:2, tol = 1e-4, T=Float64, dblsupport=false, svdrecompress=false)
+
+@test U*V ≈ A atol = 1e-4

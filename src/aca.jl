@@ -1,4 +1,5 @@
-function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, T=ComplexF64, maxrank=40, svdrecompress=true)
+function aca_compression(matrix::Function, rowindices, colindices; 
+    tol=1e-14, T=ComplexF64, maxrank=40, svdrecompress=true, dblsupport=false)
 
     function smartmaxlocal(roworcolumn, acausedindices)
         maxval = -1
@@ -14,77 +15,180 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, T=
         return index, maxval
     end
 
-    acausedrowindices = zeros(Bool,length(rowindices))
-    acausedcolumnindices = zeros(Bool,length(colindices))
-    acarowindicescounter = 1
-    acacolumnindicescounter = 1
+    function update_approxxed!(times_approxxed, uv, estimated_error, tol)
+        for (i, val) in enumerate(uv)
+            if abs(val) > estimated_error*tol
+                times_approxxed[i] += 1
+            end
+        end
+    end
 
-    nextrowindex = 1
-    #acarowindices = [nextrowindex]
-    acausedrowindices[nextrowindex] = true
+    numrows = length(rowindices)
+    numcols = length(colindices)
 
-    U = zeros(T, length(rowindices), maxrank)
-    V = zeros(T, maxrank, length(colindices))
+    used_row_indices = zeros(Bool,numrows)
+    used_column_indices = zeros(Bool,numcols)
 
-    i = 1
+    if dblsupport
+        times_col_approxxed = zeros(Int, numcols)
+        times_row_approxxed = zeros(Int, numrows)
+    end
+
+    row_indices_counter = 1
+    column_indices_counter = 1
+
+
+    maxrank = max(maxrank, length(rowindices), length(colindices))
+
+    U = zeros(T, numrows, maxrank)
+    V = zeros(T, maxrank, numcols)
+
     #acacolumnindices = Integer[]
 
-    @views matrix(V[acarowindicescounter:acarowindicescounter, :], 
-                    rowindices[nextrowindex:nextrowindex],
-                    colindices[:])
+    i = 1
+    pivot_row = 1
+    j = 1
+    pivot_elem = 0.0
+    pivot_col = -1
 
-    @views nextcolumnindex, maxval = smartmaxlocal(V[acarowindicescounter, :], acausedcolumnindices)
-    acausedcolumnindices[nextcolumnindex] = true
+    # We might consider aborting earlier.
+    # Maybe it is even reasonable to assume
+    # that if a row is entirely zero, then
+    # we are deadling with a zero matrix block
+    while j <= numrows
+        used_row_indices[pivot_row] = true
 
-    #push!(acacolumnindices, nextcolumnindex)
+        @views matrix(V[row_indices_counter:row_indices_counter, :], 
+                        rowindices[pivot_row:pivot_row],
+                        colindices[:])
 
-    @views V[acarowindicescounter:acarowindicescounter, :] /= V[acarowindicescounter, nextcolumnindex]
+        @views pivot_col, pivot_elem = smartmaxlocal(V[row_indices_counter, :], used_column_indices)
+        if pivot_col == -1 || isapprox(pivot_elem, 0.0)
+      
+            j += 1
+            pivot_row += 1
+            if j > numrows
+                return U[:,1:1], V[1:1,:]
+            end
+        else
+            break
+        end
+    end
 
-    @views matrix(U[:, acacolumnindicescounter:acacolumnindicescounter], 
+    used_column_indices[pivot_col] = true
+
+
+    #push!(acacolumnindices, pivot_col)
+
+    @views V[row_indices_counter:row_indices_counter, :] /= V[row_indices_counter, pivot_col]
+
+    @views matrix(U[:, column_indices_counter:column_indices_counter], 
                     rowindices, 
-                    colindices[nextcolumnindex:nextcolumnindex])
+                    colindices[pivot_col:pivot_col])
 
     @views normUVlastupdate = norm(U[:, 1])*norm(V[1, :])
     normUVsqared = normUVlastupdate^2
    
-    while normUVlastupdate > sqrt(normUVsqared)*tol && 
-            i <= length(rowindices)-1 &&  i <= length(colindices)-1 && acacolumnindicescounter < maxrank
+    if dblsupport
+        update_approxxed!(times_col_approxxed, 
+            V[row_indices_counter:row_indices_counter, :],
+            normUVlastupdate, tol)
+
+        update_approxxed!(times_row_approxxed, 
+            U[:, column_indices_counter:column_indices_counter],
+            normUVlastupdate, tol)
+    end
+
+    isaltpivotstrategy = false
+
+    if dblsupport
+        current_minimum_row_approx = -1
+    else
+        current_minimum_row_approx = 1
+    end
+
+    while i <= numrows-1 &&  i <= numcols-1 && column_indices_counter < maxrank
+        if normUVlastupdate < sqrt(normUVsqared)*tol
+            if dblsupport && current_minimum_row_approx <= 0 # TODO: consider increasing 0
+                current_minimum_row_approx = minimum(times_row_approxxed)
+
+                if current_minimum_row_approx <= maximum(times_row_approxxed)
+                    isaltpivotstrategy = true
+                end
+            else
+                # At this point, we are finished
+                break
+            end
+        end
 
         i += 1
 
-        @views nextrowindex, maxval = smartmaxlocal(U[:,acacolumnindicescounter], acausedrowindices)
+        if isaltpivotstrategy == false #&& normUVlastupdate > sqrt(normUVsqared)*tol
+            @views pivot_row, maxval = smartmaxlocal(U[:,column_indices_counter], used_row_indices)
+        else
+            # In the case that doublelayersupport is active
+            pivot_row = -1
+            for (i, val) in enumerate(used_row_indices)
+                # Pick the first row that has not been sampled yet AND 
+                # which according to the heuristic has not been updated
+                if !val && times_row_approxxed[i] == current_minimum_row_approx
+                    pivot_row = i
+                    break
+                end
+            end
+            normUVsqared = 0
+            # We touched every row at least ones. Exit
+            if pivot_row == -1
+                break
+            end
+            isaltpivotstrategy = false
+        end
 
-        #if nextrowindex == -1
-        #    error("Failed to find new row index: ", nextrowindex)
-        #end
+        used_row_indices[pivot_row] = true
 
-        #if isapprox(maxval, 0.0)
-        #    println("Future V entry is close to zero. Abort.")
-        #    return U[:,1:acacolumnindicescounter], V[1:acarowindicescounter, :]
-        #end
-
-        acausedrowindices[nextrowindex] = true
-
-        acarowindicescounter += 1
-        @views matrix(V[acarowindicescounter:acarowindicescounter, :], 
-                        rowindices[nextrowindex:nextrowindex],
+        row_indices_counter += 1
+        @views matrix(V[row_indices_counter:row_indices_counter, :], 
+                        rowindices[pivot_row:pivot_row],
                         colindices[:])
 
-        @views V[acarowindicescounter:acarowindicescounter, :] -= U[nextrowindex:nextrowindex, 1:acacolumnindicescounter]*V[1:(acarowindicescounter-1), :]
-        @views nextcolumnindex, maxval = smartmaxlocal(V[acarowindicescounter, :], acausedcolumnindices)
+        @views V[row_indices_counter:row_indices_counter, :] -= U[pivot_row:pivot_row, 1:column_indices_counter]*V[1:(row_indices_counter-1), :]
+        @views pivot_col, maxval = smartmaxlocal(V[row_indices_counter, :], used_column_indices)
 
-        if (isapprox(V[acarowindicescounter, nextcolumnindex],0.0))
+        if pivot_col == -1
+            println("i", i)
+            println(used_column_indices)
+            println("V[row_indices_counter, :]")
+            println(V[row_indices_counter, :])
+            println("U[pivot_row:pivot_row, 1:column_indices_counter]")
+            println(U[pivot_row:pivot_row, 1:column_indices_counter])
+            println("V[1, :]")
+            println(V[1, :])
+            println("pivot_elem, ", pivot_elem)
+        end
+        # TODO: comparing against zero: what atol should we use? 
+        # PROPOSAL: put in relationship to maximum element so far
+        if (isapprox(V[row_indices_counter, pivot_col],0.0))
+            # Annhiliate last step
+            V[row_indices_counter:row_indices_counter, :] .= 0.0
+            row_indices_counter -= 1
+
+            if dblsupport
+                #maximum_row_approx = maximum(times_row_approxxed)
+                current_minimum_row_approx = minimum(times_row_approxxed)
+
+                if current_minimum_row_approx == 0
+                    isaltpivotstrategy = true
+                end
+            end
+
             normUVlastupdate = 0.0
-            V[acarowindicescounter:acarowindicescounter, :] .= 0.0
-            acarowindicescounter -= 1
-            println("Matrix seems to have exact rank: ", acarowindicescounter)
         else
-            #push!(acarowindices, nextrowindex)
+            #push!(acarowindices, pivot_row)
 
-            @views V[acarowindicescounter:acarowindicescounter, :] /= V[acarowindicescounter, nextcolumnindex]
+            @views V[row_indices_counter:row_indices_counter, :] /= V[row_indices_counter, pivot_col]
 
-            #if nextcolumnindex == -1
-            #    error("Failed to find new column index: ", nextcolumnindex)
+            #if pivot_col == -1
+            #    error("Failed to find new column index: ", pivot_col)
             #end
 
             #if isapprox(maxval, 0.0)
@@ -92,35 +196,51 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, T=
             #    return U[:,1:acacolumnindicescounter], V[1:acarowindicescounter-1,:]
             #end
 
-            acausedcolumnindices[nextcolumnindex] = true
+            used_column_indices[pivot_col] = true
 
-            #push!(acacolumnindices, nextcolumnindex)
+            #push!(acacolumnindices, pivot_col)
 
-            acacolumnindicescounter += 1
-            @views matrix(U[:, acacolumnindicescounter:acacolumnindicescounter], 
+            column_indices_counter += 1
+            @views matrix(U[:, column_indices_counter:column_indices_counter], 
                             rowindices,
-                            colindices[nextcolumnindex:nextcolumnindex])
+                            colindices[pivot_col:pivot_col])
 
-            @views U[:, acacolumnindicescounter] -= U[:, 1:(acacolumnindicescounter-1)]*V[1:(acarowindicescounter-1),nextcolumnindex:nextcolumnindex]
+            @views U[:, column_indices_counter] -= U[:, 1:(column_indices_counter-1)]*V[1:(row_indices_counter-1),pivot_col:pivot_col]
             
-            @views normUVlastupdate = norm(U[:,acacolumnindicescounter])*norm(V[acarowindicescounter,:])
+            @views normUVlastupdate = norm(U[:,column_indices_counter])*norm(V[row_indices_counter,:])
 
             normUVsqared += normUVlastupdate^2
-            for j = 1:(acacolumnindicescounter-1)
-                @views normUVsqared += 2*abs(dot(U[:,acacolumnindicescounter], U[:,j])*dot(V[acarowindicescounter,:], V[j,:]))
+            for j = 1:(column_indices_counter-1)
+                @views normUVsqared += 2*abs(dot(U[:,column_indices_counter], U[:,j])*dot(V[row_indices_counter,:], V[j,:]))
             end
+
+            if dblsupport
+                update_approxxed!(times_col_approxxed, 
+                    V[row_indices_counter:row_indices_counter, :],
+                    normUVlastupdate, tol)
+        
+                update_approxxed!(times_row_approxxed, 
+                    U[:, column_indices_counter],
+                    normUVlastupdate, tol)
+            end
+
         end
+        #println("i: ", i)
+        #println("normUVlastupdate: ", normUVlastupdate)
+        #println("sqrt(normUVsqared)*tol: ", sqrt(normUVsqared)*tol)
+        #println("pivot_row: ", pivot_row)
     end
 
-    if acacolumnindicescounter == maxrank
+    if column_indices_counter == maxrank
         println("WARNING: aborted ACA after maximum allowed rank")
     end
 
-    if svdrecompress && acacolumnindicescounter > 1
-        @views Q,R = qr(U[:,1:acacolumnindicescounter])
-        @views U,s,V = svd(R*V[1:acarowindicescounter,:])
+    if svdrecompress && column_indices_counter > 1
+        @views Q,R = qr(U[:,1:column_indices_counter])
+        @views U,s,V = svd(R*V[1:row_indices_counter,:])
 
         opt_r = length(s)
+
         for i in eachindex(s)
             if s[i] < tol*s[1]
                 opt_r = i
@@ -132,15 +252,15 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, T=
         B = (diagm(s)*V')[1:opt_r,:]
         return A, B
     else
-        return U[:,1:acacolumnindicescounter], V[1:acarowindicescounter,:]
+        return U[:,1:column_indices_counter], V[1:row_indices_counter,:]
     end    
 end
 
 
 function aca_compression(matrix::Function, testnode::BoxTreeNode, sourcenode::BoxTreeNode; 
-                        tol=1e-14, T=ComplexF64, maxrank=40, svdrecompress=true)
+                        tol=1e-14, T=ComplexF64, maxrank=40, svdrecompress=true, dblsupport=false)
     U, V = aca_compression(matrix, testnode.data, sourcenode.data,
-                             tol=tol, T=T, maxrank=maxrank, svdrecompress=svdrecompress)
+                             tol=tol, T=T, maxrank=maxrank, svdrecompress=svdrecompress, dblsupport=dblsupport)
 
     if false == true && size(U,2) >= 30
         println("Rank of compressed ACA is too large")
