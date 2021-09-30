@@ -136,7 +136,7 @@ function aca_compression(matrix::Function, rowindices, colindices;
                     break
                 end
             end
-            normUVsqared = 0
+            normUVsqared = 0 # Reset the counter, we get a new block
             # We touched every row at least ones. Exit
             if pivot_row == -1
                 break
