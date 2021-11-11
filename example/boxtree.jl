@@ -66,7 +66,11 @@ function plot_boxframes!(plt, boxframes)
     end
 end
 
+<<<<<<< HEAD
 tree = create_tree(points2D, treeoptions=BoxTreeOptions(nmin=4))
+=======
+tree = create_tree(points2D, treeoptions = BoxTreeOptions(nmin=3))
+>>>>>>> 3072e13 (KMeans-Tree)
 
 plt = scatter([points2D[i][1] for i=1:length(points2D)], 
         [points2D[i][2] for i=1:length(points2D)])
@@ -82,6 +86,10 @@ a = BoxTreeOptions(nmin=3)
 
 tree = create_tree(points3D, treeoptions = BoxTreeOptions(nmin=3))
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 3072e13 (KMeans-Tree)
 plt = scatter([points3D[i][1] for i=1:length(points3D)], 
         [points3D[i][2] for i=1:length(points3D)], 
         [points3D[i][3] for i=1:length(points3D)],

@@ -16,4 +16,9 @@ function test_beast_laplace_singlelayer(h)
     return  hmat
 end
 
+<<<<<<< HEAD
 hmat = test_beast_laplace_singlelayer(0.1) 
+=======
+
+hmat = test_beast_laplace_singlelayer(0.01) 
+>>>>>>> 3072e13 (KMeans-Tree)
