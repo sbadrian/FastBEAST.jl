@@ -15,6 +15,7 @@ export whichchildbox
 
 export BoxTreeNode
 export create_tree
+export BoxTreeOptions
 
 export aca_compression
 
