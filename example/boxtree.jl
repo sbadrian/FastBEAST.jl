@@ -66,7 +66,7 @@ function plot_boxframes!(plt, boxframes)
     end
 end
 
-tree = create_tree(points2D, nmin=4)
+tree = create_tree(points2D, treeoptions = BoxTreeOptions(nmin=3))
 
 plt = scatter([points2D[i][1] for i=1:length(points2D)], 
         [points2D[i][2] for i=1:length(points2D)])
@@ -82,7 +82,6 @@ a = BoxTreeOptions(nmin=3)
 
 tree = create_tree(points3D, treeoptions = BoxTreeOptions(nmin=3))
 
-create_tree()
 
 plt = scatter([points3D[i][1] for i=1:length(points3D)], 
         [points3D[i][2] for i=1:length(points3D)], 
