@@ -1,7 +1,7 @@
 module FastBEAST
 
-include("boundingbox.jl")
-include("boxtree.jl")
+include("tree/tree.jl")
+
 include("aca.jl")
 include("skeletons.jl")
 include("utils.jl")
