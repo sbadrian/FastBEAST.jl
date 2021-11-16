@@ -1,4 +1,4 @@
- 
+using StaticArrays
 using FastBEAST
 using Plots
 plotlyjs()

@@ -21,8 +21,8 @@ function hassemble(operator::BEAST.AbstractOperator, test_functions, trial_funct
     end
 
 
-    test_tree = create_tree(test_functions.pos, nmin=nmin)
-    trial_tree = create_tree(trial_functions.pos, nmin=nmin)
+    test_tree = create_tree(test_functions.pos, treeoptions=BoxTreeOptions(nmin=nmin))
+    trial_tree = create_tree(trial_functions.pos, treeoptions=BoxTreeOptions(nmin=nmin))
 
     @time hmat = HMatrix(assembler, test_tree, trial_tree, 
                          compressor=compressor, T=scalartype(operator), tol=tol, maxrank=maxrank,

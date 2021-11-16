@@ -78,7 +78,11 @@ plot_boxframes!(plt, bboxframes)
 ##
 points3D = [@SVector rand(3) for i=1:100] + [SVector(0.0, 0.0, 0.0) for i=1:100]
 
-tree = create_tree(points3D, nmin=4)
+a = BoxTreeOptions(nmin=3)
+
+tree = create_tree(points3D, treeoptions = BoxTreeOptions(nmin=3))
+
+create_tree()
 
 plt = scatter([points3D[i][1] for i=1:length(points3D)], 
         [points3D[i][2] for i=1:length(points3D)], 
