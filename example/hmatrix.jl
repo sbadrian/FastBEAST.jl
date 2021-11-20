@@ -50,7 +50,7 @@ plot(S, yaxis=:log, marker=:x)
 
 ##
 logkernelassembler(matrix, tdata, sdata) = assembler(logkernel, matrix, spoints[tdata], spoints[sdata])
-stree = create_tree(spoints, treeoptions=BoxTreeOptions(nmin=5))
+stree = create_tree(spoints, BoxTreeOptions(nmin=5))
 kmat = assembler(logkernel, spoints, spoints)
 hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, T=Float64)
 
@@ -60,7 +60,7 @@ hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, T=Float64)
 ## 
 logkernelassembler(matrix, tdata, sdata) = assembler(logkernel, matrix, tpoints[tdata], spoints[sdata])
 stree = create_tree(spoints, BoxTreeOptions(nmin=100))
-ttree = create_tree(tpoints, nmin=100)
+ttree = create_tree(tpoints, BoxTreeOptions(nmin=100))
 kmat = assembler(logkernel, tpoints, spoints)
 hmat = HMatrix(logkernelassembler, ttree, stree, T=Float64)
 
@@ -71,3 +71,4 @@ v2 = rand(NT)
 @printf("Accuracy test: %.2e\n", norm(adjoint(hmat)*v2 - adjoint(kmat)*v2)/norm(adjoint(kmat)*v2))
 @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
 
+##

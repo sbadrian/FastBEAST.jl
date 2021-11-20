@@ -1,7 +1,3 @@
-using StaticArrays
-using LinearAlgebra
-using Markdown
-
 struct KMeansTreeOptions <: TreeOptions
     iterations
     nchildren
@@ -65,8 +61,8 @@ sorted in equal sized Boxes.
   * `maxlevel`: defines the maximum amount of levels (default=100).
 """
 function create_tree(
-    points::Vector{SVector{D,T}}; 
-    treeoptions=KMeansTreeOptions()
+    points::Vector{SVector{D,T}},
+    treeoptions::KMeansTreeOptions
 ) where {D,T}
     root = KMeansTreeNode( nothing, nothing,  0, nothing, 0.0, Vector(1:length(points)))
     fill_tree!(
@@ -75,7 +71,7 @@ function create_tree(
         nmin=treeoptions.nmin,
         maxlevel=treeoptions.maxlevel,
         iterations=treeoptions.iterations,
-        nchildren = treeoptions.nchildren
+        nchildren=treeoptions.nchildren
     )
 
     return root

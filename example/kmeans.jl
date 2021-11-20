@@ -3,7 +3,7 @@ using Plots
 using StaticArrays
 plotlyjs()
 
-
+##
 # Example1
 points2D = [@SVector rand(2) for i=1:1000] + [SVector(1.0, 2.0) for i=1:1000]
 scatter(
@@ -14,7 +14,7 @@ scatter(
 ##
 @time tree = create_tree(
     points2D,
-    treeoptions = KMeansTreeOptions(iterations=1,nchildren=2,nmin=10)
+    KMeansTreeOptions(iterations=1,nchildren=2,nmin=10)
 )
 
 scatter(
@@ -29,7 +29,7 @@ scatter!(
 ##
 @time tree = create_tree(
     points2D,
-    treeoptions = KMeansTreeOptions(iterations=10,nchildren=2,nmin=10)
+    KMeansTreeOptions(iterations=10,nchildren=2,nmin=10)
 )
 
 scatter(
@@ -53,7 +53,7 @@ scatter(
 nchildren=4
 @time tree = create_tree(
     points2D, 
-    treeoptions = KMeansTreeOptions(iterations=1,nchildren=nchildren,nmin=10)
+    KMeansTreeOptions(iterations=1,nchildren=nchildren,nmin=10)
 )
 
 scatter(
@@ -71,7 +71,7 @@ scatter!()
 ##
 @time tree = create_tree(
     points2D, 
-    treeoptions = KMeansTreeOptions(iterations=10,nchildren=nchildren,nmin=10)
+    KMeansTreeOptions(iterations=10,nchildren=nchildren,nmin=10)
 );
 
 scatter(
@@ -91,6 +91,6 @@ scatter!()
 points3D = [@SVector rand(3) for i=1:1000000] + [SVector(0.0, 0.0, 0.0) for i=1:1000000]
 @time tree = create_tree(
     points3D, 
-    treeoptions = KMeansTreeOptions(iterations=1,nchildren=2,nmin=100)
+    KMeansTreeOptions(iterations=1,nchildren=2,nmin=100)
 );
 ##
