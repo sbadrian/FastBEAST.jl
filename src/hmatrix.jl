@@ -140,8 +140,8 @@ function HMatrix(matrixassembler::Function,
                  verbose=false,
                  svdrecompress=true)
     
-    fullinteractions = SVector{2,BoxTreeNode}[]
-    compressableinteractions = SVector{2,BoxTreeNode}[]
+    fullinteractions = SVector{2,AbstractNode}[]
+    compressableinteractions = SVector{2,AbstractNode}[]
 
     computerinteractions!(testtree,
                             sourcetree,

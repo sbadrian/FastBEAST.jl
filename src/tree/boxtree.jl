@@ -1,4 +1,3 @@
-abstract type AbstractNode end
 struct BoxTreeOptions <: TreeOptions
     nmin
     maxlevel
