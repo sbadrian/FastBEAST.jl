@@ -6,14 +6,13 @@ function hassemble(
     test_functions,
     trial_functions;
     compressor=:aca,
+    treeoptions=BoxTreeOptions(nmin=100),
     tol=1e-4,
-    nmin=100,
     maxrank=100,
     threading=:single,
-    quadstrat=BEAST.defaultquadstrat(operator, test_functions, trial_functions),
+    farquaddata=BEAST.quaddata,
     verbose=false,
-    svdrecompress=true
-)
+    svdrecompress=true)
 
     @views blkasm = BEAST.blockassembler(operator, test_functions, trial_functions)
     
@@ -26,7 +25,7 @@ function hassemble(
         operator,
         test_functions,
         trial_functions,
-        quadstrat=quadstrat
+        quaddata=farquaddata
     )
     
     @views function farassembler(Z, tdata, sdata)
@@ -35,8 +34,8 @@ function hassemble(
     end
 
 
-    test_tree = create_tree(test_functions.pos, treeoptions=BoxTreeOptions(nmin=nmin))
-    trial_tree = create_tree(trial_functions.pos, treeoptions=BoxTreeOptions(nmin=nmin))
+    test_tree = create_tree(test_functions.pos, treeoptions=treeoptions)
+    trial_tree = create_tree(trial_functions.pos, treeoptions=treeoptions)
 
     @time hmat = HMatrix(assembler, test_tree, trial_tree, 
                          compressor=compressor, T=scalartype(operator), tol=tol, maxrank=maxrank,

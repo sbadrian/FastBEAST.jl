@@ -34,12 +34,17 @@ function add_child!(parent::BoxTreeNode, bbox::BoundingBox, data::T) where T
     end
 end
 
-function create_tree(points::Vector{SVector{D,T}}; treeoptions=BoxTreeOptions()) where {D,T}
-    root = BoxTreeNode( nothing, 
-                        nothing, 
-                        0,
-                        BoundingBox(points), 
-                        Vector(1:length(points)))
+function create_tree(
+    points::Vector{SVector{D,T}},
+    treeoptions::BoxTreeOptions
+) where {D,T}
+    root = BoxTreeNode(
+        nothing, 
+        nothing,
+        0,
+        BoundingBox(points),
+        Vector(1:length(points))
+    )
 
     fill_tree!(root, points, nmin=treeoptions.nmin, maxlevel = treeoptions.maxlevel)
     
