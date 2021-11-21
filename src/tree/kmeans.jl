@@ -130,10 +130,14 @@ function fill_tree!(
 end
 
 function iscompressable(sourcenode::KMeansTreeNode, testnode::KMeansTreeNode)
-    dist = sourcenode.center - testnode.center
-    factor = 1.1
-    if factor * (sourcenode.radius + testnode.radius) >= dist
-        return true
+    if sourcenode.level > 0 && testnode.level > 0
+        dist = norm(sourcenode.center - testnode.center)
+        factor = 2
+        if factor * (sourcenode.radius + testnode.radius) >= dist
+            return true
+        else
+            return false
+        end
     else
         return false
     end
