@@ -52,7 +52,6 @@ plot(S, yaxis=:log, marker=:x)
 logkernelassembler(matrix, tdata, sdata) = assembler(logkernel, matrix, spoints[tdata], spoints[sdata])
 stree = create_tree(spoints, BoxTreeOptions(nmin=5))
 kmat = assembler(logkernel, spoints, spoints)
-println(typeof(stree))
 @time hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, T=Float64)
 
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
