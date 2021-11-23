@@ -4,7 +4,7 @@ points2D = [SVector(1.0, 1.0), #3
             SVector(1.7, 1.2), #4
             SVector(1.21, 1.7)] #2
 
-root = create_tree(points2D, treeoptions = BoxTreeOptions())
+root = create_tree(points2D, BoxTreeOptions())
 
 @test length(root.children) == 4
 @test root.children[1].data[1] == 2
