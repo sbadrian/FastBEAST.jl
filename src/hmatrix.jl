@@ -137,8 +137,8 @@ end
 
 function HMatrix(
     matrixassembler::Function,
-    testtree,#::BoxTreeNode,
-    sourcetree;#::BoxTreeNode;
+    testtree::N,#::BoxTreeNode,
+    sourcetree::N;#::BoxTreeNode;
     compressor=:naive,
     tol=1e-4,
     maxrank=100,
@@ -148,7 +148,7 @@ function HMatrix(
     farmatrixassembler=matrixassembler,
     verbose=false,
     svdrecompress=true
-)
+) where N <: AbstractNode
     
     fullinteractions = SVector{2}[]
     compressableinteractions = SVector{2}[]

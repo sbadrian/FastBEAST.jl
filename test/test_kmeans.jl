@@ -4,7 +4,7 @@ points2D = [SVector(0.1, 0.1), #1
             SVector(0.2, 0.2), #3
             SVector(1.1, 1.1)] #4
 
-root = create_tree(points2D, treeoptions = KMeansTreeOptions())
+root = create_tree(points2D, KMeansTreeOptions())
 
 @test length(root.children) == 2
 @test root.children[1].data[1] == 1

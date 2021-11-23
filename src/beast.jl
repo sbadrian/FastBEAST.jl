@@ -34,12 +34,21 @@ function hassemble(
     end
 
 
-    test_tree = create_tree(test_functions.pos, treeoptions=treeoptions)
-    trial_tree = create_tree(trial_functions.pos, treeoptions=treeoptions)
+    test_tree = create_tree(test_functions.pos, treeoptions)
+    trial_tree = create_tree(trial_functions.pos, treeoptions)
 
-    @time hmat = HMatrix(assembler, test_tree, trial_tree, 
-                         compressor=compressor, T=scalartype(operator), tol=tol, maxrank=maxrank,
-                         threading=threading, farmatrixassembler=farassembler, verbose=verbose,
-                         svdrecompress=svdrecompress)
+    @time hmat = HMatrix(
+        assembler,
+        test_tree,
+        trial_tree, 
+        compressor=compressor,
+        T=scalartype(operator),
+        tol=tol,
+        maxrank=maxrank,
+        threading=threading,
+        farmatrixassembler=farassembler,
+        verbose=verbose,
+        svdrecompress=svdrecompress
+    )
     return hmat
 end

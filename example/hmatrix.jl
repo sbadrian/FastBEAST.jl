@@ -72,7 +72,7 @@ v2 = rand(NT)
 
 ##
 logkernelassembler(matrix, tdata, sdata) = assembler(logkernel, matrix, spoints[tdata], spoints[sdata])
-stree = create_tree(spoints, KMeansTreeOptions(nchildren=10, iterations=10, nmin=100))
+stree = create_tree(spoints, KMeansTreeOptions(nchildren=2, iterations=10, nmin=5))
 kmat = assembler(logkernel, spoints, spoints)
 @time hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, T=Float64)
 
