@@ -1,10 +1,19 @@
 
 using BEAST
 
-function hassemble(operator::BEAST.AbstractOperator, test_functions, trial_functions; 
-                   compressor=:aca, tol=1e-4, nmin=100, maxrank=100, 
-                   threading=:single, farquaddata=BEAST.quaddata, 
-                   verbose=false, svdrecompress=true)
+function hassemble(
+    operator::BEAST.AbstractOperator,
+    test_functions,
+    trial_functions;
+    compressor=:aca,
+    tol=1e-4,
+    nmin=100,
+    maxrank=100,
+    threading=:single,
+    quadstrat=BEAST.defaultquadstrat(operator, test_functions, trial_functions),
+    verbose=false,
+    svdrecompress=true
+)
 
     @views blkasm = BEAST.blockassembler(operator, test_functions, trial_functions)
     
@@ -13,7 +22,12 @@ function hassemble(operator::BEAST.AbstractOperator, test_functions, trial_funct
         blkasm(tdata,sdata,store)
     end
 
-    @views farblkasm = BEAST.blockassembler(operator, test_functions, trial_functions, quaddata=farquaddata)
+    @views farblkasm = BEAST.blockassembler(
+        operator,
+        test_functions,
+        trial_functions,
+        quadstrat=quadstrat
+    )
     
     @views function farassembler(Z, tdata, sdata)
         @views store(v,m,n) = (Z[m,n] += v)
