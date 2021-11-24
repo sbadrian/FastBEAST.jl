@@ -1,5 +1,4 @@
-using FastBEAST
-using Test
+include("test_common.jl")
 
 @testset "FastBEAST.jl" begin
     include("test_boundingbox.jl")

@@ -47,6 +47,7 @@ T = hassemble(
     X,
     nmin=100,
     threading=:multi,
+    quadstrat=BEAST.DoubleNumQStrat(1,1),
     verbose=true,
     svdrecompress=true
 )

@@ -44,3 +44,23 @@ function hassemble(
                          svdrecompress=svdrecompress)
     return hmat
 end
+
+# The following to function ensure that no dynamic dispatching is
+# performed since we know already that all triangles are well-separate
+
+# Copied from BEAST/examples/quadstrat.jl
+function BEAST.quaddata(op, tref, bref,
+    tels, bels, qs::BEAST.DoubleNumQStrat)
+
+    qs = BEAST.DoubleNumWiltonSauterQStrat(qs.outer_rule, qs.inner_rule, 1, 1, 1, 1, 1, 1)
+    BEAST.quaddata(op, tref, bref, tels, bels, qs)
+end
+
+# Copied from BEAST/examples/quadstrat.jl
+function BEAST.quadrule(op, tref, bref,
+    i ,τ, j, σ, qd, qs::BEAST.DoubleNumQStrat)
+
+    return BEAST.DoubleQuadRule(
+        qd.tpoints[1,i],
+        qd.bpoints[1,j])
+end
