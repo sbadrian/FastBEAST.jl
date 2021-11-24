@@ -50,7 +50,7 @@ plot(S, yaxis=:log, marker=:x)
 
 ##
 logkernelassembler(matrix, tdata, sdata) = assembler(logkernel, matrix, spoints[tdata], spoints[sdata])
-stree = create_tree(spoints, nmin=5)
+stree = create_tree(spoints, treeoptions=BoxTreeOptions(nmin=5))
 kmat = assembler(logkernel, spoints, spoints)
 hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, T=Float64)
 
@@ -59,7 +59,7 @@ hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, T=Float64)
 
 ## 
 logkernelassembler(matrix, tdata, sdata) = assembler(logkernel, matrix, tpoints[tdata], spoints[sdata])
-stree = create_tree(spoints, nmin=100)
+stree = create_tree(spoints, BoxTreeOptions(nmin=100))
 ttree = create_tree(tpoints, nmin=100)
 kmat = assembler(logkernel, tpoints, spoints)
 hmat = HMatrix(logkernelassembler, ttree, stree, T=Float64)
