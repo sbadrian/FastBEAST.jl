@@ -49,9 +49,24 @@ println("Condition number: ", S[1] / S[end])
 plot(S, yaxis=:log, marker=:x)
 
 ##
+<<<<<<< HEAD
 logkernelassembler(matrix, tdata, sdata) = assembler(logkernel, matrix, tpoints[tdata], spoints[sdata])
 stree = create_tree(spoints, BoxTreeOptions(nmin=100))
 ttree = create_tree(tpoints, BoxTreeOptions(nmin=100))
+=======
+logkernelassembler(matrix, tdata, sdata) = assembler(logkernel, matrix, spoints[tdata], spoints[sdata])
+stree = create_tree(spoints, treeoptions=BoxTreeOptions(nmin=5))
+kmat = assembler(logkernel, spoints, spoints)
+hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, T=Float64)
+
+@printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
+@printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
+
+## 
+logkernelassembler(matrix, tdata, sdata) = assembler(logkernel, matrix, tpoints[tdata], spoints[sdata])
+stree = create_tree(spoints, BoxTreeOptions(nmin=100))
+ttree = create_tree(tpoints, nmin=100)
+>>>>>>> 233c0a52da7a4dfc0af796d36d9656eef9f1082d
 kmat = assembler(logkernel, tpoints, spoints)
 hmat = HMatrix(logkernelassembler, ttree, stree, T=Float64)
 
