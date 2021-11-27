@@ -6,13 +6,14 @@ function hassemble(
     test_functions,
     trial_functions;
     compressor=:aca,
-    treeoptions=BoxTreeOptions(nmin=100),
     tol=1e-4,
+    treeoptions=BoxTreeOptions(nmin=100),
     maxrank=100,
     threading=:single,
-    farquaddata=BEAST.quaddata,
+    quadstrat=BEAST.defaultquadstrat(operator, test_functions, trial_functions),
     verbose=false,
-    svdrecompress=true)
+    svdrecompress=true
+)
 
     @views blkasm = BEAST.blockassembler(operator, test_functions, trial_functions)
     
@@ -25,7 +26,7 @@ function hassemble(
         operator,
         test_functions,
         trial_functions,
-        quaddata=farquaddata
+        quadstrat=quadstrat
     )
     
     @views function farassembler(Z, tdata, sdata)

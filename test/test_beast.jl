@@ -15,8 +15,7 @@ function test_beast_laplace_singlelayer(h; threading=:single,
  
     𝒱 = Helmholtz3D.singlelayer(wavenumber=0.0)
 
-    hmat = hassemble(𝒱,X,X, treeoptions=BoxTreeOptions(nmin=50), threading=threading, 
-                    farquaddata=farquaddata, svdrecompress=svdrecompress)
+    hmat = hassemble(𝒱,X,X, treeoptions=BoxTreeOptions(nmin=50), threading=threading, svdrecompress=svdrecompress)
 
     mat = assemble(𝒱,X,X)
     return mat, hmat
