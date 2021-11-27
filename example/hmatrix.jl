@@ -3,7 +3,7 @@ using StaticArrays
 using LinearAlgebra
 using Plots
 using Printf
-plotlyjs()
+#plotlyjs()
 function logkernel(testpoint::SVector{2,T}, sourcepoint::SVector{2,T}) where T
     if isapprox(testpoint, sourcepoint, rtol=eps()*1e1)
         return 0.0
@@ -49,15 +49,6 @@ println("Condition number: ", S[1] / S[end])
 plot(S, yaxis=:log, marker=:x)
 
 ##
-logkernelassembler(matrix, tdata, sdata) = assembler(logkernel, matrix, spoints[tdata], spoints[sdata])
-stree = create_tree(spoints, BoxTreeOptions(nmin=5))
-kmat = assembler(logkernel, spoints, spoints)
-@time hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, T=Float64)
-
-@printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
-@printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
-
-## 
 logkernelassembler(matrix, tdata, sdata) = assembler(logkernel, matrix, tpoints[tdata], spoints[sdata])
 stree = create_tree(spoints, BoxTreeOptions(nmin=100))
 ttree = create_tree(tpoints, BoxTreeOptions(nmin=100))
@@ -71,6 +62,17 @@ v2 = rand(NT)
 @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
 
 ##
+N = 10000
+spoints = [@SVector rand(2) for i = 1:N]
+logkernelassembler(matrix, tdata, sdata) = assembler(logkernel, matrix, spoints[tdata], spoints[sdata])
+stree = create_tree(spoints, BoxTreeOptions(nmin=5))
+kmat = assembler(logkernel, spoints, spoints)
+@time hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, T=Float64)
+
+@printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
+@printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
+
+## 
 logkernelassembler(matrix, tdata, sdata) = assembler(logkernel, matrix, spoints[tdata], spoints[sdata])
 stree = create_tree(spoints, KMeansTreeOptions(nchildren=2, iterations=10, nmin=5))
 kmat = assembler(logkernel, spoints, spoints)
