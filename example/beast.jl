@@ -16,9 +16,5 @@ function test_beast_laplace_singlelayer(h)
     return  hmat
 end
 
-<<<<<<< HEAD
 
 hmat = test_beast_laplace_singlelayer(0.01) 
-=======
-hmat = test_beast_laplace_singlelayer(0.1) 
->>>>>>> 233c0a52da7a4dfc0af796d36d9656eef9f1082d
