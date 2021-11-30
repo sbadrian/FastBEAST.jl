@@ -90,7 +90,7 @@ function fill_tree!(
     iterations, 
     nchildren
 ) where {D,T}
-    if length(node.data) <= nmin || node.level >= maxlevel - 1
+    if length(node.data) <= nmin*nchildren || node.level >= maxlevel - 1 || length(node.data) <= nchildren
         return
     end
 
@@ -132,7 +132,7 @@ end
 function iscompressable(sourcenode::KMeansTreeNode, testnode::KMeansTreeNode)
     if sourcenode.level > 0 && testnode.level > 0
         dist = norm(sourcenode.center - testnode.center)
-        factor = 1.5
+        factor = 1.1
         if factor * (sourcenode.radius + testnode.radius) < dist
             return true
         else

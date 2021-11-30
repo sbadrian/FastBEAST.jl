@@ -3,7 +3,9 @@ using StaticArrays
 using LinearAlgebra
 using Plots
 using Printf
-#plotlyjs()
+plotlyjs()
+
+##
 function logkernel(testpoint::SVector{2,T}, sourcepoint::SVector{2,T}) where T
     if isapprox(testpoint, sourcepoint, rtol=eps()*1e1)
         return 0.0
@@ -49,7 +51,8 @@ println("Condition number: ", S[1] / S[end])
 plot(S, yaxis=:log, marker=:x)
 
 ##
-logkernelassembler(matrix, tdata, sdata) = assembler(logkernel, matrix, tpoints[tdata], spoints[sdata])
+logkernelassembler(matrix, tdata, sdata) = 
+    assembler(logkernel, matrix, tpoints[tdata], spoints[sdata])
 stree = create_tree(spoints, BoxTreeOptions(nmin=100))
 ttree = create_tree(tpoints, BoxTreeOptions(nmin=100))
 kmat = assembler(logkernel, tpoints, spoints)
@@ -58,13 +61,17 @@ hmat = HMatrix(logkernelassembler, ttree, stree, T=Float64)
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat, kmat))
 
 v2 = rand(NT)
-@printf("Accuracy test: %.2e\n", norm(adjoint(hmat)*v2 - adjoint(kmat)*v2)/norm(adjoint(kmat)*v2))
+@printf("Accuracy test: %.2e\n", norm(adjoint(hmat)*v2 - 
+    adjoint(kmat)*v2)/norm(adjoint(kmat)*v2))
 @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
 
-##
+#Comparison KMeans/BoxTree
+## Example linear function
 N = 10000
-spoints = [@SVector rand(2) for i = 1:N]
-logkernelassembler(matrix, tdata, sdata) = assembler(logkernel, matrix, spoints[tdata], spoints[sdata])
+spoints = [SVector(i,i) for i = 1:N] + [SVector(1.0, 1.0) for i = 1:N]
+
+logkernelassembler(matrix, tdata, sdata) = 
+    assembler(logkernel, matrix, spoints[tdata], spoints[sdata])
 stree = create_tree(spoints, BoxTreeOptions(nmin=5))
 kmat = assembler(logkernel, spoints, spoints)
 @time hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, T=Float64)
@@ -72,12 +79,61 @@ kmat = assembler(logkernel, spoints, spoints)
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
 @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
 
-## 
-logkernelassembler(matrix, tdata, sdata) = assembler(logkernel, matrix, spoints[tdata], spoints[sdata])
-stree = create_tree(spoints, KMeansTreeOptions(nchildren=2, iterations=10, nmin=5))
+stree = create_tree(spoints, KMeansTreeOptions(iterations=10,nchildren=2,nmin=10))
 kmat = assembler(logkernel, spoints, spoints)
 @time hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, T=Float64)
 
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
 @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
 
+## Example random distribution
+N = 2000
+spoints = [@SVector rand(2) for i = 1:N]
+
+logkernelassembler(matrix, tdata, sdata) = 
+    assembler(logkernel, matrix, spoints[tdata], spoints[sdata])
+stree = create_tree(spoints, BoxTreeOptions(nmin=10))
+kmat = assembler(logkernel, spoints, spoints)
+@time hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, T=Float64)
+
+@printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
+@printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
+
+stree = create_tree(spoints, KMeansTreeOptions(iterations=10,nchildren=2,nmin=10))
+kmat = assembler(logkernel, spoints, spoints)
+@time hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, T=Float64)
+
+@printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
+@printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
+
+## Example defined target points
+N =  10000
+NT = 1000
+
+spoints = [@SVector rand(2) for i = 1:N]
+tpoints = 0.1*[@SVector rand(2) for i = 1:NT] + [SVector(1.0, 1.0) for i = 1:NT]
+
+logkernelassembler(matrix, tdata, sdata) = 
+    assembler(logkernel, matrix, tpoints[tdata], spoints[sdata])
+ttree = create_tree(tpoints, BoxTreeOptions(nmin=10))
+stree = create_tree(spoints, BoxTreeOptions(nmin=10))
+kmat = assembler(logkernel, tpoints, spoints)
+@time hmat = HMatrix(logkernelassembler, ttree, stree, T=Float64)
+
+@printf("Accuracy test: %.2e\n", estimate_reldifference(hmat, kmat))
+
+v2 = rand(NT)
+@printf("Accuracy test: %.2e\n", norm(adjoint(hmat)*v2 - 
+    adjoint(kmat)*v2)/norm(adjoint(kmat)*v2))
+@printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
+
+stree = create_tree(spoints, KMeansTreeOptions(iterations=100, nchildren=2, nmin=10))
+ttree = create_tree(tpoints, KMeansTreeOptions(iterations=100, nchildren=2, nmin=10))
+kmat = assembler(logkernel, tpoints, spoints)
+@time hmat = HMatrix(logkernelassembler, ttree, stree, T=Float64)
+
+@printf("Accuracy test: %.2e\n", estimate_reldifference(hmat, kmat))
+
+v2 = rand(NT)
+@printf("Accuracy test: %.2e\n", norm(adjoint(hmat)*v2 - adjoint(kmat)*v2)/norm(adjoint(kmat)*v2))
+@printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)

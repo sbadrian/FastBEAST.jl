@@ -93,29 +93,3 @@ points3D = [@SVector rand(3) for i=1:1000000] + [SVector(0.0, 0.0, 0.0) for i=1:
     points3D, 
     KMeansTreeOptions(iterations=1,nchildren=2,nmin=100)
 );
-##
-using LinearAlgebra
-function iscompressable(sourcenode::KMeansTreeNode, testnode::KMeansTreeNode)
-    if sourcenode.level > 0 && testnode.level > 0
-        dist = norm(sourcenode.center - testnode.center)
-        factor = 2
-        if factor * (sourcenode.radius + testnode.radius) < dist
-            return true
-        else
-            return false
-        end
-    else
-        return false
-    end
-end
-points = [SVector(0.5, 0.5), 
-SVector(1.6, 1.6), 
-SVector(0.9, 0.9), 
-SVector(1.1, 1.1)]
-
-root = create_tree(points, KMeansTreeOptions())
-println(root.children[1].center)
-println(root.children[1].radius)
-println(root.children[2].center)
-println(root.children[2].radius)
-print(iscompressable(root.children[1], root.children[2]))
