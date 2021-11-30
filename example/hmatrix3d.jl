@@ -101,14 +101,14 @@ spoints = [SVector((sin(i)*cos(j),sin(i)*sin(j),cos(i))) for j=0:0.1:2*pi for i 
 spoints = [SVector((sin(i)*cos(j),sin(i)*sin(j),i^2*cos(i))) for j=0:0.1:2*pi for i = 0:0.1:pi];
 ##
 @views OneoverRkernelassembler(matrix, tdata, sdata) = assembler(OneoverRkernel, matrix, spoints[tdata], spoints[sdata])
-stree = create_tree(spoints, BoxTreeOptions(nmin=10))
+stree = create_tree(spoints, BoxTreeOptions(nmin=400))
 kmat = assembler(OneoverRkernel, spoints, spoints)
 @time hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, T=Float64)
 
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
 @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
 
-stree = create_tree(spoints, KMeansTreeOptions(iterations=100,nchildren=2,nmin=50))
+stree = create_tree(spoints, KMeansTreeOptions(iterations=100,nchildren=2,nmin=10))
 kmat = assembler(OneoverRkernel, spoints, spoints)
 @time hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, T=Float64)
 
