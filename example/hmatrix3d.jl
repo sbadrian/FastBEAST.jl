@@ -35,7 +35,7 @@ end
 
 ##
 
-N =  100
+N =  1000
 NT = N
 
 spoints = [@SVector rand(3) for i = 1:N]
@@ -88,3 +88,44 @@ function hmatrix3d_benchmark(N)
     @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
     return nothing #stree, hmat
 end
+
+
+## Example random distribution
+N = 3000
+spoints = [@SVector rand(3) for i = 1:N];
+
+## Example sphere
+spoints = [SVector((sin(i)*cos(j),sin(i)*sin(j),cos(i))) for j=0:0.1:2*pi for i = 0:0.1:pi];
+
+## Example sphere like shape
+spoints = [SVector((sin(i)*cos(j),sin(i)*sin(j),i^2*cos(i))) for j=0:0.1:2*pi for i = 0:0.1:pi];
+##
+@views OneoverRkernelassembler(matrix, tdata, sdata) = assembler(OneoverRkernel, matrix, spoints[tdata], spoints[sdata])
+stree = create_tree(spoints, BoxTreeOptions(nmin=10))
+kmat = assembler(OneoverRkernel, spoints, spoints)
+@time hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, T=Float64)
+
+@printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
+@printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
+
+stree = create_tree(spoints, KMeansTreeOptions(iterations=100,nchildren=2,nmin=50))
+kmat = assembler(OneoverRkernel, spoints, spoints)
+@time hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, T=Float64)
+
+@printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
+@printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
+
+## Plot figure for KMeans first level
+scatter(
+    [spoints[stree.children[1].data[i]][1] for i=1:length(stree.children[1].data)], 
+    [spoints[stree.children[1].data[i]][2] for i=1:length(stree.children[1].data)],
+    [spoints[stree.children[1].data[i]][3] for i=1:length(stree.children[1].data)]
+)
+for j = 2:2
+    scatter!(
+        [spoints[stree.children[j].data[i]][1] for i=1:length(stree.children[j].data)], 
+        [spoints[stree.children[j].data[i]][2] for i=1:length(stree.children[j].data)],
+        [spoints[stree.children[j].data[i]][3] for i=1:length(stree.children[j].data)]
+    )
+end
+scatter!()

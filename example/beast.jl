@@ -11,7 +11,7 @@ function test_beast_laplace_singlelayer(h)
  
     𝒱 = Helmholtz3D.singlelayer(wavenumber=0.0)
 
-    hmat = hassemble(𝒱,X,X, nmin=100)
+    hmat = hassemble(𝒱,X,X, treeoptions = BoxTreeOptions(nmin=100))
 
     return  hmat
 end

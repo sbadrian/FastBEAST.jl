@@ -1,4 +1,6 @@
 using Test
+using LinearAlgebra
+
 points2D = [SVector(0.1, 0.1), #1
             SVector(1.0, 1.0), #2
             SVector(0.2, 0.2), #3
