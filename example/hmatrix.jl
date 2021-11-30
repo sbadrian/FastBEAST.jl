@@ -72,14 +72,14 @@ spoints = [SVector(i,i) for i = 1:N] + [SVector(1.0, 1.0) for i = 1:N]
 
 logkernelassembler(matrix, tdata, sdata) = 
     assembler(logkernel, matrix, spoints[tdata], spoints[sdata])
-stree = create_tree(spoints, BoxTreeOptions(nmin=5))
+stree = create_tree(spoints, BoxTreeOptions(nmin=100))
 kmat = assembler(logkernel, spoints, spoints)
 @time hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, T=Float64)
 
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
 @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
 
-stree = create_tree(spoints, KMeansTreeOptions(iterations=10,nchildren=2,nmin=10))
+stree = create_tree(spoints, KMeansTreeOptions(iterations=10,nchildren=2,nmin=20))
 kmat = assembler(logkernel, spoints, spoints)
 @time hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, T=Float64)
 
@@ -90,16 +90,21 @@ kmat = assembler(logkernel, spoints, spoints)
 N = 2000
 spoints = [@SVector rand(2) for i = 1:N]
 
-logkernelassembler(matrix, tdata, sdata) = 
-    assembler(logkernel, matrix, spoints[tdata], spoints[sdata])
-stree = create_tree(spoints, BoxTreeOptions(nmin=10))
+logkernelassembler(matrix, tdata, sdata) = assembler(
+    logkernel, 
+    matrix, 
+    spoints[tdata], 
+    spoints[sdata]
+)
+
+stree = create_tree(spoints, BoxTreeOptions(nmin=100))
 kmat = assembler(logkernel, spoints, spoints)
 @time hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, T=Float64)
 
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
 @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
 
-stree = create_tree(spoints, KMeansTreeOptions(iterations=10,nchildren=2,nmin=10))
+stree = create_tree(spoints, KMeansTreeOptions(iterations=10,nchildren=2,nmin=20))
 kmat = assembler(logkernel, spoints, spoints)
 @time hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, T=Float64)
 
