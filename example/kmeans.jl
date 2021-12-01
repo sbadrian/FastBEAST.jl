@@ -3,15 +3,14 @@ using Plots
 using StaticArrays
 plotlyjs()
 
-##
-# Example1
+## Example1 random distribution
 points2D = [@SVector rand(2) for i=1:1000] + [SVector(1.0, 2.0) for i=1:1000]
 scatter(
     [points2D[i][1] for i=1:length(points2D)], 
     [points2D[i][2] for i=1:length(points2D)]
 )
 
-##
+## Example1 a) KMeans with single iteration
 @time tree = create_tree(
     points2D,
     KMeansTreeOptions(iterations=1,nchildren=2,nmin=10)
@@ -26,7 +25,7 @@ scatter!(
     [points2D[tree.children[2].data[i]][2] for i=1:length(tree.children[2].data)]
 )
 
-##
+## Example1 b) KMeans with 10 iterations
 @time tree = create_tree(
     points2D,
     KMeansTreeOptions(iterations=10,nchildren=2,nmin=10)
@@ -40,16 +39,8 @@ scatter!(
     [points2D[tree.children[2].data[i]][1] for i=1:length(tree.children[2].data)], 
     [points2D[tree.children[2].data[i]][2] for i=1:length(tree.children[2].data)]
 )
-##
 
-# Example2
-points2D = [@SVector rand(2) for i=1:1000] + [SVector(1.0, 2.0) for i=1:1000]
-scatter(
-    [points2D[i][1] for i=1:length(points2D)], 
-    [points2D[i][2] for i=1:length(points2D)]
-)
-
-##
+## Example1 c) KMeans with quadtree, single iteration
 nchildren=4
 @time tree = create_tree(
     points2D, 
@@ -68,7 +59,8 @@ for j = 2:nchildren
 end
 scatter!()
 
-##
+## Example1 d) KMeans with quadtree, 10 iterations
+nchildren=4
 @time tree = create_tree(
     points2D, 
     KMeansTreeOptions(iterations=10,nchildren=nchildren,nmin=10)
@@ -85,11 +77,10 @@ for j = 2:nchildren
     )
 end
 scatter!()
-##
 
-#Example3
-points3D = [@SVector rand(3) for i=1:1000000] + [SVector(0.0, 0.0, 0.0) for i=1:1000000]
+## Example2 Larger problem
+points3D = [@SVector rand(3) for i=1:100000] + [SVector(0.0, 0.0, 0.0) for i=1:100000]
 @time tree = create_tree(
     points3D, 
-    KMeansTreeOptions(iterations=1,nchildren=2,nmin=100)
+    KMeansTreeOptions(iterations=20,nchildren=2,nmin=100)
 );
