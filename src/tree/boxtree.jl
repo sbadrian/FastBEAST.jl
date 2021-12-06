@@ -1,14 +1,3 @@
-abstract type AbstractNode end
-
-#mutable struct Node{T} <: AbstractNode
-#    parent::Union{Node{T},Nothing}
-#    children::Union{Vector{Node{T}}, Nothing}
-#    data::T
-#
-#    Node{T}() where T = new{T}(nothing, nothing, nothing)
-#    Node{T}(data::T) where T = new{T}(nothing, nothing, data)
-#end
-
 struct BoxTreeOptions <: TreeOptions
     nmin
     maxlevel
@@ -44,12 +33,17 @@ function add_child!(parent::BoxTreeNode, bbox::BoundingBox, data::T) where T
     end
 end
 
-function create_tree(points::Vector{SVector{D,T}}; treeoptions=BoxTreeOptions()) where {D,T}
-    root = BoxTreeNode( nothing, 
-                        nothing, 
-                        0,
-                        BoundingBox(points), 
-                        Vector(1:length(points)))
+function create_tree(
+    points::Vector{SVector{D,T}},
+    treeoptions::BoxTreeOptions
+) where {D,T}
+    root = BoxTreeNode(
+        nothing, 
+        nothing,
+        0,
+        BoundingBox(points),
+        Vector(1:length(points))
+    )
 
     fill_tree!(root, points, nmin=treeoptions.nmin, maxlevel = treeoptions.maxlevel)
     

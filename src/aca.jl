@@ -1,5 +1,12 @@
-function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, T=ComplexF64, maxrank=40, svdrecompress=true)
-
+function aca_compression(
+    matrix::Function,
+    rowindices,
+    colindices;
+    tol=1e-14,
+    T=ComplexF64,
+    maxrank=40,
+    svdrecompress=true
+)
     function smartmaxlocal(roworcolumn, acausedindices)
         maxval = -1
         index = -1
@@ -40,15 +47,19 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, T=
 
     @views V[acarowindicescounter:acarowindicescounter, :] /= V[acarowindicescounter, nextcolumnindex]
 
-    @views matrix(U[:, acacolumnindicescounter:acacolumnindicescounter], 
-                    rowindices, 
-                    colindices[nextcolumnindex:nextcolumnindex])
+    @views matrix(
+        U[:, acacolumnindicescounter:acacolumnindicescounter], 
+        rowindices, 
+        colindices[nextcolumnindex:nextcolumnindex]
+    )
 
     @views normUVlastupdate = norm(U[:, 1])*norm(V[1, :])
     normUVsqared = normUVlastupdate^2
    
     while normUVlastupdate > sqrt(normUVsqared)*tol && 
-            i <= length(rowindices)-1 &&  i <= length(colindices)-1 && acacolumnindicescounter < maxrank
+        i <= length(rowindices)-1 &&
+        i <= length(colindices)-1 &&
+        acacolumnindicescounter < maxrank
 
         i += 1
 
@@ -66,9 +77,11 @@ function aca_compression(matrix::Function, rowindices, colindices; tol=1e-14, T=
         acausedrowindices[nextrowindex] = true
 
         acarowindicescounter += 1
-        @views matrix(V[acarowindicescounter:acarowindicescounter, :], 
-                        rowindices[nextrowindex:nextrowindex],
-                        colindices[:])
+        @views matrix(
+            V[acarowindicescounter:acarowindicescounter, :],
+            rowindices[nextrowindex:nextrowindex],
+            colindices[:]
+        )
 
         @views V[acarowindicescounter:acarowindicescounter, :] -= U[nextrowindex:nextrowindex, 1:acacolumnindicescounter]*V[1:(acarowindicescounter-1), :]
         @views nextcolumnindex, maxval = smartmaxlocal(V[acarowindicescounter, :], acausedcolumnindices)
