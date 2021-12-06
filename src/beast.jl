@@ -7,7 +7,7 @@ function hassemble(
     trial_functions;
     compressor=:aca,
     tol=1e-4,
-    nmin=100,
+    treeoptions=BoxTreeOptions(nmin=100),
     maxrank=100,
     threading=:single,
     quadstrat=BEAST.defaultquadstrat(operator, test_functions, trial_functions),
@@ -35,13 +35,22 @@ function hassemble(
     end
 
 
-    test_tree = create_tree(test_functions.pos, treeoptions=BoxTreeOptions(nmin=nmin))
-    trial_tree = create_tree(trial_functions.pos, treeoptions=BoxTreeOptions(nmin=nmin))
+    test_tree = create_tree(test_functions.pos, treeoptions)
+    trial_tree = create_tree(trial_functions.pos, treeoptions)
 
-    @time hmat = HMatrix(assembler, test_tree, trial_tree, 
-                         compressor=compressor, T=scalartype(operator), tol=tol, maxrank=maxrank,
-                         threading=threading, farmatrixassembler=farassembler, verbose=verbose,
-                         svdrecompress=svdrecompress)
+    @time hmat = HMatrix(
+        assembler,
+        test_tree,
+        trial_tree, 
+        compressor=compressor,
+        T=scalartype(operator),
+        tol=tol,
+        maxrank=maxrank,
+        threading=threading,
+        farmatrixassembler=farassembler,
+        verbose=verbose,
+        svdrecompress=svdrecompress
+    )
     return hmat
 end
 

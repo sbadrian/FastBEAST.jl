@@ -16,6 +16,8 @@ export whichchildbox
 export BoxTreeNode
 export create_tree
 export BoxTreeOptions
+export KMeansTreeOptions
+export KMeansTreeNode
 
 export aca_compression
 
