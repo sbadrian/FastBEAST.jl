@@ -8,9 +8,11 @@ makedocs(
          modules  = [FastBEAST],
          pages=[
                 "Home" => "index.md",
-                "second.md"
+                "Manual" => Any[
+                    "man/clustering.md"
+                    ]
                ])
 deploydocs(
-    repo="github.com/sbadrian/FastBEAST",
+    repo="github.com/JoshuaTetzner/FastBEAST",
     devbranch = "main"
 )
