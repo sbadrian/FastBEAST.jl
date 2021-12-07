@@ -1,43 +1,40 @@
 # Clustering Strategies
 For the algorithms defined in this pakage the given set of points have to be sorted in an algebraic tree. 
-The following terms are used to describe the algorithms:
-
--  Root: The root of the tree contains all points of the set.
--  Node: The root is the first node. Each node gets split up in n children.
--  Level: The root is the 0 level. On each level every node gets split up in n parts.
--  Children: The Children of a node are the parts in which the node splits up. 
--  Parent: If a node gets split up in n children it is the parent to each of them.  
+Therefor the following strategys can be used. 
 
 ## Box Tree 
 ## K-Means Clustering Tree
-### Definition
-The K-Means Algorithm aims to cluster a set points in k groups. Each group is defined by a center choosen randomly out of the set of givn points.
-Each point belongs to the closest center. The algorithm iteratively sorts the points and recalculates the centers by taking the mean over the points in each group.
-
-To generate a tree the algorithm is repeated for each group until a givn amount of levels or a minimum amount of points in a node is reached.
-
-### Example
-For explenation a random distribution of points will be sorted in a binary tree. 
-On Level 0 the algorithm takes randomly two points as the first centers
-
-![](assets/random_distribution.png)
-
-In the first itaration the points get sorted by the criteria 
+#### Definition
+The K-Means algorithm is a clustering strategy for n-dimensional spaces, in which each cluster is representet by its center. In this case the algortihm is implemented for a two or three dimensional euklidian space.
+#### Idea
+The goal of the algorithm is to divide the dataset in k clusters, which are alternately divided in k clusters. 
+The procedur is as follows: At first there are k points choosen from the dataset as centers. Then each point is sorted to its closest center. For each resulting cluster the center is recalculated with its points and all points are resorted to the new centers. This step is repeatet for a givn number of iterations. The whole process is alternately repeated for each cluster.  
+#### Algorithm
+Givn is a random distrebution of datapoints in 2D, which should be sorted in an binary tree. 
+Two points out of the dataset are choosen as the first centers. For each of the points the euklidiean distance to both centers is calculated by:
 
 ```math
-    min(\sum_{n=1}^{N} norm(p_n - c_1), \sum_{n=1}^{N} norm(p_n - c_2))
+    dist = norm(x - c_i)\quad for\enspace i = 1,2,..,k
 ```
+With $x$ the location of the datapoint and $c_i$ the centers. The point is then added to the colser center.
 
-Resulting in the following groups:
-
+![](assets/random_distribution.png)
 ![](assets/sorted_first.png)
 
-To achieve an more equal distribution, each group calculates a new center by taking the mean over all points. Afterwards all points are resorted to each center. This step is repeted 10 times and leads to the following distribution:
+The centers are schown in the first picture in orange and each cluster is representet in the second picture by one color.
+To achieve a more even distributen between both clusters, the centers are recalculated. Therefor the distance between the center and each point of the cluster has to be minimized.
+This can be done by taking the mean over all points.
+
+```math
+    c_i = N_k^{-1} * \sum_{n=1}^{N_k} x_n
+```
+The dataset is resortet to the updated centers, resulting in the following distribution.
 
 ![](assets/even_distributed.png)
 
-For each group the algorithm chooses two new centers from the sorted points and repeats the algorithm. 
+As it can be seen the updated clusters can result in a more even distribution. These steps can then be repeted for a givn amount of iterations. 
+The final clusteres are afterwards taken as new distributions of datapoints and the algorithm can alternately be repeted until clusters with a minimum amount of points or a givn number of total clusters is reached. 
 
-### Comments
-As it can be seen in the example more iterations will lead to more equal sized groups. For non homogenous distributions equal sized groups can´t always be reached, but more iterations will generate in general a better tree structure for the algorithms in this package.
+#### Comments
+As it can be seen in the example more iterations will in general lead to more equal sized clusters. For non homogenous distributions equal sized clusters can not always be reached, but more iterations will generate in general a better tree structure for the algorithms in this package.
 For the the algorithms in this package iterations between 10-100 and two children for each level are recomended.
