@@ -42,8 +42,8 @@ spoints = [@SVector rand(3) for i = 1:N]
 tpoints = 0.1*[@SVector rand(3) for i = 1:NT] + [1.0*SVector(3.5, 3.5, 3.5) for i = 1:NT]
 
 @views OneoverRkernelassembler(matrix, tdata, sdata) = assembler(OneoverRkernel, matrix, tpoints[tdata], spoints[sdata])
-stree = create_tree(spoints, treeoptions = BoxTreeOptions(nmin=50))
-ttree = create_tree(tpoints, treeoptions = BoxTreeOptions(nmin=50))
+stree = create_tree(spoints, BoxTreeOptions(nmin=50))
+ttree = create_tree(tpoints, BoxTreeOptions(nmin=50))
 kmat = assembler(OneoverRkernel, tpoints, spoints)
 hmat = HMatrix(OneoverRkernelassembler, ttree, stree, compressor=:naive, T=Float64)
 
@@ -58,7 +58,7 @@ NT = N
 spoints = [@SVector rand(3) for i = 1:N]
 ##
 @views OneoverRkernelassembler(matrix, tdata, sdata) = assembler(OneoverRkernel, matrix, spoints[tdata], spoints[sdata])
-stree = create_tree(spoints, treeoptions = BoxTreeOptions(nmin=400))
+stree = create_tree(spoints, BoxTreeOptions(nmin=400))
 kmat = assembler(OneoverRkernel, spoints, spoints)
 hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, T=Float64)
 
