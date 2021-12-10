@@ -1,7 +1,7 @@
 """
     KMeansTreeOptions <: TreeOptions
 
-Is the datatype that discribes which tree the `create_tree()` function creates.
+Is the datatype that discribes which tree the [`create_tree`](@ref) function creates.
 
 # Fields
 - `iterations`: number of iterations on each level, default is one iterations
@@ -29,7 +29,7 @@ end
 """
     KMeansTreeNode{T} <: AbstractNode
 
-Is the datatype of each node in a `K-Means Cluster Tree`.
+Is the datatype of each node in the [K-Means Clustering Tree](@ref).
 
 # Fields
 - `parent::Union{KMeansTreeNode{T},Nothing}`: is the superordinate cluster of
@@ -76,7 +76,9 @@ Creates an algebraic tree for an givn set of datapoints. The returned
 datastructure is the foundation for the algorithms in this package. 
 
 # Arguments
-- `points::Array{SVector{D, T}, 1}`: is an array of SVectors. Each 
+- `points::Array{SVector{D, T}, 1}`: is an array of 
+    [SVector](https://juliaarrays.github.io/StaticArrays.jl/stable/pages/api/#SVector-1). 
+    Each 
     [SVector](https://juliaarrays.github.io/StaticArrays.jl/stable/pages/api/#SVector-1)
     contains in general two or three float values, which discribe the position 
     in the space.
@@ -160,20 +162,24 @@ function fill_tree!(
 end
 
 """
-    iscompressable(sourcenode::KMeansTreeNode, testnode::KMeansTreeNode)
+    iscompressable(sourcenode::AbstractNode, testnode::AbstractNode)
 
 Determins whether two nodes of a tree are comressable. The criteria differs 
-between the Boxtree and the K-Means Cluster Tree.
-For the K Means Cluster Tree two nodes can be compressed, if the distance 
+between the [Box Tree](@ref) and the [K-Means Clustering Tree](@ref).
+For the [K-Means Clustering Tree](@ref) two nodes can be compressed, if the distance 
 between the centers of two clusters is greater than the sum of their radius 
 multiplied by a factor of 1.5.
-For the Boxtree two nodes can be compressed, if the distance between the centers 
+For the [Box Tree](@ref) two nodes can be compressed, if the distance between the centers 
 of the two boxes is greater than the sum of the distances of each box's center to 
 one of its corners multiplied by a factor of 1.1.
 
 # Arguments
 - `sourcenode::AbstractNode`: the node which is observed
 - `testnode::AbstractNode`: the node which is tested for compression
+
+# Returns
+- `true`: if the input nodes are compressable
+- `false`: if the input nodes are not compressable
 """
 function iscompressable(sourcenode::KMeansTreeNode, testnode::KMeansTreeNode)
     if sourcenode.level > 0 && testnode.level > 0

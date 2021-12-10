@@ -4,10 +4,8 @@ KMeansTreeOptions
 KMeansTreeNode
 ```
 # Functions
-Overview over all functions.
-
 ```@docs
-create_tree
+FastBEAST.create_tree
 FastBEAST.iscompressable
 ```
 
