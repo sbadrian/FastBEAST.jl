@@ -1,7 +1,13 @@
+# Types
+```@docs
+KMeansTreeOptions
+KMeansTreeNode
+```
 # Functions
 Overview over all functions.
 
-### create_tree()
-
-### iscompresseble()
+```@docs
+create_tree
+FastBEAST.iscompressable
+```
 
