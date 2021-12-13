@@ -1,8 +1,6 @@
 # FastBEAST.jl
-*Test the Documenter.*
+Some ideas for implementing an ACA in Julia targeting BEAST.
 ## Package Features
 - Fast linear Algebra
-## Function Documentation
-```math
-    a = bx+c
-```
+## Example
+Example of the main feature of the peckage.

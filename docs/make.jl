@@ -8,7 +8,13 @@ makedocs(
          modules  = [FastBEAST],
          pages=[
                 "Home" => "index.md",
-                "second.md"
+                "Getting Started" => "gstarted.md",
+                "Manual" => Any[
+                    "man/clustering.md",
+                    "man/hmatrix.md",
+                    "man/aca.md"
+                    ],
+                "Types and Functions" => "functions.md"
                ])
 deploydocs(
     repo="github.com/sbadrian/FastBEAST",

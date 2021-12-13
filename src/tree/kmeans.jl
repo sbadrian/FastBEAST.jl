@@ -1,3 +1,15 @@
+"""
+    KMeansTreeOptions <: TreeOptions
+
+Is the datatype that discribes which tree the [`create_tree`](@ref) function creates.
+
+# Fields
+- `iterations`: number of iterations on each level, default is one iterations
+- `nchildren`: defines the number of children of each node, default is two
+- `nmin`: defines the minimum amount of datapoints which are needed in a 
+    cluster so that it gets split up in subclusters, default is 1
+- `maxlevel`: defines the maximum amount of levels, default is 100.
+"""
 struct KMeansTreeOptions <: TreeOptions
     iterations
     nchildren
@@ -6,7 +18,7 @@ struct KMeansTreeOptions <: TreeOptions
 end
 
 function KMeansTreeOptions(;
-    iterations = 1,
+    iterations=1,
     nchildren=2,
     nmin=1,
     maxlevel=100
@@ -14,6 +26,22 @@ function KMeansTreeOptions(;
     return KMeansTreeOptions(iterations, nchildren, nmin, maxlevel)
 end
 
+"""
+    KMeansTreeNode{T} <: AbstractNode
+
+Is the datatype of each node in the [K-Means Clustering Tree](@ref).
+
+# Fields
+- `parent::Union{KMeansTreeNode{T},Nothing}`: is the superordinate cluster of
+    of the represented cluster
+- `children::Union{Vector{KMeansTreeNode{T}}, Nothing}`: all directly 
+    subordinated clusters of the represented cluster
+- `level::Integer`: the level of the represented cluster
+- `center`: the center by which the cluster is defined
+- `radius`: the euclidian distance between the center and the farthest away
+    point
+- `data::T`: array containig the indices of the points in this cluster
+"""
 mutable struct KMeansTreeNode{T} <: AbstractNode
     parent::Union{KMeansTreeNode{T},Nothing}
     children::Union{Vector{KMeansTreeNode{T}}, Nothing}
@@ -24,7 +52,7 @@ mutable struct KMeansTreeNode{T} <: AbstractNode
 end
 
 function KMeansTreeNode{T}(iterations, data::T) where T
-    return KMeansTreeNode{T}(nothing, nothing, 0, nothing, 0.0,data)
+    return KMeansTreeNode{T}(nothing, nothing, 0, nothing, 0.0, data)
 end
 
 function KMeansTreeNode{T}(level, center::Vector{Float64}, radius,data::T) where T
@@ -44,21 +72,25 @@ end
 """
     create_tree(points::Array{SVector{D, T}, 1}; treeoptions)
 
-Creates a tree for a given set of points. The treetyp is defined by the 
-abstract type treeoptions.
-Treeoptions can be the KMeansTreeOptions resulting in a tree with the KMeans 
-sorting criteria or BoxTreeOptions, resulting in a quad- (2D) or octtree(3D)
-sorted in equal sized Boxes. 
+Creates an algebraic tree for an givn set of datapoints. The returned 
+datastructure is the foundation for the algorithms in this package. 
 
-`KMeansTreeOptions` takes the variables:
-  * `iterations`: number of iterations on each level, which increases the uniformity of the Tree (default=1).
-  * `nchildren`: defines the number of children of each node (default=2)
-  * `nmin`: defines the minimum amount of points in each box (default=1).
-  * `malevel`: defines the maximum amount of levels (default=100).
+# Arguments
+- `points::Array{SVector{D, T}, 1}`: is an array of 
+    [SVector](https://juliaarrays.github.io/StaticArrays.jl/stable/pages/api/#SVector-1). 
+    Each 
+    [SVector](https://juliaarrays.github.io/StaticArrays.jl/stable/pages/api/#SVector-1)
+    contains in general two or three float values, which discribe the position 
+    in the space.
 
-`BoxTreeOptions` takes the variables 
-  * `nmin`: defines the minimum amount of points in each box (default=1).
-  * `maxlevel`: defines the maximum amount of levels (default=100).
+# Keywords
+- `treeoptions::TreeOptions`: this keyword defines by which tree is build. 
+    `TreeOptions` is an abstract type which either can be `BoxTreeOptions` or
+    [`KMeansTreeOptions`](@ref). Default type is `BoxTreeOptions`.
+
+# Returns
+- `AbstractNode`: the root of the created tree. AbstractNode is an abstract type 
+    which either can be `BoxTreeNode` or [`KMeansTreeNode`](@ref), depending on the keyword.
 """
 function create_tree(
     points::Vector{SVector{D,T}},
@@ -129,6 +161,26 @@ function fill_tree!(
     end
 end
 
+"""
+    iscompressable(sourcenode::AbstractNode, testnode::AbstractNode)
+
+Determins whether two nodes of a tree are comressable. The criteria differs 
+between the [Box Tree](@ref) and the [K-Means Clustering Tree](@ref).
+For the [K-Means Clustering Tree](@ref) two nodes can be compressed, if the distance 
+between the centers of two clusters is greater than the sum of their radius 
+multiplied by a factor of 1.5.
+For the [Box Tree](@ref) two nodes can be compressed, if the distance between the centers 
+of the two boxes is greater than the sum of the distances of each box's center to 
+one of its corners multiplied by a factor of 1.1.
+
+# Arguments
+- `sourcenode::AbstractNode`: the node which is observed
+- `testnode::AbstractNode`: the node which is tested for compression
+
+# Returns
+- `true`: if the input nodes are compressable
+- `false`: if the input nodes are not compressable
+"""
 function iscompressable(sourcenode::KMeansTreeNode, testnode::KMeansTreeNode)
     if sourcenode.level > 0 && testnode.level > 0
         dist = norm(sourcenode.center - testnode.center)
