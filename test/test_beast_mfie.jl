@@ -6,27 +6,6 @@ using IterativeSolvers
 using FastBEAST
 using Test
 
-function farquaddata(op::BEAST.MaxwellOperator3D,
-    test_local_space::BEAST.RefSpace, trial_local_space::BEAST.RefSpace,
-    test_charts, trial_charts)
-
-    a, b = 0.0, 1.0
-    # CommonVertex, CommonEdge, CommonFace rules
-
-    tqd = quadpoints(test_local_space, test_charts, (1,6))
-    bqd = quadpoints(trial_local_space, trial_charts, (1,7))
-    leg = (BEAST._legendre(3,a,b), BEAST._legendre(4,a,b), BEAST._legendre(5,a,b),)
-
-    # High accuracy rules (use them e.g. in LF MFIE scenarios)
-    # tqd = quadpoints(test_local_space, test_charts, (8,8))
-    # bqd = quadpoints(trial_local_space, trial_charts, (8,9))
-    # leg = (_legendre(8,a,b), _legendre(10,a,b), _legendre(5,a,b),)
-
-
-    return (tpoints=tqd, bpoints=bqd, gausslegendre=leg)
-end
-
-
 c = 3e8
 μ = 4*π*1e-7
 ε = 1/(μ*c^2)
@@ -68,10 +47,10 @@ println("Number of RWG functions: ", numfunctions(X))
 K_bc = hassemble(𝓚,Y,X,
                 nmin=10,
                 threading=:multi,
+                treeoptions = BoxTreeOptions(nmin=100),
                 verbose=true,
-                farquaddata=farquaddata,
-                svdrecompress=false,
-                dblsupport=true)
+                quadstrat=BEAST.DoubleNumQStrat(1,1),
+                svdrecompress=false)
 
 
 G_nxbc_rt = Matrix(assemble(𝓝,Y,X))
