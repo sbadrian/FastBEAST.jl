@@ -2,6 +2,8 @@ using FastBEAST
 using StaticArrays
 using LinearAlgebra
 using Printf
+using Plots
+plotlyjs()
 
 function OneoverRkernel(testpoint::SVector{3,T}, sourcepoint::SVector{3,T}) where T
     if isapprox(testpoint, sourcepoint, rtol=eps()*1e1)
@@ -114,7 +116,7 @@ end
 
 
 ## Example1 a) Random distribution
-N = 3000
+N = 300
 spoints = [@SVector rand(3) for i = 1:N];
 
 ## Example2 a) Not evenly distributed sphere
@@ -125,7 +127,7 @@ spoints = [SVector((sin(i)*cos(j),sin(i)*sin(j),i^2*cos(i))) for j=0:0.1:2*pi fo
 
 ##
 @views OneoverRkernelassembler(matrix, tdata, sdata) = assembler(OneoverRkernel, matrix, spoints[tdata], spoints[sdata])
-stree = create_tree(spoints, BoxTreeOptions(nmin=400))
+stree = create_tree(spoints, BoxTreeOptions(nmin=10))
 kmat = assembler(OneoverRkernel, spoints, spoints)
 @time hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, T=Float64)
 

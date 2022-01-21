@@ -147,7 +147,8 @@ function HMatrix(
     threading=:single,
     farmatrixassembler=matrixassembler,
     verbose=false,
-    svdrecompress=true
+    svdrecompress=true, 
+    isblockstructured=true
 ) where N <: AbstractNode
     
     fullinteractions = SVector{2}[]
@@ -267,6 +268,7 @@ function HMatrix(
                     tol=tol,
                     maxrank=maxrank,
                     svdrecompress=svdrecompress,
+                    isblockstructured=isblockstructured,
                     T=T,
                     I=I
                 )
@@ -405,6 +407,7 @@ function getcompressedmatrix(
     maxrank=100,
     compressor=:aca,
     svdrecompress=true,
+    isblockstructured=true,
     T=ComplexF64,
     I=Int64
 )
@@ -421,6 +424,7 @@ function getcompressedmatrix(
             tol=tol,
             maxrank=maxrank,
             svdrecompress=svdrecompress,
+            isblockstructured=isblockstructured,
             T=T
         )
 

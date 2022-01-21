@@ -1,3 +1,7 @@
+using FastBEAST
+using LinearAlgebra
+using Test
+
 ##
 N = 1000
 A = rand(N,N)
@@ -185,3 +189,36 @@ end
 
 U, V = aca_compression(fct, 1:1, 1:1, T=Float64)
 @test U*V ≈ A atol = 1e-14
+
+##
+N = 100
+A = zeros(3*N,3*N)
+val = rand(N,N)
+val2 = rand(N,N)
+
+for i = 1:N
+    for j = 1:N
+        A[i,j]=val[i,j]
+        A[i+N,j+N]=val2[i,j]
+        A[i+2*N,j+2*N]=val[i,j]
+    end
+end
+
+function fct(B, x, y)
+    for i in eachindex(x)
+        for j in eachindex(y)
+            B[i,j] = A[x[i],y[j]]
+        end
+    end
+end
+
+U,S,V = svd(A)
+
+S = [ i < 15 ? 10.0^(-i) : 0.0 for i = 1:3*N ]
+
+A = U*diagm(S)*V'
+
+U, V = aca_compression(fct, 1:3*N, 1:3*N, T=Float64)
+@test U*V ≈ A atol = 1e-14
+
+##
