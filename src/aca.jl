@@ -1,12 +1,12 @@
 function aca_compression(
     matrix::Function,
     rowindices,
-    colindices;
+    colindices,
+    ::Type{T};
     tol=1e-14,
-    T=ComplexF64,
     maxrank=40,
     svdrecompress=true
-)
+) where {T}
     function smartmaxlocal(roworcolumn, acausedindices)
         maxval = -1
         index = -1

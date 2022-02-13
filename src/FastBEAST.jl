@@ -1,12 +1,9 @@
 module FastBEAST
-
+using LinearAlgebra
 include("tree/tree.jl")
 
 include("aca.jl")
 include("skeletons.jl")
-include("utils.jl")
-include("hmatrix.jl")
-include("beast.jl")
 
 export BoundingBox
 export getboxframe
@@ -21,7 +18,7 @@ export KMeansTreeNode
 
 export aca_compression
 
-export FullMatrixView, FullMatrixView2, MatrixView, LowRankMatrixView
+export BlockMatrix, LowRankMatrix, LowRankBlock
 
 export HMatrix
 export buildhmatrix

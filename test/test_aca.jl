@@ -16,7 +16,7 @@ S = [ i < 15 ? 10.0^(-i) : 0.0 for i = 1:N ]
 
 A = U*diagm(S)*V'
 
-U, V = aca_compression(fct, 1:N, 1:N, T=Float64)
+U, V = aca_compression(fct, 1:N, 1:N, Float64)
 
 @test U*V ≈ A atol = 1e-14
 
@@ -40,7 +40,7 @@ S[1:15] = [10.0^(-i) for i = 1:15 ]
 
 A = U*diagm(S)*V'
 
-U, V = aca_compression(fct, 1:Nt, 1:Ns, T=Float64)
+U, V = aca_compression(fct, 1:Nt, 1:Ns, Float64)
 
 @test U*V ≈ A atol = 1e-14
 
@@ -64,7 +64,7 @@ S[1:15] = [10.0^(-i) for i = 1:15 ]
 
 A = U*diagm(S)*V'
 
-U, V = aca_compression(fct, 1:Nt, 1:Ns, T=Float64)
+U, V = aca_compression(fct, 1:Nt, 1:Ns, Float64)
 
 @test U*V ≈ A atol = 1e-14
 
@@ -81,7 +81,7 @@ function fct(B, x, y)
     end
 end
 
-U, V = aca_compression(fct, 1:5, 1:5, T=Float64, svdrecompress=false)
+U, V = aca_compression(fct, 1:5, 1:5, Float64, svdrecompress=false)
 
 @test U*V == A
 
@@ -98,7 +98,7 @@ function fct(B, x, y)
     end
 end
 
-U, V = aca_compression(fct, 1:5, 1:5, T=Float64, svdrecompress=false)
+U, V = aca_compression(fct, 1:5, 1:5, Float64, svdrecompress=false)
 
 @test U*V == A
 
@@ -119,7 +119,7 @@ function fct(B, x, y)
     end
 end
 
-U, V = aca_compression(fct, 1:5, 1:5, T=Float64)
+U, V = aca_compression(fct, 1:5, 1:5, Float64)
 
 @test U*V ≈ A atol = 1e-13
 
@@ -154,7 +154,7 @@ function fct(C, x, y)
     end
 end
 
-U, V = aca_compression(fct, rowindices, colindices, T=Float64)
+U, V = aca_compression(fct, rowindices, colindices, Float64)
 
 @test U*V ≈ A atol = 1e-14
 
@@ -169,7 +169,7 @@ function fct(B, x, y)
     end
 end
 
-U, V = aca_compression(fct, 1:2, 1:1, T=Float64)
+U, V = aca_compression(fct, 1:2, 1:1, Float64)
 @test U*V ≈ A atol = 1e-14
 
 ##
@@ -183,5 +183,5 @@ function fct(B, x, y)
     end
 end
 
-U, V = aca_compression(fct, 1:1, 1:1, T=Float64)
+U, V = aca_compression(fct, 1:1, 1:1, Float64)
 @test U*V ≈ A atol = 1e-14
