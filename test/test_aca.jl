@@ -1,13 +1,52 @@
+using Test
+using FastBEAST
+using LinearAlgebra
+using StaticArrays
+using BenchmarkTools
+
+N = 1000
+A = rand(N, N)
+
 ##
+@views function fct(B, x, y)
+    #for i in eachindex(x)
+    #    for j in eachindex(y)
+            #B[i, j] = A[x[i],y[j]]
+            B[:,:] = A[x, y]
+    #    end
+    #end
+end
+
+lm = LazyMatrix(fct, Vector(1:size(A, 1)), Vector(1:size(A, 2)), Float64)
+
+##
+function mytest(lm, b)
+    b[1:200] = lm[1:200, 1]
+    return
+end
+
+function mytest2(lm, b, I, J)
+    lm.μ(b, lm.τ[I], lm.σ[J])
+    return
+end
+
+##
+b = zeros(Float64, 200)
+@btime mytest($lm, $b)
+@show b
+
+B = zeros(Float64, 200, 1)
+@btime mytest2($lm, $B, 1:200, 1:1)
+@show B
+
+
+##
+
 N = 1000
 A = rand(N,N)
 
-function fct(B, x, y)
-    for i in eachindex(x)
-        for j in eachindex(y)
-            B[i,j] = A[x[i],y[j]]
-        end
-    end
+@views function fct(B, x, y)
+    B[:,:] = A[x, y]
 end
 
 U,S,V = svd(A)
@@ -16,21 +55,20 @@ S = [ i < 15 ? 10.0^(-i) : 0.0 for i = 1:N ]
 
 A = U*diagm(S)*V'
 
-U, V = aca_compression(fct, 1:N, 1:N, Float64)
+lm = LazyMatrix(fct, Vector(1:size(A, 1)), Vector(1:size(A, 2)), Float64)
+
+U, V = aca_compression(lm)
 
 @test U*V ≈ A atol = 1e-14
 
 ##
+
 Ns = 200
 Nt = 100
 A = rand(Nt,Ns)
 
-function fct(B, x, y)
-    for i in eachindex(x)
-        for j in eachindex(y)
-            B[i,j] = A[x[i],y[j]]
-        end
-    end
+@views function fct(B, x, y)
+    B[:,:] = A[x, y]
 end
 
 U,S,V = svd(A)
@@ -40,21 +78,20 @@ S[1:15] = [10.0^(-i) for i = 1:15 ]
 
 A = U*diagm(S)*V'
 
-U, V = aca_compression(fct, 1:Nt, 1:Ns, Float64)
+lm = LazyMatrix(fct, Vector(1:size(A, 1)), Vector(1:size(A, 2)), Float64)
+
+U, V = aca_compression(lm)
 
 @test U*V ≈ A atol = 1e-14
 
 ##
+
 Ns = 100
 Nt = 200
 A = rand(Nt,Ns)
 
-function fct(B, x, y)
-    for i in eachindex(x)
-        for j in eachindex(y)
-            B[i,j] = A[x[i],y[j]]
-        end
-    end
+@views function fct(B, x, y)
+    B[:,:] = A[x, y]
 end
 
 U,S,V = svd(A)
@@ -64,24 +101,25 @@ S[1:15] = [10.0^(-i) for i = 1:15 ]
 
 A = U*diagm(S)*V'
 
-U, V = aca_compression(fct, 1:Nt, 1:Ns, Float64)
+lm = LazyMatrix(fct, Vector(1:size(A, 1)), Vector(1:size(A, 2)), Float64)
+
+U, V = aca_compression(lm)
 
 @test U*V ≈ A atol = 1e-14
 
 ##
+
 a = [1.0 0.0 0.0 0.0 0.0]
 b = [7.0 3.0 1.0 9.0 1.0]
 A = a'*b
 
-function fct(B, x, y)
-    for i in eachindex(x)
-        for j in eachindex(y)
-            B[i,j] = A[x[i],y[j]]
-        end
-    end
+@views function fct(B, x, y)
+    B[:,:] = A[x, y]
 end
 
-U, V = aca_compression(fct, 1:5, 1:5, Float64, svdrecompress=false)
+lm = LazyMatrix(fct, Vector(1:size(A, 1)), Vector(1:size(A, 2)), Float64)
+
+U, V = aca_compression(lm)
 
 @test U*V == A
 
@@ -90,15 +128,13 @@ a = [1.0 -2.0 6.0 4.0 5.0]
 b = [7.0 3.0 1.0 9.0 1.0]
 A = a'*b
 
-function fct(B, x, y)
-    for i in eachindex(x)
-        for j in eachindex(y)
-            B[i,j] = A[x[i],y[j]]
-        end
-    end
+@views function fct(B, x, y)
+    B[:,:] = A[x, y]
 end
 
-U, V = aca_compression(fct, 1:5, 1:5, Float64, svdrecompress=false)
+lm = LazyMatrix(fct, Vector(1:size(A, 1)), Vector(1:size(A, 2)), Float64)
+
+U, V = aca_compression(lm)
 
 @test U*V == A
 
@@ -111,15 +147,13 @@ b2 = [5.0 4.0 3.0 1.0 -4.0]
 #b3 = [-11.0 4.0 3.0 1.0 -4.0]
 A = a1'*b1 + a2'*b2 #+ a3'*b3
 
-function fct(B, x, y)
-    for i in eachindex(x)
-        for j in eachindex(y)
-            B[i,j] = A[x[i],y[j]]
-        end
-    end
+@views function fct(B, x, y)
+    B[:,:] = A[x, y]
 end
 
-U, V = aca_compression(fct, 1:5, 1:5, Float64)
+lm = LazyMatrix(fct, Vector(1:size(A, 1)), Vector(1:size(A, 2)), Float64)
+
+U, V = aca_compression(lm)
 
 @test U*V ≈ A atol = 1e-13
 
@@ -154,34 +188,32 @@ function fct(C, x, y)
     end
 end
 
-U, V = aca_compression(fct, rowindices, colindices, Float64)
+lm = LazyMatrix(fct, rowindices, colindices, Float64)
+
+U, V = aca_compression(lm)
 
 @test U*V ≈ A atol = 1e-14
 
 ##
 A = rand(2,1)
 
-function fct(B, x, y)
-    for i in eachindex(x)
-        for j in eachindex(y)
-            B[i,j] = A[x[i],y[j]]
-        end
-    end
+@views function fct(B, x, y)
+    B[:,:] = A[x, y]
 end
 
-U, V = aca_compression(fct, 1:2, 1:1, Float64)
+lm = LazyMatrix(fct, Vector(1:size(A, 1)), Vector(1:size(A, 2)), Float64)
+
+U, V = aca_compression(lm)
 @test U*V ≈ A atol = 1e-14
 
 ##
 A = rand(1,1)
 
-function fct(B, x, y)
-    for i in eachindex(x)
-        for j in eachindex(y)
-            B[i,j] = A[x[i],y[j]]
-        end
-    end
+@views function fct(B, x, y)
+    B[:,:] = A[x, y]
 end
 
-U, V = aca_compression(fct, 1:1, 1:1, Float64)
+lm = LazyMatrix(fct, Vector(1:size(A, 1)), Vector(1:size(A, 2)), Float64)
+
+U, V = aca_compression(lm)
 @test U*V ≈ A atol = 1e-14

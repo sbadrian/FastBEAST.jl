@@ -191,19 +191,19 @@ function HMatrix(
     threading=:single,
     farmatrixassembler=matrixassembler,
     verbose=false,
-    svdrecompress=true
+    svdrecompress=false
 ) where {I, K, T <: AbstractNode} #{I, K, F, N <: NodeData{I, F}, T <: AbstractNode{I, F, N}}
     
     fullinteractions = SVector{2}[]
     compressableinteractions = SVector{2}[]
     
-
     computerinteractions!(
         testtree,
         sourcetree,
         fullinteractions,
         compressableinteractions
     )
+
     MBF = MatrixBlock{I, K, Matrix{K}}
     fullrankblocks_perthread = Vector{MBF}[]
     fullrankblocks = MBF[]
@@ -211,6 +211,14 @@ function HMatrix(
     rowdim = numindices(testtree)
     coldim = numindices(sourcetree)
 
+    if threading == :single
+        am = allocate_aca_memory(K, rowdim, coldim, maxrank=100)
+    else
+        ams = ACAGlobalMemory{K}[]
+        for i in 1:Threads.nthreads()
+            push!(ams, allocate_aca_memory(K, rowdim, coldim, maxrank=100))
+        end
+    end
     nonzeros_perthread = I[]
     nonzeros = 0
     verbose && println("Number of full interactions: ", length(fullinteractions))
@@ -283,6 +291,7 @@ function HMatrix(
                     compressableinteraction[2],
                     I,
                     K,
+                    am,
                     compressor=compressor,
                     tol=tol,
                     maxrank=maxrank,
@@ -306,6 +315,7 @@ function HMatrix(
                     compressableinteraction[2],
                     I,
                     K,
+                    ams[Threads.threadid()],
                     compressor=compressor,
                     tol=tol,
                     maxrank=maxrank,
@@ -440,33 +450,29 @@ function getcompressedmatrix(
     testnode,
     sourcenode,
     ::Type{I},
-    ::Type{K};
+    ::Type{K},
+    am;
     tol=1e-4,
     maxrank=100,
     compressor=:aca,
     svdrecompress=true,
 ) where {I, K}
 
-        #U, V = aca_compression2(assembler, kernel, testpoints, sourcepoints, 
-        #testnode.data, sourcenode.data; tol=tol)
-        #println("Confirm level: ", sourcenode.level)
-        #print("a")
-        #println(typeof(testnode))
+        lm = LazyMatrix(matrixassembler, indices(testnode), indices(sourcenode), K)
+
         U, V = aca_compression(
-            matrixassembler, 
-            indices(testnode), 
-            indices(sourcenode),
-            K; 
+            lm,
+            am;
             tol=tol,
             maxrank=maxrank,
             svdrecompress=svdrecompress
         )
 
-        lm = MatrixBlock{I, K, LowRankMatrix{K}}(
+        mbl = MatrixBlock{I, K, LowRankMatrix{K}}(
             LowRankMatrix(U, V),
             indices(testnode),
             indices(sourcenode)
         )
 
-    return lm
+    return mbl
 end

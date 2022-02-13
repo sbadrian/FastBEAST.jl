@@ -4,7 +4,7 @@ function test_fullrank(N)
     store = Vector{MatrixView}(undef, N)
     n = 100
     for i=1:N
-        store[i] = FullMatrixView(rand(n,n), [1; 2], [1; 2], 10, 20)
+        store[i] = FullRankBlock(rand(n,n), [1; 2], [1; 2], 10, 20)
     end
 
     return store
@@ -14,17 +14,17 @@ function test_fullrank2(N)
     store = MatrixView[]
     n = 100
     for i=1:N
-        push!(store, FullMatrixView(rand(n,n), [1; 2], [1; 2], 10, 20))
+        push!(store, FullRankBlock(rand(n,n), [1; 2], [1; 2], 10, 20))
     end
 
     return store
 end
 
 function test_fullrank3(N)
-    store = Vector{FullMatrixView{Float32,Int64}}(undef, N)
+    store = Vector{FullRankBlock{Float32,Int64}}(undef, N)
     n = 100
     for i=1:N
-        store[i] = FullMatrixView(rand(n,n), [1; 2], [1; 2], 10, 20)
+        store[i] = FullRankBlock(rand(n,n), [1; 2], [1; 2], 10, 20)
     end
 
     return store
@@ -34,7 +34,7 @@ function test_lowrank(N)
     store = Vector{MatrixView}(undef, N)
     n = 100
     for i=1:N
-        store[i] = LowRankMatrixView(rand(n,n), rand(n,n), [1; 2], [1; 2], 10, 20)
+        store[i] = LowRankBlock(rand(n,n), rand(n,n), [1; 2], [1; 2], 10, 20)
     end
 
     return store
@@ -44,17 +44,17 @@ function test_lowrank2(N)
     store = MatrixView[]
     n = 100
     for i=1:N
-        push!(store, LowRankMatrixView(rand(n,n), rand(n,n), [1; 2], [1; 2], 10, 20))
+        push!(store, LowRankBlock(rand(n,n), rand(n,n), [1; 2], [1; 2], 10, 20))
     end
 
     return store
 end
 
 function test_lowrank3(N)
-    store = Vector{LowRankMatrixView}(undef, N)
+    store = Vector{LowRankBlock}(undef, N)
     n = 100
     for i=1:N
-        store[i] = LowRankMatrixView(rand(n,n), rand(n,n), [1; 2], [1; 2], 10, 20)
+        store[i] = LowRankBlock(rand(n,n), rand(n,n), [1; 2], [1; 2], 10, 20)
     end
 
     return store
