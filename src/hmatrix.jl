@@ -49,19 +49,16 @@ end
 
     fill!(y, zero(eltype(y)))
 
-    b = zeros(eltype(y), 200)
-    c = zeros(eltype(y), size(A,1))
+    c = zeros(eltype(y), size(A, 1))
     
-    for fmv in A.fullrankblocks
-        mul!(c[1:size(fmv.M,1)], fmv.M, x[fmv.σ])
-        y[fmv.τ] .+= c[1:size(fmv.M,1)]
-        #y[fmv.leftindices] += fmv.matrix * x[fmv.rightindices]
+    for mb in A.fullrankblocks
+        mul!(c[1:size(mb.M,1)], mb.M, x[mb.σ])
+        y[mb.τ] .+= c[1:size(mb.M,1)]
     end
     
-    for lmv in A.lowrankblocks
-        mul!(b[1:size(lmv.M.V,1)], lmv.M.V, x[lmv.σ]) 
-        mul!(c[1:size(lmv.M.U,1)], lmv.M.U, b[1:size(lmv.M.V,1)])
-        y[lmv.τ] .+= c[1:size(lmv.M.U,1)]
+    for mb in A.lowrankblocks
+        mul!(c[1:size(mb.M, 1)], mb.M, x[mb.σ])
+        y[mb.τ] .+= c[1:size(mb.M,1)]
     end 
 
     return y
@@ -77,24 +74,16 @@ end
 
     fill!(y, zero(eltype(y)))
 
-    b = zeros(eltype(y), 200)
     c = zeros(eltype(y), size(transA,1))
 
-    for afmv in transA.lmap.fullrankblocks
-        mul!(c[1:size(transpose(afmv.M),1)], transpose(afmv.M), x[afmv.τ])
-        y[afmv.σ] .+= c[1:size(adjoint(afmv.M),1)]
-        #y[afmv.rightindices] += adjoint(afmv.matrix) * x[afmv.leftindices]
+    for mb in transA.lmap.fullrankblocks
+        mul!(c[1:size(transpose(mb.M),1)], transpose(mb.M), x[mb.τ])
+        y[mb.σ] .+= c[1:size(mb.M, 2)]
     end
 
-    for almv in transA.lmap.lowrankblocks
-        mul!(b[1:size(almv.M.U,2)], transpose(almv.M.U), x[almv.τ]) 
-        mul!(
-            c[1:size(almv.M.V,2)],
-            transpose(almv.M.V),
-            b[1:size(almv.M.U,2)]
-        )
-        y[almv.σ] .+= c[1:size(almv.M.V,2)]
-        #y[almv.rightindices] += almv.rightmatrix'*(almv.leftmatrix' * x[almv.leftindices])
+    for mb in transA.lmap.lowrankblocks
+        mul!(c[1:size(transpose(mb.M),1)], transpose(mb.M), x[mb.τ])
+        y[mb.σ] .+= c[1:size(mb.M,2)]
     end
 
     return y
@@ -109,24 +98,16 @@ end
 
     fill!(y, zero(eltype(y)))
 
-    b = zeros(eltype(y), 200)
     c = zeros(eltype(y), size(transA,1))
 
-    for afmv in transA.lmap.fullrankblocks
-        mul!(c[1:size(adjoint(afmv.matrix),1)], adjoint(afmv.matrix), x[afmv.leftindices])
-        y[afmv.rightindices] .+= c[1:size(adjoint(afmv.matrix),1)]
-        #y[afmv.rightindices] += adjoint(afmv.matrix) * x[afmv.leftindices]
+    for mb in transA.lmap.fullrankblocks
+        mul!(c[1:size(adjoint(mb.M),1)], adjoint(mb.M), x[mb.τ])
+        y[mb.σ] .+= c[1:size(mb.M, 2)]
     end
 
-    for almv in transA.lmap.lowrankblocks
-        mul!(b[1:size(almv.leftmatrix,2)], almv.leftmatrix', x[almv.leftindices]) 
-        mul!(
-            c[1:size(almv.rightmatrix,2)],
-            almv.rightmatrix',
-            b[1:size(almv.leftmatrix,2)]
-        )
-        y[almv.rightindices] .+= c[1:size(almv.rightmatrix,2)]
-        #y[almv.rightindices] += almv.rightmatrix'*(almv.leftmatrix' * x[almv.leftindices])
+    for mb in transA.lmap.lowrankblocks
+        mul!(c[1:size(adjoint(mb.M),1)], adjoint(mb.M), x[mb.τ])
+        y[mb.σ] .+= c[1:size(mb.M,2)]
     end
 
     return y
