@@ -9,6 +9,7 @@ struct HMatrix{I, F} <: LinearMaps.LinearMap{F}
     columndim::I
     nnz::I
     maxrank::I
+    ismultithreaded::Bool
 end
 
 function nnz(hmat::HMatrix) where HT <: HMatrix
@@ -18,6 +19,10 @@ end
 function compressionrate(hmat::HT) where HT <: HMatrix
     fullsize = hmat.rowdim*hmat.columndim
     return (fullsize - nnz(hmat))/fullsize
+end
+
+function ismultithreaded(hmat::HT) where HT <: HMatrix
+    return hmat.ismultithreaded
 end
 
 function Base.size(hmat::HMatrix, dim=nothing)
@@ -48,18 +53,37 @@ end
     LinearMaps.check_dim_mul(y, A, x)
 
     fill!(y, zero(eltype(y)))
+    
+    if !ismultithreaded(A)
 
-    c = zeros(eltype(y), size(A, 1))
-    
-    for mb in A.fullrankblocks
-        mul!(c[1:size(mb.M,1)], mb.M, x[mb.σ])
-        y[mb.τ] .+= c[1:size(mb.M,1)]
+        c = zeros(eltype(y), size(A, 1))
+
+        for mb in A.fullrankblocks
+            mul!(c[1:size(mb.M,1)], mb.M, x[mb.σ])
+            y[mb.τ] .+= c[1:size(mb.M,1)]
+        end
+        
+        for mb in A.lowrankblocks
+            mul!(c[1:size(mb.M, 1)], mb.M, x[mb.σ])
+            y[mb.τ] .+= c[1:size(mb.M,1)]
+        end
+
+    else
+        cc = zeros(eltype(y), size(A, 1), Threads.nthreads())
+        yy = zeros(eltype(y), size(A, 1), Threads.nthreads())
+
+        Threads.@threads for mb in A.fullrankblocks
+            mul!(cc[1:size(mb.M,1), Threads.threadid()], mb.M, x[mb.σ])
+            yy[mb.τ, Threads.threadid()] .+= cc[1:size(mb.M,1), Threads.threadid()]
+        end
+        
+        Threads.@threads for mb in A.lowrankblocks
+            mul!(cc[1:size(mb.M, 1), Threads.threadid()], mb.M, x[mb.σ])
+            yy[mb.τ, Threads.threadid()] .+= cc[1:size(mb.M,1), Threads.threadid()]
+        end
+
+        y = sum(yy, dims=2)
     end
-    
-    for mb in A.lowrankblocks
-        mul!(c[1:size(mb.M, 1)], mb.M, x[mb.σ])
-        y[mb.τ] .+= c[1:size(mb.M,1)]
-    end 
 
     return y
 end
@@ -74,16 +98,37 @@ end
 
     fill!(y, zero(eltype(y)))
 
-    c = zeros(eltype(y), size(transA,1))
+    if !ismultithreaded(transA.lmap)
 
-    for mb in transA.lmap.fullrankblocks
-        mul!(c[1:size(transpose(mb.M),1)], transpose(mb.M), x[mb.τ])
-        y[mb.σ] .+= c[1:size(mb.M, 2)]
-    end
+        c = zeros(eltype(y), size(transA,1))
 
-    for mb in transA.lmap.lowrankblocks
-        mul!(c[1:size(transpose(mb.M),1)], transpose(mb.M), x[mb.τ])
-        y[mb.σ] .+= c[1:size(mb.M,2)]
+        for mb in transA.lmap.fullrankblocks
+            mul!(c[1:size(mb.M, 2)], transpose(mb.M), x[mb.τ])
+            y[mb.σ] .+= c[1:size(mb.M, 2)]
+        end
+
+        for mb in transA.lmap.lowrankblocks
+            mul!(c[1:size(mb.M,2)], transpose(mb.M), x[mb.τ])
+            y[mb.σ] .+= c[1:size(mb.M,2)]
+        end
+
+    else
+
+        cc = zeros(eltype(y), size(transA, 1), Threads.nthreads())
+        yy = zeros(eltype(y), size(transA, 1), Threads.nthreads())
+
+        Threads.@threads for mb in transA.lmap.fullrankblocks
+            mul!(cc[1:size(mb.M, 2), Threads.threadid()], transpose(mb.M), x[mb.τ])
+            yy[mb.σ, Threads.threadid()] .+= cc[1:size(mb.M, 2), Threads.threadid()]
+        end
+        
+        Threads.@threads for mb in transA.lmap.lowrankblocks
+            mul!(cc[1:size(mb.M, 2), Threads.threadid()], transpose(mb.M), x[mb.τ])
+            yy[mb.σ, Threads.threadid()] .+= cc[1:size(mb.M, 2), Threads.threadid()]
+        end
+
+        y = sum(yy, dims=2)
+
     end
 
     return y
@@ -98,16 +143,37 @@ end
 
     fill!(y, zero(eltype(y)))
 
-    c = zeros(eltype(y), size(transA,1))
+    if !ismultithreaded(transA.lmap)
 
-    for mb in transA.lmap.fullrankblocks
-        mul!(c[1:size(adjoint(mb.M),1)], adjoint(mb.M), x[mb.τ])
-        y[mb.σ] .+= c[1:size(mb.M, 2)]
-    end
+        c = zeros(eltype(y), size(transA,1))
 
-    for mb in transA.lmap.lowrankblocks
-        mul!(c[1:size(adjoint(mb.M),1)], adjoint(mb.M), x[mb.τ])
-        y[mb.σ] .+= c[1:size(mb.M,2)]
+        for mb in transA.lmap.fullrankblocks
+            mul!(c[1:size(adjoint(mb.M),1)], adjoint(mb.M), x[mb.τ])
+            y[mb.σ] .+= c[1:size(mb.M, 2)]
+        end
+
+        for mb in transA.lmap.lowrankblocks
+            mul!(c[1:size(adjoint(mb.M),1)], adjoint(mb.M), x[mb.τ])
+            y[mb.σ] .+= c[1:size(mb.M,2)]
+        end
+
+    else
+
+        cc = zeros(eltype(y), size(transA, 1), Threads.nthreads())
+        yy = zeros(eltype(y), size(transA, 1), Threads.nthreads())
+
+        Threads.@threads for mb in transA.lmap.fullrankblocks
+            mul!(cc[1:size(mb.M, 2), Threads.threadid()], transpose(mb.M), x[mb.τ])
+            yy[mb.σ, Threads.threadid()] .+= cc[1:size(mb.M, 2), Threads.threadid()]
+        end
+        
+        Threads.@threads for mb in transA.lmap.lowrankblocks
+            mul!(cc[1:size(mb.M, 2), Threads.threadid()], transpose(mb.M), x[mb.τ])
+            yy[mb.σ, Threads.threadid()] .+= cc[1:size(mb.M, 2), Threads.threadid()]
+        end
+
+        y = sum(yy, dims=2)
+
     end
 
     return y
@@ -262,7 +328,8 @@ function HMatrix(
         rowdim,
         coldim,
         nonzeros + sum(nonzeros_perthread),
-        maxrank
+        maxrank,
+        threading == :multi ?  true : false
     )
 end
 
@@ -327,10 +394,12 @@ function decide_compression(ttchild, sschild, fullinteractions, compressableinte
 
             return
         else
-            computerinteractions!(ttchild,
-                                    sschild,
-                                    fullinteractions,
-                                    compressableinteractions)
+            computerinteractions!(
+                ttchild,
+                sschild,
+                fullinteractions,
+                compressableinteractions
+            )
         end
     end
 end
