@@ -181,8 +181,8 @@ end
 
 function HMatrix(
     matrixassembler::Function,
-    testtree::N,#::BoxTreeNode,
-    sourcetree::N,#::BoxTreeNode,
+    testtree::T,#::BoxTreeNode,
+    sourcetree::T,#::BoxTreeNode,
     ::Type{I},
     ::Type{F};
     compressor=:naive,
@@ -192,7 +192,7 @@ function HMatrix(
     farmatrixassembler=matrixassembler,
     verbose=false,
     svdrecompress=true
-) where {I, F, N <: AbstractNode}
+) where {I, F, N <: NodeData{I, F}, T <: AbstractNode{I, F, N}}
     
     fullinteractions = SVector{2}[]
     compressableinteractions = SVector{2}[]
@@ -208,8 +208,8 @@ function HMatrix(
     fullrankblocks_perthread = Vector{MBF}[]
     fullrankblocks = MBF[]
 
-    rowdim = length(testtree.data)
-    coldim = length(sourcetree.data)
+    rowdim = numindices(testtree)
+    coldim = numindices(sourcetree)
 
     nonzeros_perthread = I[]
     nonzeros = 0
@@ -225,7 +225,7 @@ function HMatrix(
 
     if threading == :single
         for fullinteraction in fullinteractions
-            nonzeros += length(fullinteraction[1].data)*length(fullinteraction[2].data)
+            nonzeros += numindices(fullinteraction[1])*numindices(fullinteraction[2])
             push!(
                 fullrankblocks,
                 getfullmatrixview(
@@ -246,7 +246,7 @@ function HMatrix(
 
         Threads.@threads for fullinteraction in fullinteractions
             nonzeros_perthread[Threads.threadid()] += 
-                length(fullinteraction[1].data)*length(fullinteraction[2].data)
+                nmindices(fullinteraction[1])*numindices(fullinteraction[2])
             push!(
                 fullrankblocks_perthread[Threads.threadid()],
                 getfullmatrixview(
@@ -388,7 +388,7 @@ function computerinteractions!(
 end
 
 function decide_compression(ttchild, sschild, fullinteractions, compressableinteractions)
-    if length(ttchild.data) > 0 && length(sschild.data) > 0
+    if numindices(ttchild) > 0 && numindices(sschild) > 0
         if iscompressable(ttchild, sschild)
             push!(compressableinteractions, SVector(ttchild, sschild))
 
@@ -425,13 +425,13 @@ function getfullmatrixview(
     ::Type{I},
     ::Type{F};
 ) where {I, F}
-    matrix = zeros(F, length(testnode.data), length(sourcenode.data))
-    matrixassembler(matrix, testnode.data, sourcenode.data)
+    matrix = zeros(F, numindices(testnode), numindices(sourcenode))
+    matrixassembler(matrix, indices(testnode), indices(sourcenode))
 
     return MatrixBlock{I, F, Matrix{F}}(
         matrix,
-        testnode.data,
-        sourcenode.data
+        indices(testnode),
+        indices(sourcenode)
     )
 end
 
@@ -454,8 +454,8 @@ function getcompressedmatrix(
         #println(typeof(testnode))
         U, V = aca_compression(
             matrixassembler, 
-            testnode.data, 
-            sourcenode.data,
+            indices(testnode), 
+            indices(sourcenode),
             F; 
             tol=tol,
             maxrank=maxrank,
@@ -464,8 +464,8 @@ function getcompressedmatrix(
 
         lm = MatrixBlock{I, F, LowRankMatrix{F}}(
             LowRankMatrix(U, V),
-            testnode.data,
-            sourcenode.data
+            indices(testnode),
+            indices(sourcenode)
         )
 
     return lm

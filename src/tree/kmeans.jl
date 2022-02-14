@@ -42,31 +42,42 @@ Is the datatype of each node in the [K-Means Clustering Tree](@ref).
     point
 - `data::T`: array containig the indices of the points in this cluster
 """
-mutable struct KMeansTreeNode{T} <: AbstractNode
-    parent::Union{KMeansTreeNode{T},Nothing}
-    children::Union{Vector{KMeansTreeNode{T}}, Nothing}
-    level::Integer
-    center
-    radius
-    data::T
+mutable struct KMeansTreeNode{D, I, F, N <: NodeData{I, F}} <: AbstractNode{I, F, N}
+    parent::Union{KMeansTreeNode{D, I, F, N}, Nothing}
+    children::Vector{KMeansTreeNode{D, I, F, N}}
+    level::I
+    center::SVector{D, F}
+    radius::F
+    data::N
 end
 
-function KMeansTreeNode{T}(iterations, data::T) where T
-    return KMeansTreeNode{T}(nothing, nothing, 0, nothing, 0.0, data)
+function KMeansTreeNode(
+    center::SVector{D, F},
+    radius::F,
+    data::N
+) where {D, I, F, N <: NodeData{I, F}}
+
+    return KMeansTreeNode(nothing, KMeansTreeNode{D, I, F, N}[], I(0), center, radius, data)
 end
 
-function KMeansTreeNode{T}(level, center::Vector{Float64}, radius,data::T) where T
-    return KMeansTreeNode{T}(nothing, nothing, level, center, radius, data)
-end
+function add_child!(
+    parent::KMeansTreeNode{D, I, F, N},
+    center::SVector{D, F},
+    radius::F,
+    data::N
+) where {D, I, F, N}
+    
+    childnode = KMeansTreeNode(
+        parent,
+        KMeansTreeNode{D, I, F, N}[],
+        level(parent) + 1,
+        center,
+        radius,
+        data
+    )
 
-function add_child!(parent::KMeansTreeNode, center, radius, data::T) where T
-    childnode = KMeansTreeNode(nothing, nothing, parent.level + 1, center, radius, data)
-    childnode.parent = parent
-    if parent.children === nothing
-        parent.children = [childnode]
-    else
-        push!(parent.children, childnode)
-    end
+    push!(parent.children, childnode)
+
 end
 
 """
@@ -93,10 +104,10 @@ datastructure is the foundation for the algorithms in this package.
     which either can be `BoxTreeNode` or [`KMeansTreeNode`](@ref), depending on the keyword.
 """
 function create_tree(
-    points::Vector{SVector{D,T}},
+    points::Vector{SVector{D, F}},
     treeoptions::KMeansTreeOptions
-) where {D,T}
-    root = KMeansTreeNode( nothing, nothing,  0, nothing, 0.0, Vector(1:length(points)))
+) where {D, F}
+    root = KMeansTreeNode(zeros(SVector{D, F}), F(0.0), ACAData(Vector(1:length(points)), F))
     fill_tree!(
         root,
         points,
@@ -116,30 +127,32 @@ function whichcenter(center, point, nchildren)
 end
 
 function fill_tree!(
-    node::KMeansTreeNode, points::Vector{SVector{D,T}}; 
-    nmin = 1,
+    node::KMeansTreeNode{D, I, F, N},
+    points::Vector{SVector{D, F}};
+    nmin=1,
     maxlevel=log2(eps(eltype(points))),
     iterations, 
     nchildren
-) where {D,T}
-    if length(node.data) <= nmin|| node.level >= maxlevel - 1 || length(node.data) <= nchildren
+) where {D, I, F, N <: NodeData{I, F}}
+
+    if numindices(node) <= nmin|| level(node) >= maxlevel - 1 || numindices(node) <= nchildren
         return
     end
 
-    center = points[node.data[1:nchildren]]
-    sorted_points = zeros(eltype(node.data), length(node.data)+1, nchildren)
+    center = points[indices(node)[1:nchildren]]
+    sorted_points = zeros(I, numindices(node)+1, nchildren)
 
-    for iter = 1:iterations
+    for _ = 1:iterations
         sorted_points .= 0
-        for pindex in node.data
+        for pindex in indices(node)
             id = whichcenter(center, points[pindex], nchildren)
             sorted_points[1, id] +=  1
             sorted_points[1 + sorted_points[1, id], id] = pindex
         end
-        for k=1:nchildren
+        for k = 1:nchildren
             center[k] = sum(
                 points[sorted_points[2:(sorted_points[1, k]+1), k]]
-            ) ./ sorted_points[1,k]          
+            ) ./ sorted_points[1, k]          
         end
     end
     
@@ -148,9 +161,9 @@ function fill_tree!(
         if sorted_points[1, i] > 0
             childpointindices = sorted_points[2:(sorted_points[1, i]+1), i]
             radius = maximum(norm.([points[childpointindices[j]].-center[i] for j = 1:length(childpointindices)]))
-            add_child!(node, center[i], radius, childpointindices)
+            add_child!(node, center[i], radius, ACAData(childpointindices, F))
             fill_tree!(
-                node.children[end], 
+                lastchild(node), 
                 points, 
                 nmin=nmin, 
                 maxlevel=maxlevel, 
@@ -182,7 +195,7 @@ one of its corners multiplied by a factor of 1.1.
 - `false`: if the input nodes are not compressable
 """
 function iscompressable(sourcenode::KMeansTreeNode, testnode::KMeansTreeNode)
-    if sourcenode.level > 0 && testnode.level > 0
+    if level(sourcenode) > 0 && level(testnode) > 0
         dist = norm(sourcenode.center - testnode.center)
         factor = 1.5
         if factor * (sourcenode.radius + testnode.radius) < dist

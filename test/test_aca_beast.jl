@@ -54,9 +54,9 @@ using FastBEAST
 
     @test norm(Z-U*V)/norm(Z) < 1e-13
 
-    VV = zeros(Float64, 51, numfunctions(X2))
+    VV = zeros(Float64, rank_k, numfunctions(X2))
 
-    UU = zeros(Float64, numfunctions(X1), 51)
+    UU = zeros(Float64, numfunctions(X1), rank_k)
 
     ##
 
