@@ -22,8 +22,17 @@ function LinearAlgebra.mul!(
     M::LinearMaps.TransposeMap{F, T},
     x::AbstractVector
 ) where {F, T <: LowRankMatrix{F}}
-    mul!(M.lmap.z, M.lmap.U', x)
-    mul!(y, M.lmap.V', M.lmap.z)
+    mul!(M.lmap.z, transpose(M.lmap.U), x)
+    mul!(y, transpose(M.lmap.V), M.lmap.z)
+end
+
+function LinearAlgebra.mul!(
+    y::AbstractVecOrMat,
+    M::LinearMaps.AdjointMap{F, T},
+    x::AbstractVector
+) where {F, T <: LowRankMatrix{F}}
+    mul!(M.lmap.z, adjoint(M.lmap.U), x)
+    mul!(y, adjoint(M.lmap.V), M.lmap.z)
 end
 struct MatrixBlock{I, F, T}
     M::T
@@ -41,5 +50,5 @@ Base.size(block::MatrixBlock) = (length(block.τ), length(block.σ))
 LinearAlgebra.rank(block::MatrixBlock) = size(block.M, 2)
 
 function nnz(lmrb::MatrixBlock{I, F, T}) where {I, F, T <: LowRankMatrix{F}}
-    return size(lmrb.U, 1)*size(lmrb.U, 2) + size(lmrb.V, 1)*size(lmrb.V, 2)
+    return size(lmrb.M.U, 1)*size(lmrb.M.U, 2) + size(lmrb.M.V, 1)*size(lmrb.M.V, 2)
 end

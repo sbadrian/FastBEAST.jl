@@ -1,3 +1,4 @@
+using Test
 using FastBEAST
 using StaticArrays
 using LinearAlgebra
@@ -45,7 +46,7 @@ tpoints = 0.1*[@SVector rand(3) for i = 1:NT] + [1.0*SVector(3.5, 3.5, 3.5) for 
 stree = create_tree(spoints, BoxTreeOptions(nmin=50))
 ttree = create_tree(tpoints, BoxTreeOptions(nmin=50))
 kmat = assembler(OneoverRkernel, tpoints, spoints)
-hmat = HMatrix(OneoverRkernelassembler, ttree, stree, compressor=:naive, T=Float64)
+hmat = HMatrix(OneoverRkernelassembler, ttree, stree, Int64, Float64, compressor=:naive)
 
 @test estimate_reldifference(hmat,kmat) ≈ 0 atol=1e-4
 @test compressionrate(hmat)*100 ≈ 99 atol=1
@@ -60,7 +61,7 @@ spoints = [@SVector rand(3) for i = 1:N]
 @views OneoverRkernelassembler(matrix, tdata, sdata) = assembler(OneoverRkernel, matrix, spoints[tdata], spoints[sdata])
 stree = create_tree(spoints, BoxTreeOptions(nmin=400))
 kmat = assembler(OneoverRkernel, spoints, spoints)
-hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, T=Float64)
+hmat = HMatrix(OneoverRkernelassembler, stree, stree, Int64, Float64, compressor=:aca)
 
 @test estimate_reldifference(hmat,kmat) ≈ 0 atol=1e-4
-@test compressionrate(hmat)*100 ≈ 54 atol=1
+@test compressionrate(hmat)*100 ≈ 55 atol=1

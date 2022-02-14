@@ -149,11 +149,24 @@ function aca_compression(
     end    
 end
 
-
-function aca_compression(matrix::Function, testnode::BoxTreeNode, sourcenode::BoxTreeNode; 
-                        tol=1e-14, T=ComplexF64, maxrank=40, svdrecompress=true)
-    U, V = aca_compression(matrix, testnode.data, sourcenode.data,
-                             tol=tol, T=T, maxrank=maxrank, svdrecompress=svdrecompress)
+#=
+function aca_compression(
+    matrix::Function,
+    testnode::BoxTreeNode,
+    sourcenode::BoxTreeNode;
+    tol=1e-14,
+    T=ComplexF64,
+    maxrank=40,
+    svdrecompress=true
+)
+    U, V = aca_compression(
+        matrix,
+        testnode.data,
+        sourcenode.data,
+        tol=tol, T=T,
+        maxrank=maxrank,
+        svdrecompress=svdrecompress
+    )
 
     if false == true && size(U,2) >= 30
         println("Rank of compressed ACA is too large")
@@ -179,3 +192,4 @@ function aca_compression(matrix::Function, testnode::BoxTreeNode, sourcenode::Bo
 
     return U, V
 end
+=#

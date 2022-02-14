@@ -2,9 +2,9 @@ using LinearAlgebra
 using LinearMaps
 using ProgressMeter
 
-struct HMatrix{T,I} <: LinearMaps.LinearMap{T}
-    fullmatrixviews::Vector{FullMatrixView{T,I}}
-    matrixviews::Vector{LowRankMatrixView{T,I}}
+struct HMatrix{I, F} <: LinearMaps.LinearMap{F}
+    fullrankblocks::Vector{MatrixBlock{I, F, Matrix{F}}}
+    lowrankblocks::Vector{MatrixBlock{I, F, LowRankMatrix{F}}}
     rowdim::I
     columndim::I
     nnz::I
@@ -20,9 +20,7 @@ function compressionrate(hmat::HT) where HT <: HMatrix
     return (fullsize - nnz(hmat))/fullsize
 end
 
-import Base.:size
-
-function size(hmat::HMatrix, dim=nothing)
+function Base.size(hmat::HMatrix, dim=nothing)
     if dim === nothing
         return (hmat.rowdim, hmat.columndim)
     elseif dim == 1
@@ -34,7 +32,7 @@ function size(hmat::HMatrix, dim=nothing)
     end
 end
 
-function size(hmat::Adjoint{T}, dim=nothing) where T <: HMatrix
+function Base.size(hmat::Adjoint{T}, dim=nothing) where T <: HMatrix
     if dim === nothing
         return reverse(size(adjoint(hmat)))
     elseif dim == 1
@@ -54,16 +52,16 @@ end
     b = zeros(eltype(y), 200)
     c = zeros(eltype(y), size(A,1))
     
-    for fmv in A.fullmatrixviews
-        mul!(c[1:size(fmv.matrix,1)], fmv.matrix, x[fmv.rightindices])
-        y[fmv.leftindices] .+= c[1:size(fmv.matrix,1)]
+    for fmv in A.fullrankblocks
+        mul!(c[1:size(fmv.M,1)], fmv.M, x[fmv.σ])
+        y[fmv.τ] .+= c[1:size(fmv.M,1)]
         #y[fmv.leftindices] += fmv.matrix * x[fmv.rightindices]
     end
     
-    for lmv in A.matrixviews
-        mul!(b[1:size(lmv.rightmatrix,1)], lmv.rightmatrix, x[lmv.rightindices]) 
-        mul!(c[1:size(lmv.leftmatrix,1)], lmv.leftmatrix, b[1:size(lmv.rightmatrix,1)])
-        y[lmv.leftindices] .+= c[1:size(lmv.leftmatrix,1)]
+    for lmv in A.lowrankblocks
+        mul!(b[1:size(lmv.M.V,1)], lmv.M.V, x[lmv.σ]) 
+        mul!(c[1:size(lmv.M.U,1)], lmv.M.U, b[1:size(lmv.M.V,1)])
+        y[lmv.τ] .+= c[1:size(lmv.M.U,1)]
     end 
 
     return y
@@ -82,26 +80,25 @@ end
     b = zeros(eltype(y), 200)
     c = zeros(eltype(y), size(transA,1))
 
-    for afmv in transA.lmap.fullmatrixviews
-        mul!(c[1:size(transpose(afmv.matrix),1)], transpose(afmv.matrix), x[afmv.leftindices])
-        y[afmv.rightindices] .+= c[1:size(adjoint(afmv.matrix),1)]
+    for afmv in transA.lmap.fullrankblocks
+        mul!(c[1:size(transpose(afmv.M),1)], transpose(afmv.M), x[afmv.τ])
+        y[afmv.σ] .+= c[1:size(adjoint(afmv.M),1)]
         #y[afmv.rightindices] += adjoint(afmv.matrix) * x[afmv.leftindices]
     end
 
-    for almv in transA.lmap.matrixviews
-        mul!(b[1:size(almv.leftmatrix,2)], transpose(almv.leftmatrix), x[almv.leftindices]) 
+    for almv in transA.lmap.lowrankblocks
+        mul!(b[1:size(almv.M.U,2)], transpose(almv.M.U), x[almv.τ]) 
         mul!(
-            c[1:size(almv.rightmatrix,2)],
-            transpose(almv.rightmatrix),
-            b[1:size(almv.leftmatrix,2)]
+            c[1:size(almv.M.V,2)],
+            transpose(almv.M.V),
+            b[1:size(almv.M.U,2)]
         )
-        y[almv.rightindices] .+= c[1:size(almv.rightmatrix,2)]
+        y[almv.σ] .+= c[1:size(almv.M.V,2)]
         #y[almv.rightindices] += almv.rightmatrix'*(almv.leftmatrix' * x[almv.leftindices])
     end
 
     return y
 end
-
 
 @views function LinearAlgebra.mul!(
     y::AbstractVecOrMat,
@@ -115,13 +112,13 @@ end
     b = zeros(eltype(y), 200)
     c = zeros(eltype(y), size(transA,1))
 
-    for afmv in transA.lmap.fullmatrixviews
+    for afmv in transA.lmap.fullrankblocks
         mul!(c[1:size(adjoint(afmv.matrix),1)], adjoint(afmv.matrix), x[afmv.leftindices])
         y[afmv.rightindices] .+= c[1:size(adjoint(afmv.matrix),1)]
         #y[afmv.rightindices] += adjoint(afmv.matrix) * x[afmv.leftindices]
     end
 
-    for almv in transA.lmap.matrixviews
+    for almv in transA.lmap.lowrankblocks
         mul!(b[1:size(almv.leftmatrix,2)], almv.leftmatrix', x[almv.leftindices]) 
         mul!(
             c[1:size(almv.rightmatrix,2)],
@@ -138,17 +135,17 @@ end
 function HMatrix(
     matrixassembler::Function,
     testtree::N,#::BoxTreeNode,
-    sourcetree::N;#::BoxTreeNode;
+    sourcetree::N,#::BoxTreeNode,
+    ::Type{I},
+    ::Type{F};
     compressor=:naive,
     tol=1e-4,
     maxrank=100,
-    T=ComplexF64,
-    I=Int64,
     threading=:single,
     farmatrixassembler=matrixassembler,
     verbose=false,
     svdrecompress=true
-) where N <: AbstractNode
+) where {I, F, N <: AbstractNode}
     
     fullinteractions = SVector{2}[]
     compressableinteractions = SVector{2}[]
@@ -160,8 +157,9 @@ function HMatrix(
         fullinteractions,
         compressableinteractions
     )
-    fullmatrixviews_perthread = Vector{FullMatrixView{T, I}}[]
-    fullmatrixviews = FullMatrixView{T, I}[]
+    MBF = MatrixBlock{I, F, Matrix{F}}
+    fullrankblocks_perthread = Vector{MBF}[]
+    fullrankblocks = MBF[]
 
     rowdim = length(testtree.data)
     coldim = length(sourcetree.data)
@@ -182,21 +180,20 @@ function HMatrix(
         for fullinteraction in fullinteractions
             nonzeros += length(fullinteraction[1].data)*length(fullinteraction[2].data)
             push!(
-                fullmatrixviews,
+                fullrankblocks,
                 getfullmatrixview(
                     matrixassembler,
                     fullinteraction[1],
                     fullinteraction[2],
-                    rowdim,
-                    coldim,
-                    T=T, I=I
+                    I,
+                    F
                 )
             )
             verbose && next!(p)
         end
     elseif threading == :multi
         for i in 1:Threads.nthreads()
-            push!(fullmatrixviews_perthread, FullMatrixView{T, I}[])
+            push!(fullrankblocks_perthread, MBF[])
             push!(nonzeros_perthread, 0)
         end
 
@@ -204,26 +201,26 @@ function HMatrix(
             nonzeros_perthread[Threads.threadid()] += 
                 length(fullinteraction[1].data)*length(fullinteraction[2].data)
             push!(
-                fullmatrixviews_perthread[Threads.threadid()],
+                fullrankblocks_perthread[Threads.threadid()],
                 getfullmatrixview(
                     matrixassembler,
                     fullinteraction[1],
                     fullinteraction[2],
-                    rowdim,
-                    coldim,
-                    T=T, I=I
+                    I,
+                    F
                 )
             )
             verbose && next!(p)
         end
 
-        for i in eachindex(fullmatrixviews_perthread)
-            append!(fullmatrixviews, fullmatrixviews_perthread[i])
+        for i in eachindex(fullrankblocks_perthread)
+            append!(fullrankblocks, fullrankblocks_perthread[i])
         end
     end
 
-    matrixviews_perthread = Vector{LowRankMatrixView{T, I}}[]
-    matrixviews = LowRankMatrixView{T, I}[]
+    MBL = MatrixBlock{I, F, LowRankMatrix{F}}
+    lowrankblocks_perthread = Vector{MBL}[]
+    lowrankblocks = MBL[]
 
     if verbose
         p = Progress(length(compressableinteractions), desc="Compressing far interactions: ")
@@ -232,58 +229,55 @@ function HMatrix(
     if threading == :single
         for compressableinteraction in compressableinteractions
             push!(
-                matrixviews, 
+                lowrankblocks, 
                 getcompressedmatrix(
                     farmatrixassembler,
                     compressableinteraction[1],
                     compressableinteraction[2],
-                    rowdim,
-                    coldim,
+                    I,
+                    F,
                     compressor=compressor,
                     tol=tol,
                     maxrank=maxrank,
-                    svdrecompress=svdrecompress,
-                    T=T, I=I
+                    svdrecompress=svdrecompress
                 )
             )
-            nonzeros += nnz(matrixviews[end])
+            nonzeros += nnz(lowrankblocks[end])
             verbose && next!(p)
         end
     elseif threading == :multi
         for i in 1:Threads.nthreads()
-            push!(matrixviews_perthread, LowRankMatrixView{T, I}[])
+            push!(lowrankblocks_perthread, MBL[])
         end
 
         Threads.@threads for compressableinteraction in compressableinteractions
             push!(
-                matrixviews_perthread[Threads.threadid()],
+                lowrankblocks_perthread[Threads.threadid()],
                 getcompressedmatrix(
                     farmatrixassembler,
                     compressableinteraction[1],
                     compressableinteraction[2],
-                    rowdim,
-                    coldim,
+                    I,
+                    F,
                     compressor=compressor,
                     tol=tol,
                     maxrank=maxrank,
-                    svdrecompress=svdrecompress,
-                    T=T,
-                    I=I
+                    svdrecompress=svdrecompress
                 )
             )
             nonzeros_perthread[Threads.threadid()] += 
-                nnz(matrixviews_perthread[Threads.threadid()][end])
+                nnz(lowrankblocks_perthread[Threads.threadid()][end])
             verbose && next!(p)
         end
 
-        for i in eachindex(matrixviews_perthread)
-            append!(matrixviews, matrixviews_perthread[i])
+        for i in eachindex(lowrankblocks_perthread)
+            append!(lowrankblocks, lowrankblocks_perthread[i])
         end
     end
 
-    return HMatrix{T,I}(
-        fullmatrixviews,
-        matrixviews,
+    return HMatrix{I, F}(
+        fullrankblocks,
+        lowrankblocks,
         rowdim,
         coldim,
         nonzeros + sum(nonzeros_perthread),
@@ -378,20 +372,16 @@ function getfullmatrixview(
     matrixassembler,
     testnode,
     sourcenode,
-    rowdim,
-    coldim;
-    T=ComplexF64,
-    I=Int64
-)
-    matrix = zeros(T, length(testnode.data), length(sourcenode.data))
+    ::Type{I},
+    ::Type{F};
+) where {I, F}
+    matrix = zeros(F, length(testnode.data), length(sourcenode.data))
     matrixassembler(matrix, testnode.data, sourcenode.data)
 
-    return FullMatrixView{T,I}(
+    return MatrixBlock{I, F, Matrix{F}}(
         matrix,
-        sourcenode.data,
         testnode.data,
-        rowdim,
-        coldim
+        sourcenode.data
     )
 end
 
@@ -399,15 +389,13 @@ function getcompressedmatrix(
     matrixassembler::Function,
     testnode,
     sourcenode,
-    rowdim,
-    coldim; 
+    ::Type{I},
+    ::Type{F};
     tol=1e-4,
     maxrank=100,
     compressor=:aca,
     svdrecompress=true,
-    T=ComplexF64,
-    I=Int64
-)
+) where {I, F}
 
         #U, V = aca_compression2(assembler, kernel, testpoints, sourcepoints, 
         #testnode.data, sourcenode.data; tol=tol)
@@ -417,20 +405,17 @@ function getcompressedmatrix(
         U, V = aca_compression(
             matrixassembler, 
             testnode.data, 
-            sourcenode.data; 
+            sourcenode.data,
+            F; 
             tol=tol,
             maxrank=maxrank,
-            svdrecompress=svdrecompress,
-            T=T
+            svdrecompress=svdrecompress
         )
 
-        lm = LowRankMatrixView{T,I}(
-            V,
-            U,
-            sourcenode.data,
+        lm = MatrixBlock{I, F, LowRankMatrix{F}}(
+            LowRankMatrix(U, V),
             testnode.data,
-            rowdim,
-            coldim
+            sourcenode.data
         )
 
     return lm

@@ -4,6 +4,9 @@ include("tree/tree.jl")
 
 include("aca.jl")
 include("skeletons.jl")
+include("hmatrix.jl")
+include("utils.jl")
+include("beast.jl")
 
 export BoundingBox
 export getboxframe
@@ -18,7 +21,7 @@ export KMeansTreeNode
 
 export aca_compression
 
-export BlockMatrix, LowRankMatrix, LowRankBlock
+export MatrixBlock, LowRankMatrix
 
 export HMatrix
 export buildhmatrix
