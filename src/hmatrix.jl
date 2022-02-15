@@ -2,9 +2,9 @@ using LinearAlgebra
 using LinearMaps
 using ProgressMeter
 
-struct HMatrix{I, F} <: LinearMaps.LinearMap{F}
-    fullrankblocks::Vector{MatrixBlock{I, F, Matrix{F}}}
-    lowrankblocks::Vector{MatrixBlock{I, F, LowRankMatrix{F}}}
+struct HMatrix{I, K} <: LinearMaps.LinearMap{K}
+    fullrankblocks::Vector{MatrixBlock{I, K, Matrix{K}}}
+    lowrankblocks::Vector{MatrixBlock{I, K, LowRankMatrix{K}}}
     rowdim::I
     columndim::I
     nnz::I
@@ -184,7 +184,7 @@ function HMatrix(
     testtree::T,#::BoxTreeNode,
     sourcetree::T,#::BoxTreeNode,
     ::Type{I},
-    ::Type{F};
+    ::Type{K};
     compressor=:naive,
     tol=1e-4,
     maxrank=100,
@@ -192,7 +192,7 @@ function HMatrix(
     farmatrixassembler=matrixassembler,
     verbose=false,
     svdrecompress=true
-) where {I, F, N <: NodeData{I, F}, T <: AbstractNode{I, F, N}}
+) where {I, K, T <: AbstractNode} #{I, K, F, N <: NodeData{I, F}, T <: AbstractNode{I, F, N}}
     
     fullinteractions = SVector{2}[]
     compressableinteractions = SVector{2}[]
@@ -204,7 +204,7 @@ function HMatrix(
         fullinteractions,
         compressableinteractions
     )
-    MBF = MatrixBlock{I, F, Matrix{F}}
+    MBF = MatrixBlock{I, K, Matrix{K}}
     fullrankblocks_perthread = Vector{MBF}[]
     fullrankblocks = MBF[]
 
@@ -233,7 +233,7 @@ function HMatrix(
                     fullinteraction[1],
                     fullinteraction[2],
                     I,
-                    F
+                    K
                 )
             )
             verbose && next!(p)
@@ -254,7 +254,7 @@ function HMatrix(
                     fullinteraction[1],
                     fullinteraction[2],
                     I,
-                    F
+                    K
                 )
             )
             verbose && next!(p)
@@ -265,7 +265,7 @@ function HMatrix(
         end
     end
 
-    MBL = MatrixBlock{I, F, LowRankMatrix{F}}
+    MBL = MatrixBlock{I, K, LowRankMatrix{K}}
     lowrankblocks_perthread = Vector{MBL}[]
     lowrankblocks = MBL[]
 
@@ -282,7 +282,7 @@ function HMatrix(
                     compressableinteraction[1],
                     compressableinteraction[2],
                     I,
-                    F,
+                    K,
                     compressor=compressor,
                     tol=tol,
                     maxrank=maxrank,
@@ -305,7 +305,7 @@ function HMatrix(
                     compressableinteraction[1],
                     compressableinteraction[2],
                     I,
-                    F,
+                    K,
                     compressor=compressor,
                     tol=tol,
                     maxrank=maxrank,
@@ -322,7 +322,7 @@ function HMatrix(
         end
     end
 
-    return HMatrix{I, F}(
+    return HMatrix{I, K}(
         fullrankblocks,
         lowrankblocks,
         rowdim,
@@ -423,12 +423,12 @@ function getfullmatrixview(
     testnode,
     sourcenode,
     ::Type{I},
-    ::Type{F};
-) where {I, F}
-    matrix = zeros(F, numindices(testnode), numindices(sourcenode))
+    ::Type{K};
+) where {I, K}
+    matrix = zeros(K, numindices(testnode), numindices(sourcenode))
     matrixassembler(matrix, indices(testnode), indices(sourcenode))
 
-    return MatrixBlock{I, F, Matrix{F}}(
+    return MatrixBlock{I, K, Matrix{K}}(
         matrix,
         indices(testnode),
         indices(sourcenode)
@@ -440,12 +440,12 @@ function getcompressedmatrix(
     testnode,
     sourcenode,
     ::Type{I},
-    ::Type{F};
+    ::Type{K};
     tol=1e-4,
     maxrank=100,
     compressor=:aca,
     svdrecompress=true,
-) where {I, F}
+) where {I, K}
 
         #U, V = aca_compression2(assembler, kernel, testpoints, sourcepoints, 
         #testnode.data, sourcenode.data; tol=tol)
@@ -456,13 +456,13 @@ function getcompressedmatrix(
             matrixassembler, 
             indices(testnode), 
             indices(sourcenode),
-            F; 
+            K; 
             tol=tol,
             maxrank=maxrank,
             svdrecompress=svdrecompress
         )
 
-        lm = MatrixBlock{I, F, LowRankMatrix{F}}(
+        lm = MatrixBlock{I, K, LowRankMatrix{K}}(
             LowRankMatrix(U, V),
             indices(testnode),
             indices(sourcenode)

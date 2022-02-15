@@ -147,4 +147,4 @@ mat, hmat_svdmulti = test_beast_laplace_singlelayer(
 # κ = 0.0
 # 𝒱 = Helmholtz3D.singlelayer(wavenumber=κ)
 # hmat = hassemble(𝒱,X,X, nmin=100)
-# println(compressionrate(hmat))
+# println(compressionrate(hmat))]
