@@ -1,3 +1,5 @@
+using Test
+using FastBEAST
 using CompScienceMeshes
 using BEAST
 using StaticArrays
@@ -45,9 +47,9 @@ T = hassemble(
     𝓣,
     X,
     X,
-    treeoptions = BoxTreeOptions(nmin=100),
+    treeoptions=BoxTreeOptions(nmin=100),
     threading=:multi,
-    quadstrat=BEAST.DoubleNumQStrat(1,1),
+    quadstrat=BEAST.DoubleNumQStrat(1, 1),
     verbose=true,
     svdrecompress=true
 )

@@ -17,12 +17,12 @@ function estimate_norm(mat; tol=1e-4, itmax = 1000)
     return sqrt(σnew)
 end
 
-function estimate_reldifference(hmat, refmat; tol=1e-4)
+function estimate_reldifference(hmat::H, refmat::M; tol=1e-4) where {F, H <: LinearMaps.LinearMap{F}, M <: AbstractMatrix{F}}
     #if size(hmat) != size(refmat)
     #    error("Dimensions of matrices do not match")
     #end
     
-    v = rand(size(hmat,2))
+    v = rand(F, size(hmat,2))
 
     v = v/norm(v)
     itermin = 3
@@ -33,8 +33,8 @@ function estimate_reldifference(hmat, refmat; tol=1e-4)
         σold = σnew
         w = hmat*v - refmat*v
         x = adjoint(hmat)*w - adjoint(refmat)*w
-        σnew = norm(x)
-        v = x/norm(x)
+        σnew = norm(Vector(x))
+        v = x/σnew
         i += 1
     end
 

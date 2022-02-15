@@ -1,11 +1,11 @@
 using StaticArrays
 
-struct BoundingBox{D,T} 
-    halflength::T
-    center::SVector{D,T}
+struct BoundingBox{D, F} 
+    halflength::F
+    center::SVector{D, F}
 end
 
-function BoundingBox(points::Vector{SVector{D,T}}) where {D,T}
+function BoundingBox(points::Vector{SVector{D, F}}) where {D, F}
     min_dim = Vector(points[1])
     max_dim = Vector(points[1])
 
@@ -18,18 +18,18 @@ function BoundingBox(points::Vector{SVector{D,T}}) where {D,T}
 
     center = @MVector zeros(D)
 
-    length_dim = zeros(T,D)
+    length_dim = zeros(F, D)
     for j = 1:D
         length_dim[j] = max_dim[j] - min_dim[j]
-        center[j] = (max_dim[j] + min_dim[j])/2.0
+        center[j] = (max_dim[j] + min_dim[j])/F(2.0)
     end
 
-    halflength = maximum(length_dim)/2.0
+    halflength = maximum(length_dim)/F(2.0)
     
     return BoundingBox(halflength, SVector(center))
 end
 
-function getboxframe(bbox::BoundingBox{D,T}) where {D,T}
+function getboxframe(bbox::BoundingBox{D, F}) where {D, F}
     if D == 2
         mat = zeros(5, 2)
         sign_x = [1 -1 -1 1 1]
@@ -60,9 +60,9 @@ end
 Returns a bounding box that this is the `id`th quadrants (2D) /
 octand (3D) of the bounding box `bbox`
 """
-function getchildbox(bbox::BoundingBox{D,T}, id::Integer) where {D,T}
+function getchildbox(bbox::BoundingBox{D, F}, id::Integer) where {D, F}
 
-    hl = bbox.halflength / 2.0
+    hl = bbox.halflength / F(2.0)
 
     if D == 2
         sign_x = [1 -1 -1  1]
@@ -80,7 +80,7 @@ function getchildbox(bbox::BoundingBox{D,T}, id::Integer) where {D,T}
     return BoundingBox(hl, center)
 end
 
-function whichchildbox(bbox::BoundingBox{D,T}, point::SVector{D,T}) where {D,T}
+function whichchildbox(bbox::BoundingBox{D, F}, point::SVector{D, F}) where {D, F}
 
     if point[1] >= bbox.center[1]
         if  point[2] >= bbox.center[2]

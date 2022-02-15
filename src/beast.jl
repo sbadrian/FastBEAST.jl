@@ -41,9 +41,10 @@ function hassemble(
     @time hmat = HMatrix(
         assembler,
         test_tree,
-        trial_tree, 
+        trial_tree,
+        Int64,
+        scalartype(operator),
         compressor=compressor,
-        T=scalartype(operator),
         tol=tol,
         maxrank=maxrank,
         threading=threading,
@@ -53,6 +54,7 @@ function hassemble(
     )
     return hmat
 end
+
 
 # The following to function ensure that no dynamic dispatching is
 # performed since we know already that all triangles are well-separate
