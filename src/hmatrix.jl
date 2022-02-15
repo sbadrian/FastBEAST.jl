@@ -82,7 +82,7 @@ end
             yy[mb.τ, Threads.threadid()] .+= cc[1:size(mb.M,1), Threads.threadid()]
         end
 
-        y = sum(yy, dims=2)
+        y[:] = sum(yy, dims=2)
     end
 
     return y
@@ -127,7 +127,7 @@ end
             yy[mb.σ, Threads.threadid()] .+= cc[1:size(mb.M, 2), Threads.threadid()]
         end
 
-        y = sum(yy, dims=2)
+        y[:] = sum(yy, dims=2)
 
     end
 
@@ -172,7 +172,7 @@ end
             yy[mb.σ, Threads.threadid()] .+= cc[1:size(mb.M, 2), Threads.threadid()]
         end
 
-        y = sum(yy, dims=2)
+        y[:] = sum(yy, dims=2)
 
     end
 
@@ -246,7 +246,7 @@ function HMatrix(
 
         Threads.@threads for fullinteraction in fullinteractions
             nonzeros_perthread[Threads.threadid()] += 
-                nmindices(fullinteraction[1])*numindices(fullinteraction[2])
+                numindices(fullinteraction[1])*numindices(fullinteraction[2])
             push!(
                 fullrankblocks_perthread[Threads.threadid()],
                 getfullmatrixview(
@@ -340,7 +340,7 @@ function computerinteractions!(
     compressableinteractions#::Vector{SVector{2,BoxTreeNode}})
 )
     if iscompressable(sourcenode, testnode)
-        if sourcenode.level == 0 && testnode.level == 0
+        if level(sourcenode) == 0 && level(testnode) == 0
             push!(compressableinteractions, SVector(testnode, sourcenode))
             return
         else
@@ -348,13 +348,13 @@ function computerinteractions!(
         end
     end
 
-    if sourcenode.children === nothing && testnode.children === nothing
+    if !haschildren(sourcenode) && !haschildren(testnode)
         push!(fullinteractions, SVector(testnode, sourcenode))
         return
     else
-        if sourcenode.children === nothing
+        if !haschildren(sourcenode)
             schild = sourcenode
-            for tchild in testnode.children
+            for tchild in children(testnode)
                 decide_compression(
                     tchild, 
                     schild, 
@@ -362,9 +362,9 @@ function computerinteractions!(
                     compressableinteractions
                 )
             end
-        elseif testnode.children === nothing
+        elseif !haschildren(testnode)
             tchild = testnode
-            for schild in sourcenode.children
+            for schild in children(sourcenode)
                 decide_compression(
                     tchild, 
                     schild, 
@@ -373,8 +373,8 @@ function computerinteractions!(
                 )
             end
         else
-            for schild in sourcenode.children
-                for tchild in testnode.children
+            for schild in children(sourcenode)
+                for tchild in children(testnode)
                     decide_compression(
                         tchild, 
                         schild, 

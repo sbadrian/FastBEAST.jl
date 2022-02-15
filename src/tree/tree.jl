@@ -3,6 +3,7 @@ abstract type AbstractNode{I, F, N} end
 
 children(node::AbstractNode{I, F, N}) where {I, F, N} = node.children
 numchildren(node::AbstractNode{I, F, N}) where {I, F, N} = length(node.children)
+haschildren(node::AbstractNode{I, F, N}) where {I, F, N} = numchildren(node) > 0 ? true : false
 lastchild(node::AbstractNode{I, F, N}) where {I, F, N} = last(node.children)
 level(node::AbstractNode{I, F, N}) where {I, F, N} = node.level
 

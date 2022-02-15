@@ -51,7 +51,6 @@ hmat = HMatrix(OneoverRkernelassembler, ttree, stree, Int64, Float64, compressor
 @test estimate_reldifference(hmat,kmat) ≈ 0 atol=1e-4
 @test compressionrate(hmat)*100 ≈ 99 atol=1
 
-
 ##
 N = 4000
 NT = N
@@ -72,7 +71,7 @@ stree = create_tree(spoints, KMeansTreeOptions(nmin=20))
 @time hmat = HMatrix(OneoverRkernelassembler, stree, stree, Int64, Float64, compressor=:aca)
 
 @test estimate_reldifference(hmat, kmat) ≈ 0 atol=1e-4
-@test compressionrate(hmat)*100 ≈ 31 atol=1
+@test 29 < compressionrate(hmat)*100 < 34
 
 ##
 @views OneoverRkernelassembler(matrix, tdata, sdata) = assembler(
@@ -86,7 +85,7 @@ stree = create_tree(spoints, BoxTreeOptions(nmin=400))
 @time hmat = HMatrix(OneoverRkernelassembler, stree, stree, Int64, Float64, compressor=:aca)
 
 @test estimate_reldifference(hmat,kmat) ≈ 0 atol=1e-4
-@test compressionrate(hmat)*100 ≈ 55 atol=1
+@test 52 < compressionrate(hmat)*100 < 57
 
 
 @time hmatm = HMatrix(
@@ -117,7 +116,7 @@ if Threads.nthreads() > 13
         spoints[tdata],
         spoints[sdata]
     )
-    stree = create_tree(spoints, BoxTreeOptions(nmin=400))
+    stree = create_tree(spoints, BoxTreeOptions(nmin=200))
     stats = @timed HMatrix(
         OneoverRkernelassembler,
         stree,
@@ -127,7 +126,7 @@ if Threads.nthreads() > 13
         compressor=:aca
     )
 
-    println("Compression rate (BoxTree): ", compressionrate(hmat))
+    println("Compression rate (BoxTree): ", compressionrate(hmat)*100)
     println("BoxTree assembly time in s: ", stats.time)
     @test stats.time < 120
 end
