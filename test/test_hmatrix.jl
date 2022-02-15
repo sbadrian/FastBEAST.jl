@@ -68,7 +68,29 @@ v = rand(N)
 )
 stree = create_tree(spoints, KMeansTreeOptions(nmin=20))
 @time kmat = assembler(OneoverRkernel, spoints, spoints)
-@time hmat = HMatrix(OneoverRkernelassembler, stree, stree, Int64, Float64, compressor=:aca)
+@time hmat = HMatrix(
+    OneoverRkernelassembler,
+    stree,
+    stree,
+    Int64,
+    Float64,
+    compressor=:aca,
+    svdrecompress=false
+)
+
+@test estimate_reldifference(hmat, kmat) ≈ 0 atol=1e-4
+@test 18 < compressionrate(hmat)*100 < 24
+
+##
+@time hmat = HMatrix(
+    OneoverRkernelassembler,
+    stree,
+    stree,
+    Int64,
+    Float64,
+    compressor=:aca,
+    svdrecompress=true
+)
 
 @test estimate_reldifference(hmat, kmat) ≈ 0 atol=1e-4
 @test 29 < compressionrate(hmat)*100 < 34
@@ -82,11 +104,33 @@ stree = create_tree(spoints, KMeansTreeOptions(nmin=20))
 )
 stree = create_tree(spoints, BoxTreeOptions(nmin=400))
 @time kmat = assembler(OneoverRkernel, spoints, spoints)
-@time hmat = HMatrix(OneoverRkernelassembler, stree, stree, Int64, Float64, compressor=:aca)
+@time hmat = HMatrix(
+    OneoverRkernelassembler,
+    stree,
+    stree,
+    Int64,
+    Float64,
+    compressor=:aca,
+    svdrecompress=false
+)
+
+@test estimate_reldifference(hmat,kmat) ≈ 0 atol=1e-4
+@test 45 < compressionrate(hmat)*100 < 50
+
+##
+
+@time hmat = HMatrix(
+    OneoverRkernelassembler,
+    stree,
+    stree,
+    Int64,
+    Float64,
+    compressor=:aca,
+    svdrecompress=false
+)
 
 @test estimate_reldifference(hmat,kmat) ≈ 0 atol=1e-4
 @test 52 < compressionrate(hmat)*100 < 57
-
 
 @time hmatm = HMatrix(
     OneoverRkernelassembler,
@@ -95,16 +139,19 @@ stree = create_tree(spoints, BoxTreeOptions(nmin=400))
     Int64,
     Float64,
     compressor=:aca,
-    threading=:multi
+    threading=:multi,
+    svdrecompress=false
 )
 
 @test hmat*v ≈ hmatm*v
 @test transpose(hmat)*v ≈ transpose(hmatm)*v
 @test adjoint(hmat)*v ≈ adjoint(hmatm)*v
 
+println("Large test, N=40000")
+
 ## Speed test: only do on a powerful machine
 if Threads.nthreads() > 13
-    N = 100000
+    N = 40000
     NT = N
 
     spoints = [@SVector rand(3) for i = 1:N]
@@ -117,18 +164,51 @@ if Threads.nthreads() > 13
         spoints[sdata]
     )
     stree = create_tree(spoints, BoxTreeOptions(nmin=200))
-    stats = @timed HMatrix(
+    stats = @timed (hmat = HMatrix(
         OneoverRkernelassembler,
         stree,
         stree,
         Int64,
         Float64,
-        compressor=:aca
-    )
+        compressor=:aca,
+        svdrecompress=false
+    ))
 
     println("Compression rate (BoxTree): ", compressionrate(hmat)*100)
-    println("BoxTree assembly time in s: ", stats.time)
-    @test stats.time < 120
+    @test compressionrate(hmat)*100 > 85
+    println("Assembly time in s (BoxTree): ", stats.time)
+    @test stats.time < 40
+end
+
+## Speed test: only do on a powerful machine
+if Threads.nthreads() > 13
+    N = 40000
+    NT = N
+
+    spoints = [@SVector rand(3) for i = 1:N]
+    v = rand(N)
+    ##
+    @views OneoverRkernelassembler(matrix, tdata, sdata) = assembler(
+        OneoverRkernel,
+        matrix,
+        spoints[tdata],
+        spoints[sdata]
+    )
+    stree = create_tree(spoints, BoxTreeOptions(nmin=200))
+    stats = @timed (hmat = HMatrix(
+        OneoverRkernelassembler,
+        stree,
+        stree,
+        Int64,
+        Float64,
+        compressor=:aca,
+        svdrecompress=true
+    ))
+
+    println("Compression rate (BoxTree, SVD): ", compressionrate(hmat)*100)
+    @test compressionrate(hmat)*100 > 88
+    println("Assembly time in s (BoxTree, SVD): ", stats.time)
+    @test stats.time < 50
 end
 
 ## Speed test: only do on a powerful machine
@@ -152,10 +232,107 @@ if Threads.nthreads() > 13
         stree,
         Int64,
         Float64,
-        compressor=:aca
+        compressor=:aca,
+        svdrecompress=false
     ))
 
     println("Compression rate (KMeans): ", compressionrate(hmat)*100)
-    println("KMeans assembly time in s: ", stats.time)
+    @test compressionrate(hmat)*100 > 70
+    println("Assembly time in s (KMeans): ", stats.time)
+    @test stats.time < 60
+end
+
+## Speed test: only do on a powerful machine
+if Threads.nthreads() > 13
+    N = 40000
+    NT = N
+
+    spoints = [@SVector rand(3) for i = 1:N]
+    v = rand(N)
+    ##
+    @views OneoverRkernelassembler(matrix, tdata, sdata) = assembler(
+        OneoverRkernel,
+        matrix,
+        spoints[tdata],
+        spoints[sdata]
+    )
+    stree = create_tree(spoints, KMeansTreeOptions(nmin=50))
+    stats = @timed (hmat = HMatrix(
+        OneoverRkernelassembler,
+        stree,
+        stree,
+        Int64,
+        Float64,
+        compressor=:aca,
+        svdrecompress=true
+    ))
+
+    println("Compression rate (KMeans, SVD): ", compressionrate(hmat)*100)
+    @test compressionrate(hmat)*100 > 75
+    println("Assembly time in s (KMeans, SVD): ", stats.time)
+    @test stats.time < 90
+end
+
+println("Large test, N=100000")
+
+## Speed test: only do on a powerful machine
+if Threads.nthreads() > 13
+    N = 100000
+    NT = N
+
+    spoints = [@SVector rand(3) for i = 1:N]
+    v = rand(N)
+    ##
+    @views OneoverRkernelassembler(matrix, tdata, sdata) = assembler(
+        OneoverRkernel,
+        matrix,
+        spoints[tdata],
+        spoints[sdata]
+    )
+    stree = create_tree(spoints, BoxTreeOptions(nmin=200))
+    stats = @timed (hmat = HMatrix(
+        OneoverRkernelassembler,
+        stree,
+        stree,
+        Int64,
+        Float64,
+        compressor=:aca,
+        svdrecompress=false
+    ))
+
+    println("Compression rate (BoxTree): ", compressionrate(hmat)*100)
+    @test compressionrate(hmat)*100 > 90
+    println("Assembly time in s (BoxTree): ", stats.time)
+    @test stats.time < 90
+end
+
+## Speed test: only do on a powerful machine
+if Threads.nthreads() > 13
+    N = 100000
+    NT = N
+
+    spoints = [@SVector rand(3) for i = 1:N]
+    v = rand(N)
+    ##
+    @views OneoverRkernelassembler(matrix, tdata, sdata) = assembler(
+        OneoverRkernel,
+        matrix,
+        spoints[tdata],
+        spoints[sdata]
+    )
+    stree = create_tree(spoints, BoxTreeOptions(nmin=200))
+    stats = @timed (hmat = HMatrix(
+        OneoverRkernelassembler,
+        stree,
+        stree,
+        Int64,
+        Float64,
+        compressor=:aca,
+        svdrecompress=true
+    ))
+
+    println("Compression rate (BoxTree, SVD): ", compressionrate(hmat)*100)
+    @test compressionrate(hmat)*100 > 90
+    println("Assembly time in s (BoxTree, SVD): ", stats.time)
     @test stats.time < 120
 end
