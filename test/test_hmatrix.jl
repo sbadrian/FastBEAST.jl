@@ -79,7 +79,7 @@ stree = create_tree(spoints, KMeansTreeOptions(nmin=20))
 )
 
 @test estimate_reldifference(hmat, kmat) ≈ 0 atol=1e-4
-@test 18 < compressionrate(hmat)*100 < 24
+@test 18 < compressionrate(hmat)*100 < 26
 
 ##
 @time hmat = HMatrix(
@@ -93,7 +93,7 @@ stree = create_tree(spoints, KMeansTreeOptions(nmin=20))
 )
 
 @test estimate_reldifference(hmat, kmat) ≈ 0 atol=1e-4
-@test 29 < compressionrate(hmat)*100 < 34
+@test 29 < compressionrate(hmat)*100 < 37
 
 ##
 @views OneoverRkernelassembler(matrix, tdata, sdata) = assembler(
@@ -117,6 +117,19 @@ stree = create_tree(spoints, BoxTreeOptions(nmin=400))
 @test estimate_reldifference(hmat,kmat) ≈ 0 atol=1e-4
 @test 45 < compressionrate(hmat)*100 < 50
 
+@time hmat = HMatrix(
+    OneoverRkernelassembler,
+    stree,
+    stree,
+    Int64,
+    Float64,
+    compressor=:aca,
+    svdrecompress=true
+)
+
+@test estimate_reldifference(hmat,kmat) ≈ 0 atol=1e-4
+@test 47 < compressionrate(hmat)*100 < 57
+
 ##
 
 @time hmat = HMatrix(
@@ -130,7 +143,7 @@ stree = create_tree(spoints, BoxTreeOptions(nmin=400))
 )
 
 @test estimate_reldifference(hmat,kmat) ≈ 0 atol=1e-4
-@test 52 < compressionrate(hmat)*100 < 57
+@test 45 < compressionrate(hmat)*100 < 50
 
 @time hmatm = HMatrix(
     OneoverRkernelassembler,

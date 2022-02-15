@@ -51,7 +51,7 @@ T = hassemble(
     threading=:multi,
     quadstrat=BEAST.DoubleNumQStrat(1, 1),
     verbose=true,
-    svdrecompress=true
+    svdrecompress=false
 )
 
 e = assemble(𝒆,X)

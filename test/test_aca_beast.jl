@@ -28,6 +28,8 @@ function oneshoot(dim, UU, VV, X1, X2)
     assembler(UU, Vector(1:numfunctions(X1)), 1:dim)
 end
 
+lm = LazyMatrix(assembler, Vector(1:numfunctions(X1)), Vector(1:numfunctions(X2)), Float64)
+
 function iteratively(dim, UU, VV, X1, X2)
     for i=1:dim
         assembler(VV, i, Vector(1:numfunctions(X2)))
@@ -35,12 +37,12 @@ function iteratively(dim, UU, VV, X1, X2)
     end
 end
 
+am = allocate_aca_memory(Float64, numfunctions(X1), numfunctions(X2), maxrank=100)
+
 ##
 U, V = aca_compression(
-    assembler,
-    Vector(1:numfunctions(X1)),
-    Vector(1:numfunctions(X2)),
-    Float64,
+    lm,
+    am,
     tol=1e-14,
     maxrank=100,
     svdrecompress=false
@@ -49,10 +51,8 @@ U, V = aca_compression(
 rank_k = size(U, 2)
 
 bm_aca =  @benchmark U, V = aca_compression(
-    $assembler,
-    $(Vector(1:numfunctions(X1))),
-    $(Vector(1:numfunctions(X2))),
-    Float64,
+    $lm,
+    $am,
     tol=1e-14,
     maxrank=100,
     svdrecompress=false
@@ -74,32 +74,30 @@ bm_iteratively = @benchmark iteratively($rank_k, $UU, $VV, $X1, $X2)
 
 #Roughly 10% overhead in terms of memory use
 @show rel_aca_memory = bm_aca.memory/bm_oneshoot.memory
-@test rel_aca_memory ≈ 6.46 atol=0.01
+@test rel_aca_memory ≈ 5.02 atol=0.01
 @show rel_aca_allocs = bm_aca.allocs/bm_oneshoot.allocs
-@test rel_aca_allocs ≈ 2.00 atol=0.01
+@test rel_aca_allocs ≈ 1.01 atol=0.01
 @show rel_aca_times = median(bm_aca.times)/median(bm_oneshoot.times)
 @test 2.0 < rel_aca_times < 2.6
 
 @show rel_iter_memory = bm_iteratively.memory/bm_oneshoot.memory
-@test rel_iter_memory ≈ 5.01 atol=0.01
+@test rel_iter_memory ≈ 5.01 atol=0.1
 @show rel_iter_allocs = bm_iteratively.allocs/bm_oneshoot.allocs
 @test rel_iter_allocs ≈ 1.014 atol=0.001
 @show rel_iter_times = median(bm_iteratively.times)/median(bm_oneshoot.times)
-@test 1.4 < rel_iter_times < 1.7
+@test 1.4 < rel_iter_times < 1.9
 
 @show optimality_aca_memory = rel_aca_memory/rel_iter_memory
-@test optimality_aca_memory ≈ 1.28 atol=0.01
+@test optimality_aca_memory ≈ 1.000 atol=0.001
 @show optimality_aca_allocs = rel_aca_allocs/rel_iter_allocs
-@test optimality_aca_allocs ≈ 1.9 atol=0.1
+@test optimality_aca_allocs ≈ 1.00 atol=0.01
 @show optimality_aca_times = rel_aca_times/rel_iter_times
-@test 1.25 < optimality_aca_times < 1.55
+@test 1.1 < optimality_aca_times < 1.5
 
 ##
 U, V = aca_compression(
-    assembler,
-    Vector(1:numfunctions(X1)),
-    Vector(1:numfunctions(X2)),
-    Float64,
+    lm,
+    am,
     tol=1e-2,
     maxrank=100,
     svdrecompress=false
@@ -108,10 +106,8 @@ U, V = aca_compression(
 rank_k = size(U, 2)
 
 bm_aca =  @benchmark U, V = aca_compression(
-    $assembler,
-    $(Vector(1:numfunctions(X1))),
-    $(Vector(1:numfunctions(X2))),
-    Float64,
+    $lm,
+    $am,
     tol=1e-2,
     maxrank=100,
     svdrecompress=false
@@ -133,11 +129,11 @@ bm_iteratively = @benchmark iteratively($rank_k, $UU, $VV, $X1, $X2)
 
 #Roughly 10% overhead in terms of memory use
 @show rel_aca_memory = bm_aca.memory/bm_oneshoot.memory
-@test rel_aca_memory ≈ 5.92 atol=0.01
+@test rel_aca_memory ≈ 2.19 atol=0.01
 @show rel_aca_allocs = bm_aca.allocs/bm_oneshoot.allocs
-@test rel_aca_allocs ≈ 1.84 atol=0.01
+@test rel_aca_allocs ≈ 1.01 atol=0.01
 @show rel_aca_times = median(bm_aca.times)/median(bm_oneshoot.times)
-@test 1.7 < rel_aca_times < 2.3
+@test 1.4 < rel_aca_times < 1.8
 
 @show rel_iter_memory = bm_iteratively.memory/bm_oneshoot.memory
 @test rel_iter_memory ≈ 2.19 atol=0.01
@@ -147,8 +143,8 @@ bm_iteratively = @benchmark iteratively($rank_k, $UU, $VV, $X1, $X2)
 @test 1.25 < rel_iter_times < 1.65
 
 @show optimality_aca_memory = rel_aca_memory/rel_iter_memory
-@test optimality_aca_memory ≈ 2.70 atol=0.01
+@test optimality_aca_memory ≈ 1.000 atol=0.001
 @show optimality_aca_allocs = rel_aca_allocs/rel_iter_allocs
-@test optimality_aca_allocs ≈ 1.8 atol=0.1
+@test optimality_aca_allocs ≈ 1.00 atol=0.01
 @show optimality_aca_times = rel_aca_times/rel_iter_times
-@test 1.25 < optimality_aca_times < 1.55
+@test 1.03 < optimality_aca_times < 1.4

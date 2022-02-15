@@ -19,7 +19,8 @@ export BoxTreeOptions
 export KMeansTreeOptions
 export KMeansTreeNode
 
-export aca_compression
+export aca_compression, allocate_aca_memory
+export LazyMatrix
 
 export MatrixBlock, LowRankMatrix
 
