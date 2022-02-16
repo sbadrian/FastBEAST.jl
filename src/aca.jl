@@ -57,11 +57,10 @@ function smartmaxlocal(roworcolumn, acausedindices)
     return index, maxval
 end
 
-function aca_compression(
+function aca(
     M::LazyMatrix{I, F},
     am::ACAGlobalMemory{F};
     tol=1e-14,
-    maxrank=40,
     svdrecompress=true
 ) where {I, F}
 
@@ -103,7 +102,7 @@ function aca_compression(
     while normUVlastupdate > sqrt(normUVsqared)*tol && 
         i <= length(M.τ)-1 &&
         i <= length(M.σ)-1 &&
-        Jc < maxrank
+        Jc < maxrank(am)
 
         i += 1
 
@@ -167,7 +166,7 @@ function aca_compression(
         end
     end
 
-    if Jc == maxrank
+    if Jc == maxrank(am)
         println("WARNING: aborted ACA after maximum allowed rank")
     end
 
@@ -204,18 +203,17 @@ function aca_compression(
     end    
 end
 
-function aca_compression(
+function aca(
     M::LazyMatrix{I, F},
     tol=1e-14,
     maxrank=40,
     svdrecompress=true
 ) where {I, F}
 
-    return aca_compression(
+    return aca(
         M,
         allocate_aca_memory(F, size(M, 1), size(M, 2); maxrank=maxrank),
         tol=tol,
-        maxrank=maxrank,
         svdrecompress=svdrecompress
     )
 end

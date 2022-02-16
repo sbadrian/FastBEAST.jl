@@ -460,11 +460,10 @@ function getcompressedmatrix(
 
         lm = LazyMatrix(matrixassembler, indices(testnode), indices(sourcenode), K)
 
-        U, V = aca_compression(
+        U, V = aca(
             lm,
             am;
             tol=tol,
-            maxrank=maxrank,
             svdrecompress=svdrecompress
         )
 

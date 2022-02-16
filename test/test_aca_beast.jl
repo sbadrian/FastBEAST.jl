@@ -40,21 +40,19 @@ end
 am = allocate_aca_memory(Float64, numfunctions(X1), numfunctions(X2), maxrank=100)
 
 ##
-U, V = aca_compression(
+U, V = aca(
     lm,
     am,
     tol=1e-14,
-    maxrank=100,
     svdrecompress=false
 )
 
 rank_k = size(U, 2)
 
-bm_aca =  @benchmark U, V = aca_compression(
+bm_aca =  @benchmark U, V = aca(
     $lm,
     $am,
     tol=1e-14,
-    maxrank=100,
     svdrecompress=false
 )
 
@@ -95,21 +93,19 @@ bm_iteratively = @benchmark iteratively($rank_k, $UU, $VV, $X1, $X2)
 @test 1.1 < optimality_aca_times < 1.5
 
 ##
-U, V = aca_compression(
+U, V = aca(
     lm,
     am,
     tol=1e-2,
-    maxrank=100,
     svdrecompress=false
 )
 
 rank_k = size(U, 2)
 
-bm_aca =  @benchmark U, V = aca_compression(
+bm_aca =  @benchmark U, V = aca(
     $lm,
     $am,
     tol=1e-2,
-    maxrank=100,
     svdrecompress=false
 )
 

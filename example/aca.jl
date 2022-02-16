@@ -40,6 +40,6 @@ function aca_benchmark(N)
     @views OneoverRkernelassembler(matrix, tdata, sdata) = assembler(OneoverRkernel, matrix, tpoints[tdata], spoints[sdata])
 
 
-    @time U, V = aca_compression(OneoverRkernelassembler, 1:N, 1:N; tol=1e-4, isdebug=false, maxrank=40)
+    @time U, V = aca(OneoverRkernelassembler, 1:N, 1:N; tol=1e-4, isdebug=false)
     return size(U)
 end
