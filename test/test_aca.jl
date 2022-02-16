@@ -57,7 +57,7 @@ A = U*diagm(S)*V'
 
 lm = LazyMatrix(fct, Vector(1:size(A, 1)), Vector(1:size(A, 2)), Float64)
 
-U, V = aca_compression(lm)
+U, V = aca(lm)
 
 @test U*V ≈ A atol = 1e-14
 
@@ -80,7 +80,7 @@ A = U*diagm(S)*V'
 
 lm = LazyMatrix(fct, Vector(1:size(A, 1)), Vector(1:size(A, 2)), Float64)
 
-U, V = aca_compression(lm)
+U, V = aca(lm)
 
 @test U*V ≈ A atol = 1e-14
 
@@ -103,7 +103,7 @@ A = U*diagm(S)*V'
 
 lm = LazyMatrix(fct, Vector(1:size(A, 1)), Vector(1:size(A, 2)), Float64)
 
-U, V = aca_compression(lm)
+U, V = aca(lm)
 
 @test U*V ≈ A atol = 1e-14
 
@@ -119,7 +119,7 @@ end
 
 lm = LazyMatrix(fct, Vector(1:size(A, 1)), Vector(1:size(A, 2)), Float64)
 
-U, V = aca_compression(lm)
+U, V = aca(lm)
 
 @test U*V == A
 
@@ -134,7 +134,7 @@ end
 
 lm = LazyMatrix(fct, Vector(1:size(A, 1)), Vector(1:size(A, 2)), Float64)
 
-U, V = aca_compression(lm)
+U, V = aca(lm)
 
 @test U*V == A
 
@@ -153,7 +153,7 @@ end
 
 lm = LazyMatrix(fct, Vector(1:size(A, 1)), Vector(1:size(A, 2)), Float64)
 
-U, V = aca_compression(lm)
+U, V = aca(lm)
 
 @test U*V ≈ A atol = 1e-13
 
@@ -190,7 +190,7 @@ end
 
 lm = LazyMatrix(fct, rowindices, colindices, Float64)
 
-U, V = aca_compression(lm)
+U, V = aca(lm)
 
 @test U*V ≈ A atol = 1e-14
 
@@ -203,7 +203,7 @@ end
 
 lm = LazyMatrix(fct, Vector(1:size(A, 1)), Vector(1:size(A, 2)), Float64)
 
-U, V = aca_compression(lm)
+U, V = aca(lm)
 @test U*V ≈ A atol = 1e-14
 
 ##
@@ -215,5 +215,5 @@ end
 
 lm = LazyMatrix(fct, Vector(1:size(A, 1)), Vector(1:size(A, 2)), Float64)
 
-U, V = aca_compression(lm)
+U, V = aca(lm)
 @test U*V ≈ A atol = 1e-14

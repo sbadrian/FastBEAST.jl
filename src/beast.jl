@@ -8,11 +8,11 @@ function hassemble(
     compressor=:aca,
     tol=1e-4,
     treeoptions=BoxTreeOptions(nmin=100),
-    maxrank=100,
+    maxrank=200,
     threading=:single,
     quadstrat=BEAST.defaultquadstrat(operator, test_functions, trial_functions),
     verbose=false,
-    svdrecompress=true
+    svdrecompress=false
 )
 
     @views blkasm = BEAST.blockassembler(operator, test_functions, trial_functions)
