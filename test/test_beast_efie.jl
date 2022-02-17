@@ -47,8 +47,8 @@ T = hassemble(
     𝓣,
     X,
     X,
-    treeoptions=BoxTreeOptions(nmin=100),
-    threading=:multi,
+    treeoptions=KMeansTreeOptions(nmin=30),
+    threading=:single,
     quadstrat=BEAST.DoubleNumQStrat(1, 1),
     verbose=true,
     svdrecompress=false
