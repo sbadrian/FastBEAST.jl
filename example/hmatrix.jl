@@ -63,7 +63,7 @@ logkernelassembler(matrix, tdata, sdata) = assembler(
 stree = create_tree(spoints, BoxTreeOptions(nmin=100))
 ttree = create_tree(tpoints, BoxTreeOptions(nmin=100))
 kmat = assembler(logkernel, tpoints, spoints)
-hmat = HMatrix(logkernelassembler, ttree, stree, T=Float64)
+hmat = HMatrix(logkernelassembler, ttree, stree, Int64, Float64)
 
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat, kmat))
 
@@ -86,14 +86,14 @@ logkernelassembler(matrix, tdata, sdata) = assembler(
 
 stree = create_tree(spoints, BoxTreeOptions(nmin=100))
 kmat = assembler(logkernel, spoints, spoints)
-@time hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, T=Float64)
+@time hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, Int64, Float64)
 
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
 @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
 
 stree = create_tree(spoints, KMeansTreeOptions(iterations=10,nchildren=2,nmin=20))
 kmat = assembler(logkernel, spoints, spoints)
-@time hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, T=Float64)
+@time hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, Int64, Float64)
 
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
 @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
@@ -111,14 +111,14 @@ logkernelassembler(matrix, tdata, sdata) = assembler(
 
 stree = create_tree(spoints, BoxTreeOptions(nmin=100))
 kmat = assembler(logkernel, spoints, spoints)
-@time hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, T=Float64)
+@time hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, Int64, Float64)
 
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
 @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
 
 stree = create_tree(spoints, KMeansTreeOptions(iterations=10,nchildren=2,nmin=20))
 kmat = assembler(logkernel, spoints, spoints)
-@time hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, T=Float64)
+@time hmat = HMatrix(logkernelassembler, stree, stree, compressor=:naive, Int64, Float64,)
 
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
 @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
@@ -140,7 +140,7 @@ logkernelassembler(matrix, tdata, sdata) = assembler(
 ttree = create_tree(tpoints, BoxTreeOptions(nmin=10))
 stree = create_tree(spoints, BoxTreeOptions(nmin=10))
 kmat = assembler(logkernel, tpoints, spoints)
-@time hmat = HMatrix(logkernelassembler, ttree, stree, T=Float64)
+@time hmat = HMatrix(logkernelassembler, ttree, stree, Int64, Float64)
 
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat, kmat))
 
@@ -154,7 +154,7 @@ v2 = rand(NT)
 stree = create_tree(spoints, KMeansTreeOptions(iterations=100, nchildren=2, nmin=10))
 ttree = create_tree(tpoints, KMeansTreeOptions(iterations=100, nchildren=2, nmin=10))
 kmat = assembler(logkernel, tpoints, spoints)
-@time hmat = HMatrix(logkernelassembler, ttree, stree, T=Float64)
+@time hmat = HMatrix(logkernelassembler, ttree, stree, Int64, Float64)
 
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat, kmat))
 
