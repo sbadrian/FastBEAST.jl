@@ -1,6 +1,7 @@
 using FastBEAST
 using StaticArrays
 using LinearAlgebra
+using CompScienceMeshes
 using Printf
 CM = CompScienceMeshes
 
@@ -38,14 +39,14 @@ npoints = length(spoints)
 
 stree = create_tree(spoints, BoxTreeOptions(nmin=50))
 kmat = assembler(OneoverRkernel, spoints, spoints)
-@time hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, T=Float64)
+@time hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, Int64, Float64)
 
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
 @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
 
 stree = create_tree(spoints, KMeansTreeOptions(iterations=100,nchildren=2,nmin=50))
 kmat = assembler(OneoverRkernel, spoints, spoints)
-@time hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, T=Float64)
+@time hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, Int64, Float64)
 
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
 @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
