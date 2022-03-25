@@ -3,7 +3,7 @@ using ParallelKMeans
 """
     KMeansTreeOptions <: TreeOptions
 
-Is the datatype that discribes which tree the [`create_tree`](@ref) function creates.
+Is the datatype that describes which tree the [`create_tree`](@ref) function creates.
 
 # Fields
 - `iterations`: number of iterations on each level, default is one iterations
