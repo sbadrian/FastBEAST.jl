@@ -8,7 +8,7 @@ points2D = [SVector(0.1, 0.1), #1
             SVector(0.2, 0.2), #3
             SVector(1.1, 1.1)] #4
 
-root = create_tree(points2D, KMeansTreeOptions())
+root = create_tree(points2D, KMeansTreeOptions(algorithm=:naive))
 
 @test length(root.children) == 2
 @test FastBEAST.indices(root.children[1])[1] == 1

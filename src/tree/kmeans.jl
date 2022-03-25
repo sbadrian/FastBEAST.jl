@@ -1,3 +1,5 @@
+using ParallelKMeans
+
 """
     KMeansTreeOptions <: TreeOptions
 
@@ -9,21 +11,25 @@ Is the datatype that discribes which tree the [`create_tree`](@ref) function cre
 - `nmin`: defines the minimum amount of datapoints which are needed in a 
     cluster so that it gets split up in subclusters, default is 1
 - `maxlevel`: defines the maximum amount of levels, default is 100.
+- `algorithm`: defines which algorithm is used. The :naive approach is not recommended.
+    Default is the wrapped ParallelKMeans algorithm.
 """
 struct KMeansTreeOptions <: TreeOptions
     iterations
     nchildren
     nmin
     maxlevel
+    algorithm
 end
 
 function KMeansTreeOptions(;
-    iterations=1,
+    iterations=20,
     nchildren=2,
     nmin=1,
-    maxlevel=100
+    maxlevel=100,
+    algorithm=:ParallelKMeans
 )
-    return KMeansTreeOptions(iterations, nchildren, nmin, maxlevel)
+    return KMeansTreeOptions(iterations, nchildren, nmin, maxlevel, algorithm)
 end
 
 """
@@ -108,14 +114,29 @@ function create_tree(
     treeoptions::KMeansTreeOptions
 ) where {D, F}
     root = KMeansTreeNode(zeros(SVector{D, F}), F(0.0), ACAData(Vector(1:length(points)), F))
-    fill_tree!(
-        root,
-        points,
-        nmin=treeoptions.nmin,
-        maxlevel=treeoptions.maxlevel,
-        iterations=treeoptions.iterations,
-        nchildren=treeoptions.nchildren
-    )
+    if treeoptions.algorithm != :naive
+        pointsM = reshape(
+            [points[j][i] for j = 1:length(points) for i = 1:D], 
+            (D,length(points))
+        )
+        fill_tree!(
+            root,
+            pointsM,
+            nmin=treeoptions.nmin,
+            maxlevel=treeoptions.maxlevel,
+            iterations=treeoptions.iterations,
+            nchildren=treeoptions.nchildren
+        )
+    else
+        fill_tree!(
+            root,
+            points,
+            nmin=treeoptions.nmin,
+            maxlevel=treeoptions.maxlevel,
+            iterations=treeoptions.iterations,
+            nchildren=treeoptions.nchildren
+        )
+    end
 
     return root
 end
@@ -165,6 +186,61 @@ function fill_tree!(
             fill_tree!(
                 lastchild(node), 
                 points, 
+                nmin=nmin, 
+                maxlevel=maxlevel, 
+                iterations=iterations, 
+                nchildren=nchildren
+            )
+        end
+    end
+end
+
+function fill_tree!(
+    node::KMeansTreeNode{D, I, F, N},
+    pointsM::Matrix;
+    nmin=1,
+    maxlevel=log2(eps(eltype(points))),
+    iterations, 
+    nchildren
+) where {D, I, F, N <: NodeData{I, F}}
+
+    if numindices(node) <= nmin || level(node) >= maxlevel - 1 || numindices(node) <= nchildren
+        return
+    end
+    
+    sorted_points = zeros(I, length(indices(node))+1, nchildren)
+    
+    # A first (probably too naive?) heuristic
+    opt_nthreads = max(1, floor(I, log10(0.001*length(indices(node)))))
+    
+    kmcluster = ParallelKMeans.kmeans(
+        pointsM[:,indices(node)],
+        nchildren,
+        max_iters=iterations,
+        n_threads=opt_nthreads
+    )
+
+    for (index, value) in enumerate(kmcluster.assignments)
+        sorted_points[1, value] += 1
+        sorted_points[sorted_points[1,value]+1, value] = indices(node)[index] 
+    end
+
+    for i = 1:nchildren
+        if sorted_points[1, i] > 0
+            center = SVector{D, F}([kmcluster.centers[j, i] for j = 1:D])
+            radius = maximum(norm.(eachcol(
+                pointsM[:, sorted_points[2:(sorted_points[1, i]+1),i]].-kmcluster.centers[:,i]
+            )))
+            
+            add_child!(
+                node,
+                center,
+                radius,
+                ACAData(sorted_points[2:(sorted_points[1, i]+1), i], F)
+            )
+            fill_tree!(
+                lastchild(node), 
+                pointsM, 
                 nmin=nmin, 
                 maxlevel=maxlevel, 
                 iterations=iterations, 

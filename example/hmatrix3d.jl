@@ -117,7 +117,7 @@ end
 
 
 ## Example1 a) Random distribution
-N = 3000
+N = 5000
 spoints = [@SVector rand(3) for i = 1:N];
 
 ## Example2 a) Not evenly distributed sphere
@@ -133,14 +133,14 @@ spoints = [SVector((sin(i)*cos(j),sin(i)*sin(j),i^2*cos(i))) for j=0:0.1:2*pi fo
     spoints[tdata],
     spoints[sdata]
 )
-stree = create_tree(spoints, BoxTreeOptions(nmin=400))
+stree = create_tree(spoints, BoxTreeOptions(nmin=100))
 kmat = assembler(OneoverRkernel, spoints, spoints)
 @time hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, Int64, Float64)
 
 @printf("Accuracy test: %.2e\n", estimate_reldifference(hmat,kmat))
 @printf("Compression rate: %.2f %%\n", compressionrate(hmat)*100)
 
-stree = create_tree(spoints, KMeansTreeOptions(iterations=100,nchildren=2,nmin=10))
+stree = create_tree(spoints, KMeansTreeOptions(iterations=100,nchildren=2,nmin=20))
 kmat = assembler(OneoverRkernel, spoints, spoints)
 @time hmat = HMatrix(OneoverRkernelassembler, stree, stree, compressor=:aca, Int64, Float64)
 

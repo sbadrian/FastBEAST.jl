@@ -17,7 +17,7 @@ function estimate_norm(mat; tol=1e-4, itmax = 1000)
     return sqrt(σnew)
 end
 
-function estimate_reldifference(hmat::H, refmat::M; tol=1e-4) where {F, H <: LinearMaps.LinearMap{F}, M <: AbstractMatrix{F}}
+function estimate_reldifference(hmat::H, refmat; tol=1e-4) where {F, H <: LinearMaps.LinearMap{F}}
     #if size(hmat) != size(refmat)
     #    error("Dimensions of matrices do not match")
     #end
