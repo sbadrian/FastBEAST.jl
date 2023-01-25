@@ -6,8 +6,8 @@ using SparseArrays
 struct FMMMatrixADL{I, F <: Real, K} <: LinearMaps.LinearMap{K}
     fmm::ExaFMMt.ExaFMM{K}
     normals::Matrix{F}
-    B::SparseMatrixCSC{F, I}
-    Bt::SparseMatrixCSC{F, I}
+    B_test::SparseMatrixCSC{F, I}
+    Bt_trial::SparseMatrixCSC{F, I}
     BtCB::SparseMatrixCSC{K, I}
     fullmat::SparseMatrixCSC{K, I}
     rowdim::I
@@ -46,10 +46,10 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    fmm_res1 = A.normals[:,1] .* conj.(A.fmm*conj.(A.B * x))[:,2]
-    fmm_res2 = A.normals[:,2] .* conj.(A.fmm*conj.(A.B * x))[:,3]
-    fmm_res3 = A.normals[:,3] .* conj.(A.fmm*conj.(A.B * x))[:,4]
-    y.= A.Bt * (fmm_res1 + fmm_res2 + fmm_res3) - A.BtCB*x + A.fullmat*x
+    fmm_res1 = A.normals[:,1] .* conj.(A.fmm*conj.(A.B_test * x))[:,2]
+    fmm_res2 = A.normals[:,2] .* conj.(A.fmm*conj.(A.B_test * x))[:,3]
+    fmm_res3 = A.normals[:,3] .* conj.(A.fmm*conj.(A.B_test * x))[:,4]
+    y.= A.Bt_trial * (fmm_res1 + fmm_res2 + fmm_res3) - A.BtCB*x + A.fullmat*x
     
     return y
 end
@@ -66,11 +66,10 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    fmm_res1 = A.normals[:,1] .* conj.(A.fmm*conj.(A.B * x))[:,2]
-    fmm_res2 = A.normals[:,2] .* conj.(A.fmm*conj.(A.B * x))[:,3]
-    fmm_res3 = A.normals[:,3] .* conj.(A.fmm*conj.(A.B * x))[:,4]
-
-    y.= A.Bt * (fmm_res1 + fmm_res2 + fmm_res3) - A.BtCB*x + A.fullmat*x
+    fmm_res1 = A.normals[:,1] .* conj.(A.fmm*conj.(A.B_test * x))[:,2]
+    fmm_res2 = A.normals[:,2] .* conj.(A.fmm*conj.(A.B_test * x))[:,3]
+    fmm_res3 = A.normals[:,3] .* conj.(A.fmm*conj.(A.B_test * x))[:,4]
+    y.= A.Bt_trial * (fmm_res1 + fmm_res2 + fmm_res3) - A.BtCB*x + A.fullmat*x
 
     return y
 end
@@ -88,10 +87,10 @@ end
 
     fill!(y, zero(eltype(y)))
 
-    fmm_res1 = A.normals[:,1] .* conj.(A.fmm*conj.(A.B * x))[:,2]
-    fmm_res2 = A.normals[:,2] .* conj.(A.fmm*conj.(A.B * x))[:,3]
-    fmm_res3 = A.normals[:,3] .* conj.(A.fmm*conj.(A.B * x))[:,4]
-    y.= A.Bt * (fmm_res1 + fmm_res2 + fmm_res3) - A.BtCB*x + A.fullmat*x
+    fmm_res1 = A.normals[:,1] .* conj.(A.fmm*conj.(A.B_test * x))[:,2]
+    fmm_res2 = A.normals[:,2] .* conj.(A.fmm*conj.(A.B_test * x))[:,3]
+    fmm_res3 = A.normals[:,3] .* conj.(A.fmm*conj.(A.B_test * x))[:,4]
+    y.= A.Bt_trial * (fmm_res1 + fmm_res2 + fmm_res3) - A.BtCB*x + A.fullmat*x
 
 
     return y

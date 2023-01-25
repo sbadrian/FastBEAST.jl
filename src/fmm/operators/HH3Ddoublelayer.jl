@@ -6,8 +6,8 @@ using SparseArrays
 struct FMMMatrixDL{I, F <: Real, K} <: LinearMaps.LinearMap{K}
     fmm::ExaFMMt.ExaFMM{K}
     normals::Matrix{F}
-    B::SparseMatrixCSC{F, I}
-    Bt::SparseMatrixCSC{F, I}
+    B_test::SparseMatrixCSC{F, I}
+    Bt_trial::SparseMatrixCSC{F, I}
     BtCB::SparseMatrixCSC{K, I}
     fullmat::SparseMatrixCSC{K, I}
     rowdim::I
@@ -46,9 +46,9 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    fmm_res1 = A.Bt * conj.(A.fmm*conj.(A.normals[:,1] .* (A.B * x)))[:,2]
-    fmm_res2 = A.Bt * conj.(A.fmm*conj.(A.normals[:,2] .* (A.B * x)))[:,3]
-    fmm_res3 = A.Bt * conj.(A.fmm*conj.(A.normals[:,3] .* (A.B * x)))[:,4]
+    fmm_res1 = A.Bt_trial * conj.(A.fmm*conj.(A.normals[:,1] .* (A.B_test * x)))[:,2]
+    fmm_res2 = A.Bt_trial * conj.(A.fmm*conj.(A.normals[:,2] .* (A.B_test * x)))[:,3]
+    fmm_res3 = A.Bt_trial * conj.(A.fmm*conj.(A.normals[:,3] .* (A.B_test * x)))[:,4]
     fmm_res = -(fmm_res1 + fmm_res2 + fmm_res3)
     y .= fmm_res - A.BtCB*x + A.fullmat*x
 
@@ -67,9 +67,9 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    fmm_res1 = A.Bt * conj.(A.fmm*conj.(A.normals[:,1] .* (A.B * x)))[:,2]
-    fmm_res2 = A.Bt * conj.(A.fmm*conj.(A.normals[:,2] .* (A.B * x)))[:,3]
-    fmm_res3 = A.Bt * conj.(A.fmm*conj.(A.normals[:,3] .* (A.B * x)))[:,4]
+    fmm_res1 = A.Bt_trial * conj.(A.fmm*conj.(A.normals[:,1] .* (A.B_test * x)))[:,2]
+    fmm_res2 = A.Bt_trial * conj.(A.fmm*conj.(A.normals[:,2] .* (A.B_test * x)))[:,3]
+    fmm_res3 = A.Bt_trial * conj.(A.fmm*conj.(A.normals[:,3] .* (A.B_test * x)))[:,4]
     fmm_res = -(fmm_res1 + fmm_res2 + fmm_res3)
     y .= fmm_res - A.BtCB*x + A.fullmat*x
 
@@ -89,9 +89,9 @@ end
 
     fill!(y, zero(eltype(y)))
 
-    fmm_res1 = A.Bt * conj.(A.fmm*conj.(A.normals[:,1] .* (A.B * x)))[:,2]
-    fmm_res2 = A.Bt * conj.(A.fmm*conj.(A.normals[:,2] .* (A.B * x)))[:,3]
-    fmm_res3 = A.Bt * conj.(A.fmm*conj.(A.normals[:,3] .* (A.B * x)))[:,4]
+    fmm_res1 = A.Bt_trial * conj.(A.fmm*conj.(A.normals[:,1] .* (A.B_test * x)))[:,2]
+    fmm_res2 = A.Bt_trial * conj.(A.fmm*conj.(A.normals[:,2] .* (A.B_test * x)))[:,3]
+    fmm_res3 = A.Bt_trial * conj.(A.fmm*conj.(A.normals[:,3] .* (A.B_test * x)))[:,4]
     fmm_res = -(fmm_res1 + fmm_res2 + fmm_res3)
     y .= fmm_res - A.BtCB*x + A.fullmat*x
 

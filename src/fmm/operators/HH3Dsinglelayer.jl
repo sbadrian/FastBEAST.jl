@@ -5,8 +5,8 @@ using SparseArrays
 
 struct FMMMatrixSL{I, F <: Real, K} <: LinearMaps.LinearMap{K}
     fmm::ExaFMMt.ExaFMM{K}
-    B::SparseMatrixCSC{F, I}
-    Bt::SparseMatrixCSC{F, I}
+    B_test::SparseMatrixCSC{F, I}
+    Bt_trial::SparseMatrixCSC{F, I}
     BtCB::SparseMatrixCSC{K, I}
     fullmat::SparseMatrixCSC{K, I}
     rowdim::I
@@ -45,7 +45,7 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    y .= A.Bt * conj.(A.fmm*conj.(A.B*x))[:,1] - A.BtCB*x + A.fullmat*x
+    y .= A.Bt_trial * conj.(A.fmm*conj.(A.B_test*x))[:,1] - A.BtCB*x + A.fullmat*x
 
     return y
 end
@@ -62,7 +62,7 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    y .= A.Bt * conj.(A.fmm*conj.(A.B*x))[:,1] - A.BtCB*x + A.fullmat*x
+    y .= A.Bt_trial * conj.(A.fmm*conj.(A.B_test*x))[:,1] - A.BtCB*x + A.fullmat*x
 
     return y
 end
@@ -80,7 +80,7 @@ end
 
     fill!(y, zero(eltype(y)))
 
-    y .= A.Bt * conj.(A.fmm*conj.(A.B*x))[:,1] - A.BtCB*x + A.fullmat*x
+    y .= A.Bt_trial * conj.(A.fmm*conj.(A.B_test*x))[:,1] - A.BtCB*x + A.fullmat*x
 
     return y
 end

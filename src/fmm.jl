@@ -29,8 +29,8 @@ end
 # fullrankblocks for corrections of fmm error
 function getfullrankblocks(
     operator::BEAST.AbstractOperator,
-    test_functions,
-    trial_functions;
+    test_functions::BEAST.Space,
+    trial_functions::BEAST.Space;
     threading=:single,
     nmin=10,
     quadstratcbk=BEAST.DoubleNumQStrat(1,1),
@@ -308,3 +308,13 @@ function getBmatrix_MW(qp::Matrix, X::BEAST.Space, n)
     return dropzeros(sparse(rows, cols, vals))
 end
 
+function getnormals(qp::Matrix)
+    normals = zeros(Float64, length(qp)*length(qp[1,1]), 3)
+    for (i, points) in enumerate(qp[1,:])
+        for (j, point) in enumerate(qp[1,i])
+            normals[(i-1)*length(points) + j, :] = normal(point.point)
+        end
+    end
+    
+    return normals
+end

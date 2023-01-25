@@ -5,15 +5,16 @@ using SparseArrays
 
 struct FMMMatrixHS{I, F <: Real, K} <: LinearMaps.LinearMap{K}
     fmm::ExaFMMt.ExaFMM{K}
-    normals::Matrix{F}
-    Bcurl1::SparseMatrixCSC{F, I}
-    Bcurl2::SparseMatrixCSC{F, I}
-    Bcurl3::SparseMatrixCSC{F, I}
-    Btcurl1::SparseMatrixCSC{F, I}
-    Btcurl2::SparseMatrixCSC{F, I}
-    Btcurl3::SparseMatrixCSC{F, I}
-    B::SparseMatrixCSC{F, I}
-    Bt::SparseMatrixCSC{F, I}
+    normals_test::Matrix{F}
+    normals_trial::Matrix{F}
+    Bcurl1_test::SparseMatrixCSC{F, I}
+    Bcurl2_test::SparseMatrixCSC{F, I}
+    Bcurl3_test::SparseMatrixCSC{F, I}
+    Btcurl1_trial::SparseMatrixCSC{F, I}
+    Btcurl2_trial::SparseMatrixCSC{F, I}
+    Btcurl3_trial::SparseMatrixCSC{F, I}
+    B_test::SparseMatrixCSC{F, I}
+    Bt_trial::SparseMatrixCSC{F, I}
     BtCB::SparseMatrixCSC{K, I}
     fullmat::SparseMatrixCSC{K, I}
     rowdim::I
@@ -52,17 +53,23 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    fmm_curl1 = A.Btcurl1 * conj.(A.fmm * conj.(A.Bcurl1 * x))[:,1]
-    fmm_curl2 = A.Btcurl2 * conj.(A.fmm * conj.(A.Bcurl2 * x))[:,1]
-    fmm_curl3 = A.Btcurl3 * conj.(A.fmm * conj.(A.Bcurl3 * x))[:,1]
+    fmm_curl1 = A.Btcurl1_trial * conj.(A.fmm * conj.(A.Bcurl1_test * x))[:,1]
+    fmm_curl2 = A.Btcurl2_trial * conj.(A.fmm * conj.(A.Bcurl2_test * x))[:,1]
+    fmm_curl3 = A.Btcurl3_trial * conj.(A.fmm * conj.(A.Bcurl3_test * x))[:,1]
 
     y1 = fmm_curl1 + fmm_curl2 + fmm_curl3
 
-    fmm_res1 = A.normals[:,1] .* conj.(A.fmm*conj.(A.normals[:,1] .* (A.B * x)))[:,1]
-    fmm_res2 = A.normals[:,2] .* conj.(A.fmm*conj.(A.normals[:,2] .* (A.B * x)))[:,1]
-    fmm_res3 = A.normals[:,3] .* conj.(A.fmm*conj.(A.normals[:,3] .* (A.B * x)))[:,1]
+    fmm_res1 = A.normals_trial[:,1] .* conj.(
+        A.fmm*conj.(A.normals_test[:,1] .* (A.B_test * x))
+    )[:,1]
+    fmm_res2 = A.normals_trial[:,2] .* conj.(
+        A.fmm*conj.(A.normals_test[:,2] .* (A.B_test * x))
+    )[:,1]
+    fmm_res3 = A.normals_trial[:,3] .* conj.(
+        A.fmm*conj.(A.normals_test[:,3] .* (A.B_test * x))
+    )[:,1]
 
-    y2 = A.fmm.fmmoptions.wavek^2 * A.Bt * (fmm_res1 + fmm_res2 + fmm_res3)
+    y2 = A.fmm.fmmoptions.wavek^2 * A.Bt_trial * (fmm_res1 + fmm_res2 + fmm_res3)
 
     y .= (y1 - y2) - A.BtCB*x + A.fullmat*x
 
@@ -81,17 +88,23 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    fmm_curl1 = A.Btcurl1 * conj.(A.fmm*conj.(A.Bcurl1*x))[:,1]
-    fmm_curl2 = A.Btcurl2 * conj.(A.fmm*conj.(A.Bcurl2*x))[:,1]
-    fmm_curl3 = A.Btcurl3 * conj.(A.fmm*conj.(A.Bcurl3*x))[:,1]
+    fmm_curl1 = A.Btcurl1_trial * conj.(A.fmm * conj.(A.Bcurl1_test * x))[:,1]
+    fmm_curl2 = A.Btcurl2_trial * conj.(A.fmm * conj.(A.Bcurl2_test * x))[:,1]
+    fmm_curl3 = A.Btcurl3_trial * conj.(A.fmm * conj.(A.Bcurl3_test * x))[:,1]
 
     y1 = fmm_curl1 + fmm_curl2 + fmm_curl3
 
-    fmm_res1 = A.normals[:,1] .* conj.(A.fmm*conj.(A.normals[:,1] .* (A.B * x)))[:,1]
-    fmm_res2 = A.normals[:,2] .* conj.(A.fmm*conj.(A.normals[:,2] .* (A.B * x)))[:,1]
-    fmm_res3 = A.normals[:,3] .* conj.(A.fmm*conj.(A.normals[:,3] .* (A.B * x)))[:,1]
+    fmm_res1 = A.normals_trial[:,1] .* conj.(
+        A.fmm*conj.(A.normals_test[:,1] .* (A.B_test * x))
+    )[:,1]
+    fmm_res2 = A.normals_trial[:,2] .* conj.(
+        A.fmm*conj.(A.normals_test[:,2] .* (A.B_test * x))
+    )[:,1]
+    fmm_res3 = A.normals_trial[:,3] .* conj.(
+        A.fmm*conj.(A.normals_test[:,3] .* (A.B_test * x))
+    )[:,1]
 
-    y2 = A.fmm.fmmoptions.wavek^2 * A.Bt * (fmm_res1 + fmm_res2 + fmm_res3)
+    y2 = A.fmm.fmmoptions.wavek^2 * A.Bt_trial * (fmm_res1 + fmm_res2 + fmm_res3)
 
     y .= (y1 - y2) - A.BtCB*x + A.fullmat*x
 
@@ -110,17 +123,23 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    fmm_curl1 = A.Btcurl1 * conj.(A.fmm*conj.(A.Bcurl1*x))[:,1]
-    fmm_curl2 = A.Btcurl2 * conj.(A.fmm*conj.(A.Bcurl2*x))[:,1]
-    fmm_curl3 = A.Btcurl3 * conj.(A.fmm*conj.(A.Bcurl3*x))[:,1]
+    fmm_curl1 = A.Btcurl1_trial * conj.(A.fmm * conj.(A.Bcurl1_test * x))[:,1]
+    fmm_curl2 = A.Btcurl2_trial * conj.(A.fmm * conj.(A.Bcurl2_test * x))[:,1]
+    fmm_curl3 = A.Btcurl3_trial * conj.(A.fmm * conj.(A.Bcurl3_test * x))[:,1]
 
     y1 = fmm_curl1 + fmm_curl2 + fmm_curl3
 
-    fmm_res1 = A.normals[:,1] .* conj.(A.fmm*conj.(A.normals[:,1] .* (A.B * x)))[:,1]
-    fmm_res2 = A.normals[:,2] .* conj.(A.fmm*conj.(A.normals[:,2] .* (A.B * x)))[:,1]
-    fmm_res3 = A.normals[:,3] .* conj.(A.fmm*conj.(A.normals[:,3] .* (A.B * x)))[:,1]
+    fmm_res1 = A.normals_trial[:,1] .* conj.(
+        A.fmm*conj.(A.normals_test[:,1] .* (A.B_test * x))
+    )[:,1]
+    fmm_res2 = A.normals_trial[:,2] .* conj.(
+        A.fmm*conj.(A.normals_test[:,2] .* (A.B_test * x))
+    )[:,1]
+    fmm_res3 = A.normals_trial[:,3] .* conj.(
+        A.fmm*conj.(A.normals_test[:,3] .* (A.B_test * x))
+    )[:,1]
 
-    y2 = A.fmm.fmmoptions.wavek^2 * A.Bt * (fmm_res1 + fmm_res2 + fmm_res3)
+    y2 = A.fmm.fmmoptions.wavek^2 * A.Bt_trial * (fmm_res1 + fmm_res2 + fmm_res3)
 
     y .= (y1 - y2) - A.BtCB*x + A.fullmat*x
 
