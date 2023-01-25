@@ -1,404 +1,8 @@
 using ExaFMMt
+using BEAST
 using LinearAlgebra
 using LinearMaps
-using ProgressMeter
 using SparseArrays
-
-struct FMMMatrixSL{I, F <: Real, K} <: LinearMaps.LinearMap{K}
-    fmm::ExaFMMt.ExaFMM{K}
-    B::SparseMatrixCSC{F, I}
-    Bt::SparseMatrixCSC{F, I}
-    BtCB::SparseMatrixCSC{K, I}
-    fullmat::SparseMatrixCSC{K, I}
-    rowdim::I
-    columndim::I
-end
-
-struct FMMMatrixDL{I, F <: Real, K} <: LinearMaps.LinearMap{K}
-    fmm::ExaFMMt.ExaFMM{K}
-    normals::Matrix{F}
-    B::SparseMatrixCSC{F, I}
-    Bt::SparseMatrixCSC{F, I}
-    BtCB::SparseMatrixCSC{K, I}
-    fullmat::SparseMatrixCSC{K, I}
-    rowdim::I
-    columndim::I
-end
-
-struct FMMMatrixADL{I, F <: Real, K} <: LinearMaps.LinearMap{K}
-    fmm::ExaFMMt.ExaFMM{K}
-    normals::Matrix{F}
-    B::SparseMatrixCSC{F, I}
-    Bt::SparseMatrixCSC{F, I}
-    BtCB::SparseMatrixCSC{K, I}
-    fullmat::SparseMatrixCSC{K, I}
-    rowdim::I
-    columndim::I
-end
-
-struct FMMMatrixHS{I, F <: Real, K} <: LinearMaps.LinearMap{K}
-    fmm::ExaFMMt.ExaFMM{K}
-    normals::Matrix{F}
-    Bcurl1::SparseMatrixCSC{F, I}
-    Bcurl2::SparseMatrixCSC{F, I}
-    Bcurl3::SparseMatrixCSC{F, I}
-    Btcurl1::SparseMatrixCSC{F, I}
-    Btcurl2::SparseMatrixCSC{F, I}
-    Btcurl3::SparseMatrixCSC{F, I}
-    B::SparseMatrixCSC{F, I}
-    Bt::SparseMatrixCSC{F, I}
-    BtCB::SparseMatrixCSC{K, I}
-    fullmat::SparseMatrixCSC{K, I}
-    rowdim::I
-    columndim::I
-end
-
-function Base.size(fmat::FMMMatrixSL, dim=nothing)
-    if dim === nothing
-        return (fmat.rowdim, fmat.columndim)
-    elseif dim == 1
-        return fmat.rowdim
-    elseif dim == 2
-        return fmat.columndim
-    else
-        error("dim must be either 1 or 2")
-    end
-end
-
-function Base.size(fmat::FMMMatrixDL, dim=nothing)
-    if dim === nothing
-        return (fmat.rowdim, fmat.columndim)
-    elseif dim == 1
-        return fmat.rowdim
-    elseif dim == 2
-        return fmat.columndim
-    else
-        error("dim must be either 1 or 2")
-    end
-end
-
-function Base.size(fmat::FMMMatrixADL, dim=nothing)
-    if dim === nothing
-        return (fmat.rowdim, fmat.columndim)
-    elseif dim == 1
-        return fmat.rowdim
-    elseif dim == 2
-        return fmat.columndim
-    else
-        error("dim must be either 1 or 2")
-    end
-end
-
-function Base.size(fmat::FMMMatrixHS, dim=nothing)
-    if dim === nothing
-        return (fmat.rowdim, fmat.columndim)
-    elseif dim == 1
-        return fmat.rowdim
-    elseif dim == 2
-        return fmat.columndim
-    else
-        error("dim must be either 1 or 2")
-    end
-end
-
-function Base.size(fmat::Adjoint{T}, dim=nothing) where T <: FMMMatrixSL
-    if dim === nothing
-        return reverse(size(adjoint(fmat)))
-    elseif dim == 1
-        return size(adjoint(fmat),2)
-    elseif dim == 2
-        return size(adjoint(fmat),1)
-    else
-        error("dim must be either 1 or 2")
-    end
-end
-
-function Base.size(fmat::Adjoint{T}, dim=nothing) where T <: FMMMatrixDL
-    if dim === nothing
-        return reverse(size(adjoint(fmat)))
-    elseif dim == 1
-        return size(adjoint(fmat),2)
-    elseif dim == 2
-        return size(adjoint(fmat),1)
-    else
-        error("dim must be either 1 or 2")
-    end
-end
-
-function Base.size(fmat::Adjoint{T}, dim=nothing) where T <: FMMMatrixADL
-    if dim === nothing
-        return reverse(size(adjoint(fmat)))
-    elseif dim == 1
-        return size(adjoint(fmat),2)
-    elseif dim == 2
-        return size(adjoint(fmat),1)
-    else
-        error("dim must be either 1 or 2")
-    end
-end
-
-function Base.size(fmat::Adjoint{T}, dim=nothing) where T <: FMMMatrixHS
-    if dim === nothing
-        return reverse(size(adjoint(fmat)))
-    elseif dim == 1
-        return size(adjoint(fmat),2)
-    elseif dim == 2
-        return size(adjoint(fmat),1)
-    else
-        error("dim must be either 1 or 2")
-    end
-end
-
-@views function LinearAlgebra.mul!(y::AbstractVecOrMat, A::FMMMatrixSL, x::AbstractVector)
-    LinearMaps.check_dim_mul(y, A, x)
-
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
-    end
-    fill!(y, zero(eltype(y)))
-
-    y .= A.Bt * conj.(A.fmm*conj.(A.B*x))[:,1] - A.BtCB*x + A.fullmat*x
-
-    return y
-end
-
-@views function LinearAlgebra.mul!(y::AbstractVecOrMat, A::FMMMatrixDL, x::AbstractVector)
-    LinearMaps.check_dim_mul(y, A, x)
-
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
-    end
-    fill!(y, zero(eltype(y)))
-
-    fmm_res1 = A.Bt * conj.(A.fmm*conj.(A.normals[:,1] .* (A.B * x)))[:,2]
-    fmm_res2 = A.Bt * conj.(A.fmm*conj.(A.normals[:,2] .* (A.B * x)))[:,3]
-    fmm_res3 = A.Bt * conj.(A.fmm*conj.(A.normals[:,3] .* (A.B * x)))[:,4]
-    fmm_res = -(fmm_res1 + fmm_res2 + fmm_res3)
-    y .= fmm_res - A.BtCB*x + A.fullmat*x
-
-    return y
-end
-
-@views function LinearAlgebra.mul!(y::AbstractVecOrMat, A::FMMMatrixADL, x::AbstractVector)
-    LinearMaps.check_dim_mul(y, A, x)
-
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
-    end
-    fill!(y, zero(eltype(y)))
-
-    fmm_res1 = A.normals[:,1] .* conj.(A.fmm*conj.(A.B * x))[:,2]
-    fmm_res2 = A.normals[:,2] .* conj.(A.fmm*conj.(A.B * x))[:,3]
-    fmm_res3 = A.normals[:,3] .* conj.(A.fmm*conj.(A.B * x))[:,4]
-    y.= A.Bt * (fmm_res1 + fmm_res2 + fmm_res3) - A.BtCB*x + A.fullmat*x
-    
-    return y
-end
-
-@views function LinearAlgebra.mul!(y::AbstractVecOrMat, A::FMMMatrixHS, x::AbstractVector)
-    LinearMaps.check_dim_mul(y, A, x)
-
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
-    end
-    fill!(y, zero(eltype(y)))
-
-    fmm_curl1 = A.Btcurl1 * conj.(A.fmm * conj.(A.Bcurl1 * x))[:,1]
-    fmm_curl2 = A.Btcurl2 * conj.(A.fmm * conj.(A.Bcurl2 * x))[:,1]
-    fmm_curl3 = A.Btcurl3 * conj.(A.fmm * conj.(A.Bcurl3 * x))[:,1]
-
-    y1 = fmm_curl1 + fmm_curl2 + fmm_curl3
-
-    fmm_res1 = A.normals[:,1] .* conj.(A.fmm*conj.(A.normals[:,1] .* (A.B * x)))[:,1]
-    fmm_res2 = A.normals[:,2] .* conj.(A.fmm*conj.(A.normals[:,2] .* (A.B * x)))[:,1]
-    fmm_res3 = A.normals[:,3] .* conj.(A.fmm*conj.(A.normals[:,3] .* (A.B * x)))[:,1]
-
-    y2 = A.fmm.fmmoptions.wavek^2 * A.Bt * (fmm_res1 + fmm_res2 + fmm_res3)
-
-    y .= (y1 - y2) - A.BtCB*x + A.fullmat*x
-
-    return y
-end
-
-@views function LinearAlgebra.mul!(
-    y::AbstractVecOrMat,
-    A::LinearMaps.TransposeMap{<:Any,<:FMMMatrixSL},
-    x::AbstractVector
-)
-    LinearMaps.check_dim_mul(y, A, x)
-
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
-    end
-    fill!(y, zero(eltype(y)))
-
-    y .= A.Bt * conj.(A.fmm*conj.(A.B*x))[:,1] - A.BtCB*x + A.fullmat*x
-
-    return y
-end
-
-@views function LinearAlgebra.mul!(
-    y::AbstractVecOrMat,
-    A::LinearMaps.TransposeMap{<:Any,<:FMMMatrixDL},
-    x::AbstractVector
-)
-    LinearMaps.check_dim_mul(y, A, x)
-
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
-    end
-    fill!(y, zero(eltype(y)))
-
-    fmm_res1 = A.Bt * conj.(A.fmm*conj.(A.normals[:,1] .* (A.B * x)))[:,2]
-    fmm_res2 = A.Bt * conj.(A.fmm*conj.(A.normals[:,2] .* (A.B * x)))[:,3]
-    fmm_res3 = A.Bt * conj.(A.fmm*conj.(A.normals[:,3] .* (A.B * x)))[:,4]
-    fmm_res = -(fmm_res1 + fmm_res2 + fmm_res3)
-    y .= fmm_res - A.BtCB*x + A.fullmat*x
-
-    return y
-end
-
-@views function LinearAlgebra.mul!(
-    y::AbstractVecOrMat,
-    A::LinearMaps.TransposeMap{<:Any,<:FMMMatrixADL},
-    x::AbstractVector
-)
-    LinearMaps.check_dim_mul(y, A, x)
-
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
-    end
-    fill!(y, zero(eltype(y)))
-
-    fmm_res1 = A.normals[:,1] .* conj.(A.fmm*conj.(A.B * x))[:,2]
-    fmm_res2 = A.normals[:,2] .* conj.(A.fmm*conj.(A.B * x))[:,3]
-    fmm_res3 = A.normals[:,3] .* conj.(A.fmm*conj.(A.B * x))[:,4]
-
-    y.= A.Bt * (fmm_res1 + fmm_res2 + fmm_res3) - A.BtCB*x + A.fullmat*x
-
-    return y
-end
-
-@views function LinearAlgebra.mul!(
-    y::AbstractVecOrMat,
-    A::LinearMaps.TransposeMap{<:Any,<:FMMMatrixHS},
-    x::AbstractVector
-)
-    LinearMaps.check_dim_mul(y, A, x)
-
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
-    end
-    fill!(y, zero(eltype(y)))
-
-    fmm_curl1 = A.Btcurl1 * conj.(A.fmm*conj.(A.Bcurl1*x))[:,1]
-    fmm_curl2 = A.Btcurl2 * conj.(A.fmm*conj.(A.Bcurl2*x))[:,1]
-    fmm_curl3 = A.Btcurl3 * conj.(A.fmm*conj.(A.Bcurl3*x))[:,1]
-
-    y1 = fmm_curl1 + fmm_curl2 + fmm_curl3
-
-    fmm_res1 = A.normals[:,1] .* conj.(A.fmm*conj.(A.normals[:,1] .* (A.B * x)))[:,1]
-    fmm_res2 = A.normals[:,2] .* conj.(A.fmm*conj.(A.normals[:,2] .* (A.B * x)))[:,1]
-    fmm_res3 = A.normals[:,3] .* conj.(A.fmm*conj.(A.normals[:,3] .* (A.B * x)))[:,1]
-
-    y2 = A.fmm.fmmoptions.wavek^2 * A.Bt * (fmm_res1 + fmm_res2 + fmm_res3)
-
-    y .= (y1 - y2) - A.BtCB*x + A.fullmat*x
-
-    return y
-end
-
-@views function LinearAlgebra.mul!(
-    y::AbstractVecOrMat,
-    A::LinearMaps.AdjointMap{<:Any,<:FMMMatrixSL},
-    x::AbstractVector
-)
-    LinearMaps.check_dim_mul(y, A, x)
-
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
-    end
-
-    fill!(y, zero(eltype(y)))
-
-    y .= A.Bt * conj.(A.fmm*conj.(A.B*x))[:,1] - A.BtCB*x + A.fullmat*x
-
-    return y
-end
-
-@views function LinearAlgebra.mul!(
-    y::AbstractVecOrMat,
-    A::LinearMaps.AdjointMap{<:Any,<:FMMMatrixDL},
-    x::AbstractVector
-)
-    LinearMaps.check_dim_mul(y, A, x)
-
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
-    end
-
-    fill!(y, zero(eltype(y)))
-
-    fmm_res1 = A.Bt * conj.(A.fmm*conj.(A.normals[:,1] .* (A.B * x)))[:,2]
-    fmm_res2 = A.Bt * conj.(A.fmm*conj.(A.normals[:,2] .* (A.B * x)))[:,3]
-    fmm_res3 = A.Bt * conj.(A.fmm*conj.(A.normals[:,3] .* (A.B * x)))[:,4]
-    fmm_res = -(fmm_res1 + fmm_res2 + fmm_res3)
-    y .= fmm_res - A.BtCB*x + A.fullmat*x
-
-    return y
-end
-
-@views function LinearAlgebra.mul!(
-    y::AbstractVecOrMat,
-    A::LinearMaps.AdjointMap{<:Any,<:FMMMatrixADL},
-    x::AbstractVector
-)
-    LinearMaps.check_dim_mul(y, A, x)
-
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
-    end
-
-    fill!(y, zero(eltype(y)))
-
-    fmm_res1 = A.normals[:,1] .* conj.(A.fmm*conj.(A.B * x))[:,2]
-    fmm_res2 = A.normals[:,2] .* conj.(A.fmm*conj.(A.B * x))[:,3]
-    fmm_res3 = A.normals[:,3] .* conj.(A.fmm*conj.(A.B * x))[:,4]
-    y.= A.Bt * (fmm_res1 + fmm_res2 + fmm_res3) - A.BtCB*x + A.fullmat*x
-
-
-    return y
-end
-
-
-@views function LinearAlgebra.mul!(
-    y::AbstractVecOrMat,
-    A::LinearMaps.AdjointMap{<:Any,<:FMMMatrixHS},
-    x::AbstractVector
-)
-    LinearMaps.check_dim_mul(y, A, x)
-
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
-    end
-    fill!(y, zero(eltype(y)))
-
-    fmm_curl1 = A.Btcurl1 * conj.(A.fmm*conj.(A.Bcurl1*x))[:,1]
-    fmm_curl2 = A.Btcurl2 * conj.(A.fmm*conj.(A.Bcurl2*x))[:,1]
-    fmm_curl3 = A.Btcurl3 * conj.(A.fmm*conj.(A.Bcurl3*x))[:,1]
-
-    y1 = fmm_curl1 + fmm_curl2 + fmm_curl3
-
-    fmm_res1 = A.normals[:,1] .* conj.(A.fmm*conj.(A.normals[:,1] .* (A.B * x)))[:,1]
-    fmm_res2 = A.normals[:,2] .* conj.(A.fmm*conj.(A.normals[:,2] .* (A.B * x)))[:,1]
-    fmm_res3 = A.normals[:,3] .* conj.(A.fmm*conj.(A.normals[:,3] .* (A.B * x)))[:,1]
-
-    y2 = A.fmm.fmmoptions.wavek^2 * A.Bt * (fmm_res1 + fmm_res2 + fmm_res3)
-
-    y .= (y1 - y2) - A.BtCB*x + A.fullmat*x
-
-    return y
-end
 
 function assemble_fmm(
     spoints::Matrix{F},
@@ -421,3 +25,286 @@ function assemble_fmm(
     return A
 
 end
+
+# fullrankblocks for corrections of fmm error
+function getfullrankblocks(
+    operator::BEAST.AbstractOperator,
+    test_functions,
+    trial_functions;
+    threading=:single,
+    nmin=10,
+    quadstratcbk=BEAST.DoubleNumQStrat(1,1),
+    quadstratfbk=BEAST.defaultquadstrat(operator, test_functions, trial_functions)
+)
+
+    @views farblkasm = BEAST.blockassembler(
+        operator,
+        test_functions,
+        trial_functions,
+        quadstrat=quadstratfbk
+    )
+
+    @views function farassembler(Z, tdata, sdata)
+        @views store(v,m,n) = (Z[m,n] += v)
+        farblkasm(tdata,sdata,store)
+    end
+
+    @views corblkasm = BEAST.blockassembler(
+        operator,
+        test_functions,
+        trial_functions,
+        quadstrat=quadstratcbk
+    )
+
+    @views function corassembler(Z, tdata, sdata)
+        @views store(v,m,n) = (Z[m,n] += v)
+        corblkasm(tdata,sdata,store)
+    end
+
+    MBF = FastBEAST.MatrixBlock{Int, scalartype(operator), Matrix{scalartype(operator)}}
+    fullrankblocks = MBF[]
+    fullrankblocks_perthread = Vector{MBF}[]
+    correctionblocks = MBF[]
+    correctionblocks_perthread = Vector{MBF}[]
+
+    test_tree = create_tree(test_functions.pos, FastBEAST.BoxTreeOptions(nmin=nmin))
+    trial_tree = create_tree(trial_functions.pos, FastBEAST.BoxTreeOptions(nmin=nmin))
+
+    fullinteractions = []
+    compressableinteractions = []
+
+    FastBEAST.computerinteractions!(
+        test_tree,
+        trial_tree,
+        fullinteractions,
+        compressableinteractions
+    )
+
+    
+    if threading == :single
+        for fullinteraction in fullinteractions
+            push!(
+                fullrankblocks,
+                FastBEAST.getfullmatrixview(
+                    farassembler,
+                    fullinteraction[1],
+                    fullinteraction[2],
+                    Int,
+                    scalartype(operator)
+                )
+            )
+            push!(
+                correctionblocks,
+                FastBEAST.getfullmatrixview(
+                    corassembler,
+                    fullinteraction[1],
+                    fullinteraction[2],
+                    Int,
+                    scalartype(operator)
+                )
+            )
+        end
+    elseif threading == :multi
+        for i in 1:Threads.nthreads()
+            push!(fullrankblocks_perthread, MBF[])
+            push!(correctionblocks_perthread, MBF[])
+        end
+
+        Threads.@threads for fullinteraction in fullinteractions
+            push!(
+                fullrankblocks_perthread[Threads.threadid()],
+                FastBEAST.getfullmatrixview(
+                    farassembler,
+                    fullinteraction[1],
+                    fullinteraction[2],
+                    Int,
+                    scalartype(operator)
+                )
+            )
+            push!(
+                correctionblocks_perthread[Threads.threadid()],
+                FastBEAST.getfullmatrixview(
+                    corassembler,
+                    fullinteraction[1],
+                    fullinteraction[2],
+                    Int,
+                    scalartype(operator)
+                )
+            )
+
+        end
+
+        for i in eachindex(fullrankblocks_perthread)
+            append!(fullrankblocks, fullrankblocks_perthread[i])
+        end
+        for i in eachindex(correctionblocks_perthread)
+            append!(correctionblocks, correctionblocks_perthread[i])
+        end
+    end
+
+    return fullrankblocks, correctionblocks, fullinteractions
+end
+
+# mapping mesh to quadrature points
+function meshtopoints(X::BEAST.Space, quadorder)
+
+    test_elements, _, _ = assemblydata(X)
+    tshapes = refspace(X)
+
+    test_eval(x) = tshapes(x)
+    qp = quadpoints(test_eval,  test_elements, (quadorder,))
+    points = zeros(Float64, length(qp) * length(qp[1,1]), 3)
+    ind = 1
+    for el in qp
+        for i in el
+            points[ind, 1] = i.point.cart[1]
+            points[ind, 2] = i.point.cart[2]
+            points[ind, 3] = i.point.cart[3]
+            ind += 1
+        end
+    end
+    
+    return points, qp
+end
+
+# create sparse matrix from fullrankblocks
+function fullmatrix(fullrankblocks)
+    len = 0
+    for fkb in fullrankblocks
+        len += length(fkb.M)
+    end
+    
+    rows = zeros(Int, len)
+    cols = zeros(Int, len)
+    vals = zeros(ComplexF64, len)
+    ind = 1
+    for fullrankblock in fullrankblocks
+        for (i, row) in enumerate(fullrankblock.τ)
+            for (j, col) in enumerate(fullrankblock.σ)
+                rows[ind] = row
+                cols[ind] = col
+                vals[ind] = fullrankblock.M[i, j] 
+                ind += 1
+            end
+        end
+    end
+    return sparse(rows, cols, vals)
+end
+
+# construction of B matrix, if Ax = b and A = transpose(B)GB
+function getBmatrix(qp::Matrix, X::BEAST.Space)
+    rfspace = refspace(X)
+    _, tad, _ = assemblydata(X)
+    len = length(qp) * length(qp[1,1]) * size(tad.data)[1] * size(tad.data)[2]
+    rows = ones(Int, len)
+    cols = ones(Int, len)
+    vals = zeros(Float64, len)
+    sind = 1
+
+    for (ncell, cell) in enumerate(qp[1,:])
+        ind = (ncell - 1) * length(cell)
+        for (npoint, point) in enumerate(cell)
+            val = rfspace(point.point)
+            for localbasis in eachindex(val)
+                for data in tad.data[:,localbasis,ncell]
+                    if data[1] != 0 && ind + npoint != 0
+                        rows[sind] = ind + npoint
+                        cols[sind] = data[1]
+                        vals[sind] = val[localbasis].value * point.weight * data[2]
+                        sind += 1
+                    end 
+                end 
+            end
+        end
+    end
+
+    return dropzeros(sparse(rows, cols, vals))
+end
+
+function getBmatrix_curl(qp::Matrix, X::BEAST.Space, n)
+    rfspace = refspace(X)
+    _, tad, _ = assemblydata(X)
+    len = length(qp) * length(qp[1,1]) * size(tad.data)[1] * size(tad.data)[2]
+    rows = ones(Int, len)
+    cols = ones(Int, len)
+    vals = zeros(Float64, len)
+    sind = 1
+
+    for (ncell, cell) in enumerate(qp[1,:])
+        ind = (ncell - 1) * length(cell)
+        for (npoint, point) in enumerate(cell)
+            val = rfspace(point.point)
+            for localbasis in eachindex(val)
+                for data in tad.data[:,localbasis,ncell]
+                    if data[1] != 0 && ind + npoint != 0
+                        rows[sind] = ind + npoint
+                        cols[sind] = data[1]
+                        vals[sind] = val[localbasis].curl[n] * point.weight * data[2]
+                        sind += 1
+                    end 
+                end 
+            end
+        end
+    end
+
+    return dropzeros(sparse(rows, cols, vals))
+end
+
+function getBmatrix_div(qp::Matrix, X::BEAST.Space)
+    rfspace = refspace(X)
+    _, tad, _ = assemblydata(X)
+    len = length(qp) * length(qp[1,1]) * size(tad.data)[1] * size(tad.data)[2]
+    rows = ones(Int, len)
+    cols = ones(Int, len)
+    vals = zeros(Float64, len)
+    sind = 1
+
+    for (ncell, cell) in enumerate(qp[1,:])
+        ind = (ncell - 1) * length(cell)
+        for (npoint, point) in enumerate(cell)
+            val = rfspace(point.point)
+            for localbasis in eachindex(val)
+                for data in tad.data[:,localbasis,ncell]
+                    if data[1] != 0 && ind + npoint != 0
+                        rows[sind] = ind + npoint
+                        cols[sind] = data[1]
+                        vals[sind] = val[localbasis].divergence * point.weight * data[2]
+                        sind += 1
+                    end 
+                end 
+            end
+        end
+    end
+
+    return dropzeros(sparse(rows, cols, vals))
+end
+
+function getBmatrix_MW(qp::Matrix, X::BEAST.Space, n)
+    rfspace = refspace(X)
+    _, tad, _ = assemblydata(X)
+    len = length(qp) * length(qp[1,1]) * size(tad.data)[1] * size(tad.data)[2]
+    rows = ones(Int, len)
+    cols = ones(Int, len)
+    vals = zeros(Float64, len)
+    sind = 1
+
+    for (ncell, cell) in enumerate(qp[1,:])
+        ind = (ncell - 1) * length(cell)
+        for (npoint, point) in enumerate(cell)
+            val = rfspace(point.point)
+            for localbasis in eachindex(val)
+                for data in tad.data[:,localbasis,ncell]
+                    if data[1] != 0 && ind + npoint != 0
+                        rows[sind] = ind + npoint
+                        cols[sind] = data[1]
+                        vals[sind] = val[localbasis].value[n] * point.weight * data[2]
+                        sind += 1
+                    end 
+                end 
+            end
+        end
+    end
+
+    return dropzeros(sparse(rows, cols, vals))
+end
+

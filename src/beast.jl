@@ -2,8 +2,8 @@ using BEAST
 
 function hassemble(
     operator::BEAST.AbstractOperator,
-    test_functions,
-    trial_functions;
+    test_functions::BEAST.Space,
+    trial_functions::BEAST.Space;
     compressor=:aca,
     tol=1e-4,
     treeoptions=BoxTreeOptions(nmin=100),
@@ -57,8 +57,8 @@ end
 
 function fmmassemble(
     operator::BEAST.AbstractOperator,
-    test_functions::BEAST.LagrangeBasis,
-    trial_functions::BEAST.LagrangeBasis;
+    test_functions,
+    trial_functions;
     nmin=10,
     threading=:single,
     npoints=3,
@@ -77,7 +77,6 @@ function fmmassemble(
     BtCB = fullmatrix(correctionblocks)
     
     points, qp = meshtopoints(test_functions, npoints)
-    B = getBmatrix(qp, test_functions)
 
     fmm = assemble_fmm(
         points,
@@ -93,6 +92,8 @@ function fmmassemble(
                 normals[(i-1)*length(points) + j, :] = normal(point.point)
             end
         end
+
+        B = getBmatrix(qp, test_functions)
 
         return FMMMatrixDL(
             fmm,
@@ -114,6 +115,8 @@ function fmmassemble(
             end
         end
 
+        B = getBmatrix(qp, test_functions)
+
         return FMMMatrixADL(
             fmm,
             normals,
@@ -133,6 +136,8 @@ function fmmassemble(
                 normals[(i-1)*length(points) + j, :] = normal(point.point)
             end
         end
+
+        B = getBmatrix(qp, test_functions)
 
         Bcurl1 = getBmatrix_curl(qp, test_functions, 1)
         Bcurl2 = getBmatrix_curl(qp, test_functions, 2)
@@ -155,8 +160,10 @@ function fmmassemble(
             size(fullmat)[2]
         )
 
-    else
+    elseif operator isa BEAST.HH3DSingleLayerFDBIO
         
+        B = getBmatrix(qp, test_functions)
+
         return FMMMatrixSL(
             fmm,
             B,
@@ -166,6 +173,48 @@ function fmmassemble(
             size(fullmat)[1],
             size(fullmat)[2]
         )
+
+    elseif operator isa BEAST.MWSingleLayer3D
+        B1 = getBmatrix_MW(qp, test_functions, 1)
+        B2 = getBmatrix_MW(qp, test_functions, 2)
+        B3 = getBmatrix_MW(qp, test_functions, 3)
+        Bdiv = getBmatrix_div(qp, X)
+
+        return FMMMatrixMWSL(
+            fmm,
+            B1,
+            B2,
+            B3,
+            Bdiv,
+            sparse(transpose(B1)),
+            sparse(transpose(B2)),
+            sparse(transpose(B3)),
+            sparse(transpose(Bdiv)),
+            BtCB,
+            fullmat,
+            size(fullmat)[1],
+            size(fullmat)[2]
+        )
+    elseif operator isa BEAST.MWDoubleLayer3D
+        B1 = getBmatrix_MW(qp, test_functions, 1)
+        B2 = getBmatrix_MW(qp, test_functions, 2)
+        B3 = getBmatrix_MW(qp, test_functions, 3)
+
+        return FMMMatrixMWDL(
+            fmm,
+            B1,
+            B2,
+            B3,
+            sparse(transpose(B1)),
+            sparse(transpose(B2)),
+            sparse(transpose(B3)),
+            BtCB,
+            fullmat,
+            size(fullmat)[1],
+            size(fullmat)[2]
+        )
+    else
+        throw("Operator is not defiened!")
     end
 end
 
@@ -218,6 +267,24 @@ function BEAST.quaddata(
 
     test_eval(x)  = test_refspace(x,  Val{:withcurl})
     trial_eval(x) = trial_refspace(x, Val{:withcurl})
+
+    test_qp = BEAST.quadpoints(test_eval,  test_elements,  (qs.outer_rule,))
+    bsis_qp = BEAST.quadpoints(trial_eval, trial_elements, (qs.inner_rule,))
+
+    return (;test_qp, bsis_qp)
+end
+
+function BEAST.quaddata(
+    op::BEAST.MaxwellOperator3D,
+    test_refspace::BEAST.RTRefSpace,
+    trial_refspace::BEAST.RTRefSpace,
+    test_elements,
+    trial_elements,
+    qs::SafeDoubleNumQStrat
+)
+
+    test_eval(x)  = test_refspace(x)
+    trial_eval(x) = trial_refspace(x)
 
     test_qp = BEAST.quadpoints(test_eval,  test_elements,  (qs.outer_rule,))
     bsis_qp = BEAST.quadpoints(trial_eval, trial_elements, (qs.inner_rule,))
