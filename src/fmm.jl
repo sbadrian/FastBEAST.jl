@@ -3,6 +3,7 @@ using BEAST
 using LinearAlgebra
 using LinearMaps
 using SparseArrays
+using StaticArrays
 
 function assemble_fmm(
     spoints::Matrix{F},
@@ -37,16 +38,11 @@ function getfullrankblocks(
     quadstratfbk=BEAST.defaultquadstrat(operator, test_functions, trial_functions)
 )
 
-    @views farblkasm = BEAST.blockassembler(
-        operator,
-        test_functions,
-        trial_functions,
-        quadstrat=quadstratfbk
-    )
+    @views blkasm = BEAST.blockassembler(operator, test_functions, trial_functions)
 
-    @views function farassembler(Z, tdata, sdata)
+    @views function assembler(Z, tdata, sdata)
         @views store(v,m,n) = (Z[m,n] += v)
-        farblkasm(tdata,sdata,store)
+        blkasm(tdata,sdata,store)
     end
 
     @views corblkasm = BEAST.blockassembler(
@@ -58,7 +54,7 @@ function getfullrankblocks(
 
     @views function corassembler(Z, tdata, sdata)
         @views store(v,m,n) = (Z[m,n] += v)
-        corblkasm(tdata,sdata,store)
+        corblkasm(tdata, sdata, store)
     end
 
     MBF = FastBEAST.MatrixBlock{Int, scalartype(operator), Matrix{scalartype(operator)}}
@@ -80,13 +76,12 @@ function getfullrankblocks(
         compressableinteractions
     )
 
-    
     if threading == :single
         for fullinteraction in fullinteractions
             push!(
                 fullrankblocks,
                 FastBEAST.getfullmatrixview(
-                    farassembler,
+                    assembler,
                     fullinteraction[1],
                     fullinteraction[2],
                     Int,
@@ -114,7 +109,7 @@ function getfullrankblocks(
             push!(
                 fullrankblocks_perthread[Threads.threadid()],
                 FastBEAST.getfullmatrixview(
-                    farassembler,
+                    assembler,
                     fullinteraction[1],
                     fullinteraction[2],
                     Int,
@@ -152,7 +147,7 @@ function meshtopoints(X::BEAST.Space, quadorder)
     tshapes = refspace(X)
 
     test_eval(x) = tshapes(x)
-    qp = quadpoints(test_eval,  test_elements, (quadorder,))
+    qp = BEAST.quadpoints(test_eval,  test_elements, (quadorder,))
     points = zeros(Float64, length(qp) * length(qp[1,1]), 3)
     ind = 1
     for el in qp
@@ -167,37 +162,13 @@ function meshtopoints(X::BEAST.Space, quadorder)
     return points, qp
 end
 
-# create sparse matrix from fullrankblocks
-function fullmatrix(fullrankblocks)
-    len = 0
-    for fkb in fullrankblocks
-        len += length(fkb.M)
-    end
-    
-    rows = zeros(Int, len)
-    cols = zeros(Int, len)
-    vals = zeros(ComplexF64, len)
-    ind = 1
-    for fullrankblock in fullrankblocks
-        for (i, row) in enumerate(fullrankblock.τ)
-            for (j, col) in enumerate(fullrankblock.σ)
-                rows[ind] = row
-                cols[ind] = col
-                vals[ind] = fullrankblock.M[i, j] 
-                ind += 1
-            end
-        end
-    end
-    return sparse(rows, cols, vals)
-end
-
 # construction of B matrix, if Ax = b and A = transpose(B)GB
-function getBmatrix(qp::Matrix, X::BEAST.Space)
+function getBmatrix(op::BEAST.Helmholtz3DOp, qp::Matrix, X::BEAST.Space)
     rfspace = refspace(X)
     _, tad, _ = assemblydata(X)
     len = length(qp) * length(qp[1,1]) * size(tad.data)[1] * size(tad.data)[2]
-    rows = ones(Int, len)
-    cols = ones(Int, len)
+
+    rc = ones(Int, len, 2)
     vals = zeros(Float64, len)
     sind = 1
 
@@ -208,8 +179,8 @@ function getBmatrix(qp::Matrix, X::BEAST.Space)
             for localbasis in eachindex(val)
                 for data in tad.data[:,localbasis,ncell]
                     if data[1] != 0 && ind + npoint != 0
-                        rows[sind] = ind + npoint
-                        cols[sind] = data[1]
+                        rc[sind, 1] = ind + npoint
+                        rc[sind, 2] = data[1]
                         vals[sind] = val[localbasis].value * point.weight * data[2]
                         sind += 1
                     end 
@@ -218,18 +189,19 @@ function getBmatrix(qp::Matrix, X::BEAST.Space)
         end
     end
 
-    return dropzeros(sparse(rows, cols, vals))
+    return rc, vals
+
 end
 
-function getBmatrix_curl(qp::Matrix, X::BEAST.Space, n)
+
+
+function getBmatrix(op::BEAST.MaxwellOperator3D, qp::Matrix, X::BEAST.Space)
     rfspace = refspace(X)
     _, tad, _ = assemblydata(X)
     len = length(qp) * length(qp[1,1]) * size(tad.data)[1] * size(tad.data)[2]
-    rows = ones(Int, len)
-    cols = ones(Int, len)
-    vals = zeros(Float64, len)
+    rc = ones(Int, len, 2)
+    vals = zeros(Float64, len, 3)
     sind = 1
-
     for (ncell, cell) in enumerate(qp[1,:])
         ind = (ncell - 1) * length(cell)
         for (npoint, point) in enumerate(cell)
@@ -237,9 +209,11 @@ function getBmatrix_curl(qp::Matrix, X::BEAST.Space, n)
             for localbasis in eachindex(val)
                 for data in tad.data[:,localbasis,ncell]
                     if data[1] != 0 && ind + npoint != 0
-                        rows[sind] = ind + npoint
-                        cols[sind] = data[1]
-                        vals[sind] = val[localbasis].curl[n] * point.weight * data[2]
+                        rc[sind, 1] = ind + npoint
+                        rc[sind, 2] = data[1]
+                        vals[sind, 1] = val[localbasis].value[1] * point.weight * data[2]
+                        vals[sind, 2] = val[localbasis].value[2] * point.weight * data[2]
+                        vals[sind, 3] = val[localbasis].value[3] * point.weight * data[2]
                         sind += 1
                     end 
                 end 
@@ -247,15 +221,45 @@ function getBmatrix_curl(qp::Matrix, X::BEAST.Space, n)
         end
     end
 
-    return dropzeros(sparse(rows, cols, vals))
+    return rc, vals
+
+end
+
+function getBmatrix_curl(qp::Matrix, X::BEAST.Space)
+    rfspace = refspace(X)
+    _, tad, _ = assemblydata(X)
+    len = length(qp) * length(qp[1,1]) * size(tad.data)[1] * size(tad.data)[2]
+    rc = ones(Int, len, 2)
+    vals = zeros(Float64, len, 3)
+    sind = 1
+
+    for (ncell, cell) in enumerate(qp[1,:])
+        ind = (ncell - 1) * length(cell)
+        for (npoint, point) in enumerate(cell)
+            val = rfspace(point.point)
+            for localbasis in eachindex(val)
+                for data in tad.data[:,localbasis,ncell]
+                    if data[1] != 0 && ind + npoint != 0
+                        rc[sind, 1] = ind + npoint
+                        rc[sind, 2] = data[1]
+                        vals[sind, 1] = val[localbasis].curl[1] * point.weight * data[2]
+                        vals[sind, 2] = val[localbasis].curl[2] * point.weight * data[2]
+                        vals[sind, 3] = val[localbasis].curl[3] * point.weight * data[2]
+                        sind += 1
+                    end 
+                end 
+            end
+        end
+    end
+
+    return rc, vals
 end
 
 function getBmatrix_div(qp::Matrix, X::BEAST.Space)
     rfspace = refspace(X)
     _, tad, _ = assemblydata(X)
     len = length(qp) * length(qp[1,1]) * size(tad.data)[1] * size(tad.data)[2]
-    rows = ones(Int, len)
-    cols = ones(Int, len)
+    rc = ones(Int, len, 2)
     vals = zeros(Float64, len)
     sind = 1
 
@@ -266,8 +270,8 @@ function getBmatrix_div(qp::Matrix, X::BEAST.Space)
             for localbasis in eachindex(val)
                 for data in tad.data[:,localbasis,ncell]
                     if data[1] != 0 && ind + npoint != 0
-                        rows[sind] = ind + npoint
-                        cols[sind] = data[1]
+                        rc[sind, 1] = ind + npoint
+                        rc[sind, 2] = data[1]
                         vals[sind] = val[localbasis].divergence * point.weight * data[2]
                         sind += 1
                     end 
@@ -276,45 +280,17 @@ function getBmatrix_div(qp::Matrix, X::BEAST.Space)
         end
     end
 
-    return dropzeros(sparse(rows, cols, vals))
-end
-
-function getBmatrix_MW(qp::Matrix, X::BEAST.Space, n)
-    rfspace = refspace(X)
-    _, tad, _ = assemblydata(X)
-    len = length(qp) * length(qp[1,1]) * size(tad.data)[1] * size(tad.data)[2]
-    rows = ones(Int, len)
-    cols = ones(Int, len)
-    vals = zeros(Float64, len)
-    sind = 1
-
-    for (ncell, cell) in enumerate(qp[1,:])
-        ind = (ncell - 1) * length(cell)
-        for (npoint, point) in enumerate(cell)
-            val = rfspace(point.point)
-            for localbasis in eachindex(val)
-                for data in tad.data[:,localbasis,ncell]
-                    if data[1] != 0 && ind + npoint != 0
-                        rows[sind] = ind + npoint
-                        cols[sind] = data[1]
-                        vals[sind] = val[localbasis].value[n] * point.weight * data[2]
-                        sind += 1
-                    end 
-                end 
-            end
-        end
-    end
-
-    return dropzeros(sparse(rows, cols, vals))
+    return rc, vals
 end
 
 function getnormals(qp::Matrix)
     normals = zeros(Float64, length(qp)*length(qp[1,1]), 3)
     for (i, points) in enumerate(qp[1,:])
         for (j, point) in enumerate(qp[1,i])
-            normals[(i-1)*length(points) + j, :] = normal(point.point)
+            normals[(i-1)*length(points) + j, :] = BEAST.normal(point.point)
         end
     end
     
     return normals
 end
+ 

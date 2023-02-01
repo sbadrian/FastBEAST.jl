@@ -1,14 +1,16 @@
+using BEAST
 using ExaFMMt
 using LinearAlgebra
 using LinearMaps
 using SparseArrays
 
+
 struct FMMMatrixSL{I, F <: Real, K} <: LinearMaps.LinearMap{K}
     fmm::ExaFMMt.ExaFMM{K}
+    B_trial::SparseMatrixCSC{F, I}
     B_test::SparseMatrixCSC{F, I}
-    Bt_trial::SparseMatrixCSC{F, I}
-    BtCB::SparseMatrixCSC{K, I}
-    fullmat::SparseMatrixCSC{K, I}
+    BtCB::HMatrix{I, K}
+    fullmat::HMatrix{I, K}
     rowdim::I
     columndim::I
 end
@@ -45,7 +47,7 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    y .= A.Bt_trial * conj.(A.fmm*conj.(A.B_test*x))[:,1] - A.BtCB*x + A.fullmat*x
+    y .= A.B_test * conj.(A.fmm * conj.(A.B_trial * x))[:,1] - A.BtCB * x + A.fullmat * x
 
     return y
 end
@@ -62,7 +64,7 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    y .= A.Bt_trial * conj.(A.fmm*conj.(A.B_test*x))[:,1] - A.BtCB*x + A.fullmat*x
+    y .= A.B_test * conj.(A.fmm * conj.(A.B_trial * x))[:,1] - A.BtCB * x + A.fullmat * x
 
     return y
 end
@@ -80,7 +82,53 @@ end
 
     fill!(y, zero(eltype(y)))
 
-    y .= A.Bt_trial * conj.(A.fmm*conj.(A.B_test*x))[:,1] - A.BtCB*x + A.fullmat*x
+    y .= A.B_test * conj.(A.fmm * conj.(A.B_trial * x))[:,1] - A.BtCB * x + A.fullmat * x
 
     return y
+end
+
+function FMMMatrix(
+    op::BEAST.HH3DSingleLayerFDBIO,
+    test_functions::BEAST.Space, 
+    trial_functions::BEAST.Space, 
+    testqp::Matrix,
+    trialqp::Matrix,
+    fmm::ExaFMMt.ExaFMM{K},
+    BtCB::HMatrix{I, K},
+    fullmat::HMatrix{I, K},
+) where {I, K}
+
+    B, B_test = getBmatrix(op, test_functions, trial_functions, testqp, trialqp)
+    
+    return FMMMatrixSL(
+        fmm,
+        B,
+        B_test,
+        BtCB,
+        fullmat,
+        size(fullmat)[1],
+        size(fullmat)[2]
+    )
+
+end
+
+function getBmatrix(
+    op::BEAST.HH3DSingleLayerFDBIO,
+    test_functions::BEAST.Space, 
+    trial_functions::BEAST.Space, 
+    testqp::Matrix,
+    trialqp::Matrix
+)   
+    rc, vals = getBmatrix(op, trialqp, trial_functions)
+    B = dropzeros(sparse(rc[:, 1], rc[:, 2], vals)) 
+    B_test = B
+
+    if test_functions != trial_functions 
+        rc_test, vals_test = getBmatrix(op, testqp, test_functions)
+        B_test = dropzeros(sparse(rc_test[:, 1], rc_test[:, 2], vals_test))
+    else
+        B_test = sparse(transpose(B))
+    end
+
+    return B, B_test
 end

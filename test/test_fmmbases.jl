@@ -1,10 +1,11 @@
-using Test
-using MKL
-using CompScienceMeshes
 using BEAST
+using CompScienceMeshes
 using ExaFMMt
-using LinearAlgebra
 using FastBEAST
+using IterativeSolvers
+using LinearAlgebra
+using MKL
+using Test
 
 r = 10.0
 λ = 20 * r
@@ -66,4 +67,3 @@ yXd1_true = assemble(S, Xd1, Xd1) * xXd1
 @test norm(yX1 - yX1_true) /norm(yX1_true) < 1e-5
 @test norm(yXd0 - yXd0_true) /norm(yXd0_true) < 1e-5
 @test norm(yXd1 - yXd1_true) /norm(yXd1_true) < 1e-5
-

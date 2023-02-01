@@ -1,3 +1,4 @@
+using BEAST
 using ExaFMMt
 using LinearAlgebra
 using LinearMaps
@@ -8,11 +9,11 @@ struct FMMMatrixMWDL{I, F <: Real, K} <: LinearMaps.LinearMap{K}
     B1::SparseMatrixCSC{F, I}
     B2::SparseMatrixCSC{F, I}
     B3::SparseMatrixCSC{F, I}
-    B1t::SparseMatrixCSC{F, I}
-    B2t::SparseMatrixCSC{F, I}
-    B3t::SparseMatrixCSC{F, I}
-    BtCB::SparseMatrixCSC{K, I}
-    fullmat::SparseMatrixCSC{K, I}
+    B1_test::SparseMatrixCSC{F, I}
+    B2_test::SparseMatrixCSC{F, I}
+    B3_test::SparseMatrixCSC{F, I}
+    BtCB::HMatrix{I, K}
+    fullmat::HMatrix{I, K}
     rowdim::I
     columndim::I
 end
@@ -49,16 +50,16 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    res1 = conj.(A.fmm*conj.(A.B1*x))[:,2:4]
-    res2 = conj.(A.fmm*conj.(A.B2*x))[:,2:4]
-    res3 = conj.(A.fmm*conj.(A.B3*x))[:,2:4]
+    res1 = conj.(A.fmm * conj.(A.B1 * x))[:,2:4]
+    res2 = conj.(A.fmm * conj.(A.B2 * x))[:,2:4]
+    res3 = conj.(A.fmm * conj.(A.B3 * x))[:,2:4]
 
-    y1 = A.B1t * (res3[:,2] - res2[:,3])
-    y2 = A.B2t * (res1[:,3] - res3[:,1])
-    y3 = A.B3t * (res2[:,1] - res1[:,2])
+    y1 = A.B1_test * (res3[:,2] - res2[:,3])
+    y2 = A.B2_test * (res1[:,3] - res3[:,1])
+    y3 = A.B3_test * (res2[:,1] - res1[:,2])
 
-    y.= (y1 + y2 + y3) - A.BtCB*x + A.fullmat*x
-    
+    y.= (y1 + y2 + y3) - A.BtCB * x + A.fullmat * x
+
     return y
 end
 
@@ -74,15 +75,15 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    res1 = conj.(A.fmm*conj.(A.B1*x))[:,2:4]
-    res2 = conj.(A.fmm*conj.(A.B2*x))[:,2:4]
-    res3 = conj.(A.fmm*conj.(A.B3*x))[:,2:4]
+    res1 = conj.(A.fmm * conj.(A.B1 * x))[:,2:4]
+    res2 = conj.(A.fmm * conj.(A.B2 * x))[:,2:4]
+    res3 = conj.(A.fmm * conj.(A.B3 * x))[:,2:4]
 
-    y1 = A.B1t * (res3[:,2] - res2[:,3])
-    y2 = A.B2t * (res1[:,3] - res3[:,1])
-    y3 = A.B3t * (res2[:,1] - res1[:,2])
+    y1 = A.B1_test * (res3[:,2] - res2[:,3])
+    y2 = A.B2_test * (res1[:,3] - res3[:,1])
+    y3 = A.B3_test * (res2[:,1] - res1[:,2])
 
-    y.= (y1 + y2 + y3) - A.BtCB*x + A.fullmat*x
+    y.= (y1 + y2 + y3) - A.BtCB * x + A.fullmat * x
 
     return y
 end
@@ -99,15 +100,78 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    res1 = conj.(A.fmm*conj.(A.B1*x))[:,2:4]
-    res2 = conj.(A.fmm*conj.(A.B2*x))[:,2:4]
-    res3 = conj.(A.fmm*conj.(A.B3*x))[:,2:4]
+    res1 = conj.(A.fmm * conj.(A.B1 * x))[:,2:4]
+    res2 = conj.(A.fmm * conj.(A.B2 * x))[:,2:4]
+    res3 = conj.(A.fmm * conj.(A.B3 * x))[:,2:4]
 
-    y1 = A.B1t * (res3[:,2] - res2[:,3])
-    y2 = A.B2t * (res1[:,3] - res3[:,1])
-    y3 = A.B3t * (res2[:,1] - res1[:,2])
+    y1 = A.B1_test * (res3[:,2] - res2[:,3])
+    y2 = A.B2_test * (res1[:,3] - res3[:,1])
+    y3 = A.B3_test * (res2[:,1] - res1[:,2])
 
-    y.= (y1 + y2 + y3) - A.BtCB*x + A.fullmat*x
+    y.= (y1 + y2 + y3) - A.BtCB * x + A.fullmat * x
 
     return y
+end
+
+function FMMMatrix(
+    op::BEAST.MWDoubleLayer3D,
+    test_functions::BEAST.Space, 
+    trial_functions::BEAST.Space, 
+    testqp::Matrix,
+    trialqp::Matrix,
+    fmm::ExaFMMt.ExaFMM{K},
+    BtCB::HMatrix{I, K},
+    fullmat::HMatrix{I, K},
+) where {I, K}
+
+    B1, B2, B3, B1_test, B2_test, B3_test = getBmatrix(
+        op,
+        test_functions,
+        trial_functions,
+        testqp,
+        trialqp
+    )
+      
+    return FMMMatrixMWDL(
+        fmm,
+        B1,
+        B2,
+        B3,
+        B1_test,
+        B2_test,
+        B3_test,
+        BtCB,
+        fullmat,
+        size(fullmat)[1],
+        size(fullmat)[2]
+    )
+
+end
+
+function getBmatrix(
+    op::BEAST.MWDoubleLayer3D,
+    test_functions::BEAST.Space, 
+    trial_functions::BEAST.Space, 
+    testqp::Matrix,
+    trialqp::Matrix,
+)
+
+    rc, vals = getBmatrix(op, trialqp, trial_functions)
+    B1 = dropzeros(sparse(rc[:, 1], rc[:, 2], vals[:, 1]))
+    B2 = dropzeros(sparse(rc[:, 1], rc[:, 2], vals[:, 2]))
+    B3 = dropzeros(sparse(rc[:, 1], rc[:, 2], vals[:, 3]))
+    B1_test, B2_test, B3_test = B1, B2, B3
+
+    if test_functions != trial_functions
+        rc_test,  vals_test = getBmatrix(op, testqp, test_functions)
+        B1_test = dropzeros(sparse(rc_test[:, 2], rc_test[:, 1], vals_test[:, 1]))
+        B2_test = dropzeros(sparse(rc_test[:, 2], rc_test[:, 1], vals_test[:, 2]))
+        B3_test = dropzeros(sparse(rc_test[:, 2], rc_test[:, 1], vals_test[:, 3]))
+    else
+        B1_test = sparse(transpose(B1_test))
+        B2_test = sparse(transpose(B2_test))
+        B3_test = sparse(transpose(B3_test)) 
+    end
+
+    return B1, B2, B3, B1_test, B2_test, B3_test
 end

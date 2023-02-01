@@ -2,8 +2,8 @@ using BEAST
 
 function hassemble(
     operator::BEAST.AbstractOperator,
-    test_functions::BEAST.Space,
-    trial_functions::BEAST.Space;
+    test_functions,
+    trial_functions;
     compressor=:aca,
     tol=1e-4,
     treeoptions=BoxTreeOptions(nmin=100),
@@ -51,14 +51,13 @@ function hassemble(
         verbose=verbose,
         svdrecompress=svdrecompress
     )
-
     return hmat
 end
 
 function fmmassemble(
     operator::BEAST.AbstractOperator,
-    test_functions,
-    trial_functions;
+    test_functions::BEAST.Space,
+    trial_functions::BEAST.Space;
     nmin=10,
     threading=:single,
     npoints=3,
@@ -72,241 +71,45 @@ function fmmassemble(
         threading=threading,
         quadstratcbk=SafeDoubleNumQStrat(npoints, npoints)
     )
-    
-    fullmat  = fullmatrix(fullrankblocks)
-    BtCB = fullmatrix(correctionblocks)
+    K = scalartype(operator)
+    fullmat = HMatrix(
+        fullrankblocks,
+        MatrixBlock{Int, K, LowRankMatrix{K}}[],
+        length(test_functions.fns),
+        length(trial_functions.fns),
+        0,
+        0,
+        threading == :multi ?  true : false
+    )
+    BtCB = HMatrix(
+        correctionblocks,
+        MatrixBlock{Int, K, LowRankMatrix{K}}[],
+        length(test_functions.fns),
+        length(trial_functions.fns),
+        0,
+        0,
+        threading == :multi ?  true : false
+    )
     
     testpoints, testqp = meshtopoints(test_functions, npoints)
-    trialpoints, trialqp = meshtopoints(test_functions, npoints)
+    trialpoints, trialqp = meshtopoints(trial_functions, npoints)
 
     fmm = assemble_fmm(
-        testpoints,
         trialpoints,
+        testpoints,
         fmmoptions
     )
 
-    if operator isa BEAST.HH3DDoubleLayer
-
-        normals = getnormals(testqp)
-        B = getBmatrix(testqp, test_functions)
-
-        if test_functions == trial_functions
-            return FMMMatrixDL(
-                fmm,
-                normals,
-                B,
-                sparse(transpose(B)),
-                BtCB,
-                fullmat,
-                size(fullmat)[1],
-                size(fullmat)[2]
-            )
-        else
-            B_trial = getBmatrix(trialqp, trial_functions)
-            return FMMMatrixDL(
-                fmm,
-                normals,
-                B,
-                sparse(transpose(B_trial)),
-                BtCB,
-                fullmat,
-                size(fullmat)[1],
-                size(fullmat)[2]
-            )
-        end
-
-    
-    elseif operator isa BEAST.HH3DDoubleLayerTransposed 
-
-        normals = getnormals(testqp)
-        B = getBmatrix(testqp, test_functions)
-
-        if test_functions == trial_functions
-            return FMMMatrixADL(
-                fmm,
-                normals,
-                B,
-                sparse(transpose(B)),
-                BtCB,
-                fullmat,
-                size(fullmat)[1],
-                size(fullmat)[2]
-            )
-        else
-            B_trial = getBmatrix(trialqp, trial_functions)
-            return FMMMatrixADL(
-                fmm,
-                normals,
-                B,
-                sparse(transpose(B_trial)),
-                BtCB,
-                fullmat,
-                size(fullmat)[1],
-                size(fullmat)[2]
-            )
-        end
-
-    elseif operator isa BEAST.HH3DHyperSingularFDBIO
-        
-        normals = getnormals(testqp)
-        B = getBmatrix(testqp, test_functions)
-        Bcurl1 = getBmatrix_curl(testqp, test_functions, 1)
-        Bcurl2 = getBmatrix_curl(testqp, test_functions, 2)
-        Bcurl3 = getBmatrix_curl(testqp, test_functions, 3)
-        
-        if test_functions == trial_functions
-            return FMMMatrixHS(
-                fmm,
-                normals,
-                normals,
-                Bcurl1,
-                Bcurl2,
-                Bcurl3,
-                sparse(transpose(Bcurl1)),
-                sparse(transpose(Bcurl2)),
-                sparse(transpose(Bcurl3)),
-                B,
-                sparse(transpose(B)),
-                BtCB,
-                fullmat,
-                size(fullmat)[1],
-                size(fullmat)[2]
-            )
-        else
-            normals_trial = getnormals(trialqp)
-            B_trial = getBmatrix(trialqp, trial_functions)
-            Bcurl1_trial = getBmatrix_curl(trialqp, trial_functions, 1)
-            Bcurl2_trial = getBmatrix_curl(trialqp, trial_functions, 2)
-            Bcurl3_trial = getBmatrix_curl(trialqp, trial_functions, 3)
-
-            return FMMMatrixHS(
-                fmm,
-                normals,
-                normals_trial,
-                Bcurl1,
-                Bcurl2,
-                Bcurl3,
-                sparse(transpose(Bcurl1_trial)),
-                sparse(transpose(Bcurl2_trial)),
-                sparse(transpose(Bcurl3_trial)),
-                B,
-                sparse(transpose(B_trial)),
-                BtCB,
-                fullmat,
-                size(fullmat)[1],
-                size(fullmat)[2]
-            )
-        end
-
-    elseif operator isa BEAST.HH3DSingleLayerFDBIO
-        
-        B = getBmatrix(testqp, test_functions)
-        if test_functions == trial_functions
-            return FMMMatrixSL(
-                fmm,
-                B,
-                sparse(transpose(B)),
-                BtCB,
-                fullmat,
-                size(fullmat)[1],
-                size(fullmat)[2]
-            )
-        else
-            B_trial = getBmatrix(trialqp, trial_functions)
-            return FMMMatrixSL(
-                fmm,
-                B,
-                sparse(transpose(B_trial)),
-                BtCB,
-                fullmat,
-                size(fullmat)[1],
-                size(fullmat)[2]
-            )
-        end
-
-    elseif operator isa BEAST.MWSingleLayer3D
-        B1 = getBmatrix_MW(testqp, test_functions, 1)
-        B2 = getBmatrix_MW(testqp, test_functions, 2)
-        B3 = getBmatrix_MW(testqp, test_functions, 3)
-        Bdiv = getBmatrix_div(testqp, X)
-        if test_functions == trial_functions
-            return FMMMatrixMWSL(
-                fmm,
-                B1,
-                B2,
-                B3,
-                Bdiv,
-                sparse(transpose(B1)),
-                sparse(transpose(B2)),
-                sparse(transpose(B3)),
-                sparse(transpose(Bdiv)),
-                BtCB,
-                fullmat,
-                size(fullmat)[1],
-                size(fullmat)[2]
-            )
-        else
-            B1_trial = getBmatrix_MW(tialqp, trial_functions, 1)
-            B2_trial = getBmatrix_MW(tialqp, trial_functions, 2)
-            B3_trial = getBmatrix_MW(tialqp, trial_functions, 3)
-            Bdiv_trial = getBmatrix_div(trialqp, X)
-            return FMMMatrixMWSL(
-                fmm,
-                B1,
-                B2,
-                B3,
-                Bdiv,
-                sparse(transpose(B1_trial)),
-                sparse(transpose(B2_trial)),
-                sparse(transpose(B3_trial)),
-                sparse(transpose(Bdiv_trial)),
-                BtCB,
-                fullmat,
-                size(fullmat)[1],
-                size(fullmat)[2]
-            )
-        end
-
-    elseif operator isa BEAST.MWDoubleLayer3D
-        B1 = getBmatrix_MW(testqp, test_functions, 1)
-        B2 = getBmatrix_MW(testqp, test_functions, 2)
-        B3 = getBmatrix_MW(testqp, test_functions, 3)
-
-        if test_functions == trial_functions
-            return FMMMatrixMWDL(
-                fmm,
-                B1,
-                B2,
-                B3,
-                sparse(transpose(B1)),
-                sparse(transpose(B2)),
-                sparse(transpose(B3)),
-                BtCB,
-                fullmat,
-                size(fullmat)[1],
-                size(fullmat)[2]
-            )
-        else
-            B1_trial = getBmatrix_MW(trialqp, trial_functions, 1)
-            B2_trial = getBmatrix_MW(trialqp, trial_functions, 2)
-            B3_trial = getBmatrix_MW(trialqp, trial_functions, 3)
-            return FMMMatrixMWDL(
-                fmm,
-                B1,
-                B2,
-                B3,
-                sparse(transpose(B1_trial)),
-                sparse(transpose(B2_trial)),
-                sparse(transpose(B3_trial)),
-                BtCB,
-                fullmat,
-                size(fullmat)[1],
-                size(fullmat)[2]
-            )
-        end
-    else
-        throw("Operator is not defiened!")
-    end
+    return FMMMatrix(
+        operator,
+        test_functions, 
+        trial_functions, 
+        testqp,
+        trialqp,
+        fmm,
+        BtCB,
+        fullmat,
+    )
 end
 
 # The following to function ensure that no dynamic dispatching is

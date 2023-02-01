@@ -1,62 +1,12 @@
-using Test
-using MKL
-using CompScienceMeshes
 using BEAST
+using CompScienceMeshes
 using ExaFMMt
-using LinearAlgebra
 using FastBEAST
-
-r = 10.0
-λ = 20 * r
-k = 2 * π / λ
-
-sphere = meshsphere(r, 0.5 * r)
-X = raviartthomas(sphere)
-
-##
-S = Maxwell3D.doublelayer(; wavenumber=k)
-
-x = ComplexF64.(rand(Float64, length(X.fns)))
-
-Ax = fmmassemble(
-    S,
-    X,
-    X,
-    threading=:multi,
-    fmmoptions=HelmholtzFMMOptions(ComplexF64(k))
-) * x
-
-Axtrue = assemble(S, X, X) * x
-
-norm(Ax.-Axtrue)/norm(Axtrue)
-
-## Singlelayer
-S = Maxwell3D.singlelayer(; wavenumber=k)
-
-x = ComplexF64.(rand(Float64, length(X.fns)))
-
-Ax = fmmassemble(
-    S,
-    X,
-    X,
-    threading=:multi,
-    fmmoptions=HelmholtzFMMOptions(ComplexF64(k))
-) * x
-
-Axtrue = assemble(S, X, X) * x
-
-norm(Ax.-Axtrue)/norm(Axtrue)
-
-
-##
-
-using Test
-using FastBEAST
-using CompScienceMeshes
-using BEAST
-using StaticArrays
-using LinearAlgebra
 using IterativeSolvers
+using LinearAlgebra
+using MKL
+using StaticArrays
+using Test
 
 c = 3e8
 μ = 4*π*1e-7
@@ -69,7 +19,7 @@ k = 2*π/λ
 
 a = 1.0
 Γ_orig = CompScienceMeshes.meshcuboid(a,a,a,0.2)
-Γ = translate(Γ_orig,SVector(-a/2,-a/2,-a/2))
+Γ = translate(Γ_orig, SVector(-a/2,-a/2,-a/2))
 
 Φ, Θ = [0.0], range(0,stop=π,length=100)
 pts = [point(cos(ϕ)*sin(θ), sin(ϕ)*sin(θ), cos(θ)) for ϕ in Φ for θ in Θ]
@@ -88,8 +38,6 @@ H = (-1/(im*μ*ω))*curl(E)
 𝒉 = (n × H) × n
 
 𝓣 = Maxwell3D.singlelayer(wavenumber=k)
-𝓝 = BEAST.NCross()
-𝓚 = Maxwell3D.doublelayer(wavenumber=k)
 
 X = raviartthomas(Γ)
 
@@ -99,12 +47,13 @@ T = fmmassemble(
     𝓣,
     X,
     X,
+    nmin=50,
     threading=:multi,
     fmmoptions=HelmholtzFMMOptions(ComplexF64(k))
 )
 
 e = assemble(𝒆,X)
-##
+
 println("Enter iterative solver")
 @time j_EFIE, ch = IterativeSolvers.gmres(T, e, verbose=true, log=true, reltol=1e-4, maxiter=500)
 println("Finished iterative solver part. Number of iterations: ", ch.iters)

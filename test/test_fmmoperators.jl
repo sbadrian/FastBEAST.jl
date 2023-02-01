@@ -1,12 +1,12 @@
-using Test
+using BEAST
+using CompScienceMeshes
+using ExaFMMt
+using FastBEAST
+using IterativeSolvers
+using LinearAlgebra
 using MKL
 using StaticArrays
-using CompScienceMeshes
-using BEAST
-using LinearAlgebra
-using FastBEAST
-using ExaFMMt
-using IterativeSolvers
+using Test
 
 r = 10.0
 λ = 20 * r
@@ -15,7 +15,6 @@ k = 2 * π / λ
 sphere = meshsphere(r, 0.1 * r)
 X0 = lagrangecxd0(sphere)
 X1 = lagrangec0d1(sphere)
-
 
 S = Helmholtz3D.singlelayer(; gamma=im * k)
 D = Helmholtz3D.doublelayer(; gamma=im * k)
@@ -111,7 +110,6 @@ err_IDPDL_pot = norm(pot_IDPDL + Φ_inc.(pts)) / norm(Φ_inc.(pts))
 
 err_INPSL_pot = norm(pot_INPSL + Φ_inc.(pts)) / norm(Φ_inc.(pts))
 err_INPDL_pot = norm(pot_INPDL + Φ_inc.(pts)) / norm(Φ_inc.(pts))
-
 
 @test err_IDPSL_pot < 0.01
 @test err_IDPDL_pot < 0.01
