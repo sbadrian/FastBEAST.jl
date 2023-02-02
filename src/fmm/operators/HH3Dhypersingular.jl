@@ -159,7 +159,7 @@ function FMMMatrix(
 ) where {I, K}
 
     normals, B1curl, B2curl, B3curl, B, normals_test, 
-        B1curl_test, B2curl_test, B3curl_test, B_test = getBmatrix(
+        B1curl_test, B2curl_test, B3curl_test, B_test = sample_basisfunctions(
             op,
             test_functions,
             trial_functions,
@@ -187,7 +187,7 @@ function FMMMatrix(
 
 end  
 
-function getBmatrix(
+function sample_basisfunctions(
     op::BEAST.HH3DHyperSingularFDBIO,
     test_functions::BEAST.Space, 
     trial_functions::BEAST.Space, 
@@ -197,24 +197,24 @@ function getBmatrix(
 
     normals = getnormals(trialqp)
     normals_test = normals
-    rc_curl, vals_curl = getBmatrix_curl(trialqp, trial_functions)
+    rc_curl, vals_curl = sample_curlbasisfunctions(trialqp, trial_functions)
     B1curl = dropzeros(sparse(rc_curl[:, 1], rc_curl[:, 2], vals_curl[:, 1]))
     B2curl = dropzeros(sparse(rc_curl[:, 1], rc_curl[:, 2], vals_curl[:, 2]))
     B3curl = dropzeros(sparse(rc_curl[:, 1], rc_curl[:, 2], vals_curl[:, 3]))
     B1curl_test, B2curl_test, B3curl_test = B1curl, B2curl, B3curl
 
-    rc, vals = getBmatrix(op, trialqp, trial_functions)
+    rc, vals = sample_basisfunctions(op, trialqp, trial_functions)
     B = dropzeros(sparse(rc[:, 1], rc[:, 2], vals))
     B_test = B
 
     if test_functions != trial_functions
         normals_test = getnormals(testqp)
-        rc_curl, vals_curl = getBmatrix_curl(testqp, test_functions)
+        rc_curl, vals_curl = sample_curlbasisfunctions(testqp, test_functions)
         B1curl_test = dropzeros(sparse(rc_curl[:, 2], rc_curl[:, 1], vals_curl[:, 1]))
         B2curl_test = dropzeros(sparse(rc_curl[:, 2], rc_curl[:, 1], vals_curl[:, 2]))
         B3curl_test = dropzeros(sparse(rc_curl[:, 2], rc_curl[:, 1], vals_curl[:, 3]))
         
-        rc, vals = getBmatrix(op, testqp, test_functions)
+        rc, vals = sample_basisfunctions(op, testqp, test_functions)
         B_test = dropzeros(sparse(rc[:, 2], rc[:, 1], vals))
     else
         B1curl_test = sparse(transpose(B1curl))

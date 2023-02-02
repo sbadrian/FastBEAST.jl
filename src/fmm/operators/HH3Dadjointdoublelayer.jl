@@ -111,7 +111,7 @@ function FMMMatrix(
     fullmat::HMatrix{I, K}
 ) where {I, K}
 
-    B, normals, B_test = getBmatrix(op, test_functions, trial_functions, testqp, trialqp)
+    B, normals, B_test = sample_basisfunctions(op, test_functions, trial_functions, testqp, trialqp)
 
     return FMMMatrixADL(
         fmm,
@@ -125,7 +125,7 @@ function FMMMatrix(
     )
 end
 
-function getBmatrix(
+function sample_basisfunctions(
     op::BEAST.HH3DDoubleLayerTransposed,
     test_functions::BEAST.Space, 
     trial_functions::BEAST.Space, 
@@ -133,12 +133,12 @@ function getBmatrix(
     trialqp::Matrix
 )   
     normals = getnormals(trialqp)
-    rc, vals = getBmatrix(op, trialqp, trial_functions)
+    rc, vals = sample_basisfunctions(op, trialqp, trial_functions)
     B = dropzeros(sparse(rc[:, 1], rc[:, 2], vals)) 
     B_test = B
 
     if test_functions != trial_functions 
-        rc_test, vals_test = getBmatrix(op, testqp, test_functions)
+        rc_test, vals_test = sample_basisfunctions(op, testqp, test_functions)
         B_test = dropzeros(sparse(rc_test[:, 2], rc_test[:, 1], vals_test))
     else
         B_test = sparse(transpose(B))

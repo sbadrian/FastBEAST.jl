@@ -129,7 +129,7 @@ function FMMMatrix(
     fullmat::HMatrix{I, K},
 ) where {I, K}
 
-    B1, B2, B3, Bdiv, B1_test, B2_test, B3_test, Bdiv_test = getBmatrix(
+    B1, B2, B3, Bdiv, B1_test, B2_test, B3_test, Bdiv_test = sample_basisfunctions(
         op,
         test_functions, 
         trial_functions, 
@@ -154,29 +154,39 @@ function FMMMatrix(
     )
 end
 
-function getBmatrix(
+"""
+    function sample_basisfunctions(
+        op::BEAST.MWSingleLayer3D, 
+        test_functions::BEAST.Space, 
+        trial_functions::BEAST.Space, 
+        testqp::Matrix,
+        trialqp::Matrix,
+    )
+
+"""
+function sample_basisfunctions(
     op::BEAST.MWSingleLayer3D, 
     test_functions::BEAST.Space, 
     trial_functions::BEAST.Space, 
     testqp::Matrix,
     trialqp::Matrix,
 )
-    rc, vals = getBmatrix(op, trialqp, trial_functions)
+    rc, vals = sample_basisfunctions(op, trialqp, trial_functions)
     B1 = dropzeros(sparse(rc[:, 1], rc[:, 2], vals[:, 1]))
     B2 = dropzeros(sparse(rc[:, 1], rc[:, 2], vals[:, 2]))
     B3 = dropzeros(sparse(rc[:, 1], rc[:, 2], vals[:, 3]))
     B1_test, B2_test, B3_test = B1, B2, B3
 
-    rcdiv, valsdiv = getBmatrix_div(trialqp, trial_functions)
+    rcdiv, valsdiv = sample_divbasisfunctions(trialqp, trial_functions)
     Bdiv = dropzeros(sparse(rcdiv[:, 1], rcdiv[:, 2], valsdiv))
     Bdiv_test = Bdiv
 
     if test_functions != trial_functions
-        rc_test,  vals_test = getBmatrix(op, testqp, test_functions)
+        rc_test,  vals_test = sample_basisfunctions(op, testqp, test_functions)
         B1_test = dropzeros(sparse(rc_test[:, 2], rc_test[:, 1], vals_test[:, 1]))
         B2_test = dropzeros(sparse(rc_test[:, 2], rc_test[:, 1], vals_test[:, 2]))
         B3_test = dropzeros(sparse(rc_test[:, 2], rc_test[:, 1], vals_test[:, 3]))
-        rcdiv_test, valsdiv_test = getBmatrix_div(testqp, test_functions)
+        rcdiv_test, valsdiv_test = sample_divbasisfunctions(testqp, test_functions)
         Bdiv_test = dropzeros(sprase(rcdiv_test[:, 2], rcdiv_test[:, 1], valsdiv_test))
     else
         B1_test = sparse(transpose(B1_test))

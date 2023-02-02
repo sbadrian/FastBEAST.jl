@@ -97,7 +97,7 @@ function fmmassemble(
     fmm = assemble_fmm(
         trialpoints,
         testpoints,
-        fmmoptions
+        options=fmmoptions
     )
 
     return FMMMatrix(

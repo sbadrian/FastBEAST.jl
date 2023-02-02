@@ -124,7 +124,7 @@ function FMMMatrix(
     fullmat::HMatrix{I, K},
 ) where {I, K}
 
-    B1, B2, B3, B1_test, B2_test, B3_test = getBmatrix(
+    B1, B2, B3, B1_test, B2_test, B3_test = sample_basisfunctions(
         op,
         test_functions,
         trial_functions,
@@ -148,7 +148,7 @@ function FMMMatrix(
 
 end
 
-function getBmatrix(
+function sample_basisfunctions(
     op::BEAST.MWDoubleLayer3D,
     test_functions::BEAST.Space, 
     trial_functions::BEAST.Space, 
@@ -156,14 +156,14 @@ function getBmatrix(
     trialqp::Matrix,
 )
 
-    rc, vals = getBmatrix(op, trialqp, trial_functions)
+    rc, vals = sample_basisfunctions(op, trialqp, trial_functions)
     B1 = dropzeros(sparse(rc[:, 1], rc[:, 2], vals[:, 1]))
     B2 = dropzeros(sparse(rc[:, 1], rc[:, 2], vals[:, 2]))
     B3 = dropzeros(sparse(rc[:, 1], rc[:, 2], vals[:, 3]))
     B1_test, B2_test, B3_test = B1, B2, B3
 
     if test_functions != trial_functions
-        rc_test,  vals_test = getBmatrix(op, testqp, test_functions)
+        rc_test,  vals_test = sample_basisfunctions(op, testqp, test_functions)
         B1_test = dropzeros(sparse(rc_test[:, 2], rc_test[:, 1], vals_test[:, 1]))
         B2_test = dropzeros(sparse(rc_test[:, 2], rc_test[:, 1], vals_test[:, 2]))
         B3_test = dropzeros(sparse(rc_test[:, 2], rc_test[:, 1], vals_test[:, 3]))
