@@ -154,16 +154,6 @@ function FMMMatrix(
     )
 end
 
-"""
-    function sample_basisfunctions(
-        op::BEAST.MWSingleLayer3D, 
-        test_functions::BEAST.Space, 
-        trial_functions::BEAST.Space, 
-        testqp::Matrix,
-        trialqp::Matrix,
-    )
-
-"""
 function sample_basisfunctions(
     op::BEAST.MWSingleLayer3D, 
     test_functions::BEAST.Space, 
