@@ -1,4 +1,4 @@
-include("test_common.jl")
+using Test
 
 @testset "FastBEAST.jl" begin
     include("test_boundingbox.jl")
@@ -10,4 +10,7 @@ include("test_common.jl")
     include("test_hmatrix.jl")
     include("test_beast.jl")
     include("test_beast_efie.jl")
+    include("test_fmmbases.jl")
+    include("test_fmmoperators.jl")
+    include("test_fmmmfie.jl")
 end

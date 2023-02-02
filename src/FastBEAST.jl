@@ -6,7 +6,9 @@ include("aca.jl")
 include("skeletons.jl")
 include("hmatrix.jl")
 include("utils.jl")
+include("fmm.jl")
 include("beast.jl")
+include("fmm/operators/FMMoperator.jl")
 
 export BoundingBox
 export getboxframe
@@ -33,4 +35,5 @@ export nnz
 export compressionrate
 
 export hassemble
+export fmmassemble
 end

@@ -1,0 +1,6 @@
+include("HH3Dsinglelayer.jl")
+include("HH3Ddoublelayer.jl")
+include("HH3Dadjointdoublelayer.jl")
+include("HH3Dhypersingular.jl")
+include("MW3Dsinglelayer.jl")
+include("MW3Ddoublelayer.jl")
