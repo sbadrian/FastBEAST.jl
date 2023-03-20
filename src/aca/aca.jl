@@ -1,3 +1,19 @@
+struct ACAOptions{B, F}
+    rowpivstrat::PivStrat
+    columnpivstrat::PivStrat
+    tol::F
+    svdrecompress::B
+end
+
+function ACAOptions(;
+    rowpivstrat=MaxPivoting(),
+    columnpivstrat=MaxPivoting(),
+    tol=1e-14,
+    svdrecompress=false
+)
+    return ACAOptions(rowpivstrat, columnpivstrat, tol, svdrecompress)
+end
+
 struct LazyMatrix{I, F} <: AbstractMatrix{F}
     μ::Function
     τ::Vector{I}
@@ -18,10 +34,12 @@ function Base.getindex(
 end
 
 function LazyMatrix(μ::Function, τ::Vector{I}, σ::Vector{I}, ::Type{F}) where {I, F}
+    
     return LazyMatrix{I, F}(μ, τ, σ)
 end
 
 @views function (A::LazyMatrix{K, F})(Z::S, I, J) where {K, F, S <: AbstractMatrix{F}}
+
     A.μ(view(Z, I, J), view(A.τ, I), view(A.σ, J))
 end
 
@@ -33,6 +51,7 @@ struct ACAGlobalMemory{F}
 end
 
 function allocate_aca_memory(::Type{F}, maxrows, maxcolumns; maxrank = 40) where {F}
+
     U = zeros(F, maxrows, maxrank)
     V = zeros(F, maxrank, maxcolumns)
     used_I = zeros(Bool, maxrows)
@@ -42,24 +61,11 @@ end
 
 maxrank(acamemory::ACAGlobalMemory) = size(acamemory.U, 2)
 
-
-function smartmaxlocal(roworcolumn, acausedindices)
-    maxval = -1
-    index = -1
-    for i=1:length(roworcolumn)
-        if !acausedindices[i]
-            if abs(roworcolumn[i]) > maxval
-                maxval = abs(roworcolumn[i]) 
-                index = i
-            end
-        end
-    end
-    return index, maxval
-end
-
 function aca(
     M::LazyMatrix{I, F},
     am::ACAGlobalMemory{F};
+    rowpivstrat=MaxPivoting(1),
+    columnpivstrat=MaxPivoting(1),
     tol=1e-14,
     svdrecompress=true
 ) where {I, F}
@@ -69,9 +75,8 @@ function aca(
 
     (maxrows, maxcolumns) = size(M)
 
-    nextrow = 1
+    rowpivstrat, nextrow = firstindex(rowpivstrat, M.τ)
     am.used_I[nextrow] = true
-
     i = 1
 
     @views M.μ(
@@ -80,16 +85,19 @@ function aca(
         M.σ[1:size(M,2)]
     )
 
-    @views nextcolumn, maxval = smartmaxlocal(
-        am.V[Ic:Ic, 1:maxcolumns],
-        am.used_J[1:maxcolumns]
+    @views nextcolumn = pivoting(
+        columnpivstrat,
+        abs.(am.V[Ic, 1:maxcolumns]),
+        am.used_J[1:maxcolumns],
+        M.σ
     )
 
     am.used_J[nextcolumn] = true
 
     dividor = am.V[Ic, nextcolumn]
-    @views am.V[Ic:Ic, 1:maxcolumns] ./= dividor
-
+    if dividor != 0
+        @views am.V[Ic:Ic, 1:maxcolumns] ./= dividor
+    end
     @views M.μ(
         am.U[1:maxrows, Jc:Jc], 
         M.τ[1:size(M, 1)], 
@@ -106,9 +114,11 @@ function aca(
 
         i += 1
 
-        @views nextrow, maxval = smartmaxlocal(
-            am.U[1:maxrows,Jc],
-            am.used_I[1:maxrows]
+        @views nextrow = pivoting(
+            rowpivstrat,
+            abs.(am.U[1:maxrows,Jc]),
+            am.used_I[1:maxrows],
+            M.τ
         )
 
         am.used_I[nextrow] = true
@@ -127,19 +137,23 @@ function aca(
             end
         end
 
-        @views nextcolumn, maxval = smartmaxlocal(
-            am.V[Ic, 1:maxcolumns],
-            am.used_J[1:maxcolumns]
+        @views nextcolumn = pivoting(
+            columnpivstrat,
+            abs.(am.V[Ic, 1:maxcolumns]),
+            am.used_J[1:maxcolumns],
+            M.σ
         )
 
-        if (isapprox(am.V[Ic, nextcolumn],0.0))
+        if (isapprox(am.V[Ic, nextcolumn], 0.0))
             normUVlastupdate = 0.0
             am.V[Ic:Ic, 1:maxcolumns] .= 0.0
             Ic -= 1
             println("Matrix seems to have exact rank: ", Ic)
         else
             dividor = am.V[Ic, nextcolumn]
-            @views am.V[Ic:Ic, 1:maxcolumns] ./= dividor
+            if dividor != 0
+                @views am.V[Ic:Ic, 1:maxcolumns] ./= dividor
+            end
 
             am.used_J[nextcolumn] = true
 
@@ -161,7 +175,7 @@ function aca(
 
             normUVsqared += normUVlastupdate^2
             for j = 1:(Jc-1)
-                @views normUVsqared += 2*abs(dot(am.U[1:maxrows,Jc], am.U[1:maxrows,j])*dot(am.V[Ic,1:maxcolumns], am.V[j,1:maxcolumns]))
+                @views normUVsqared += 2*real(dot(am.U[1:maxrows,Jc], am.U[1:maxrows,j])*dot(am.V[Ic,1:maxcolumns], am.V[j,1:maxcolumns]))
             end
         end
     end
@@ -204,7 +218,9 @@ function aca(
 end
 
 function aca(
-    M::LazyMatrix{I, F},
+    M::LazyMatrix{I, F};
+    rowpivstrat=MaxPivoting(1),
+    columnpivstrat=MaxPivoting(1),
     tol=1e-14,
     maxrank=40,
     svdrecompress=true
@@ -213,6 +229,27 @@ function aca(
     return aca(
         M,
         allocate_aca_memory(F, size(M, 1), size(M, 2); maxrank=maxrank),
+        rowpivstrat=rowpivstrat,
+        columnpivstrat=columnpivstrat,
+        tol=tol,
+        svdrecompress=svdrecompress
+    )
+end
+
+function aca(
+    M::LazyMatrix{I, F},
+    am::ACAGlobalMemory{F},
+    rowpivstrat::MaxPivoting{I};
+    columnpivstrat=MaxPivoting(1),
+    tol=1e-14,
+    svdrecompress=true
+) where {I, F}
+
+    return aca(
+        M,
+        am,
+        rowpivstrat=rowpivstrat,
+        columnpivstrat=columnpivstrat,
         tol=tol,
         svdrecompress=svdrecompress
     )
