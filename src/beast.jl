@@ -5,6 +5,7 @@ function hassemble(
     test_functions,
     trial_functions;
     compressor=:aca,
+    acaoptions=ACAOptions(),
     tol=1e-4,
     treeoptions=BoxTreeOptions(nmin=100),
     maxrank=200,
@@ -43,6 +44,7 @@ function hassemble(
         trial_tree,
         Int64,
         scalartype(operator),
+        acaoptions=acaoptions,
         compressor=compressor,
         tol=tol,
         maxrank=maxrank,
@@ -131,6 +133,14 @@ function BEAST.quadrule(op, tref, bref,
         qd.test_qp[1,i],
         qd.bsis_qp[1,j])
 end
+
+#function BEAST.quadrule(op, tref, bref,
+#    i ,τ, j, σ, qd, qs::BEAST.DoubleNumQStrat)
+#
+#    return BEAST.DoubleQuadRule(
+#        qd.tpoints[1,i],
+#        qd.bpoints[1,j])
+#end
 
 
 # Safe evaluation of Greens function
