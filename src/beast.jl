@@ -52,18 +52,19 @@ function fmmassemble(
     operator::BEAST.AbstractOperator,
     test_functions::BEAST.Space,
     trial_functions::BEAST.Space;
-    nmin=10,
-    threading=:single,
-    npoints=3,
-    fmmoptions=LaplaceFMMOptions()
+    treeoptions=BoxTreeOptions(nmin=10),
+    fmmoptions=LaplaceFMMOptions(),
+    quadstrat=SafeDoubleNumQStrat(3, 3),
+    multithreading=false,
+    verbose=false    
 )
     fullrankblocks, correctionblocks, _ = getfullrankblocks(
         operator,
         test_functions,
         trial_functions,
-        nmin=nmin,
-        threading=threading,
-        quadstratcbk=SafeDoubleNumQStrat(npoints, npoints)
+        treeoptions=treeoptions,
+        multithreading=multithreading,
+        quadstratcbk=quadstrat
     )
     K = scalartype(operator)
     fullmat = HMatrix(
@@ -73,7 +74,7 @@ function fmmassemble(
         length(trial_functions.fns),
         0,
         0,
-        threading == :multi ?  true : false
+        multithreading
     )
     BtCB = HMatrix(
         correctionblocks,
@@ -82,11 +83,11 @@ function fmmassemble(
         length(trial_functions.fns),
         0,
         0,
-        threading == :multi ?  true : false
+        multithreading
     )
     
-    testpoints, testqp = meshtopoints(test_functions, npoints)
-    trialpoints, trialqp = meshtopoints(trial_functions, npoints)
+    testpoints, testqp = meshtopoints(test_functions, quadstrat.outer_rule)
+    trialpoints, trialqp = meshtopoints(trial_functions, quadstrat.outer_rule)
 
     fmm = assemble_fmm(
         trialpoints,
