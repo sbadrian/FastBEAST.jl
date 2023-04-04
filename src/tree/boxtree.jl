@@ -82,3 +82,17 @@ function fill_tree!(
         end
     end
 end
+
+function iscompressable(sourcenode::BoxTreeNode, testnode::BoxTreeNode)
+    mindistance = 
+        sqrt(length(sourcenode.boundingbox.center))*sourcenode.boundingbox.halflength 
+    mindistance += 
+        sqrt(length(testnode.boundingbox.center))*testnode.boundingbox.halflength 
+
+    distance_centers = norm(sourcenode.boundingbox.center - testnode.boundingbox.center)
+    if distance_centers > 1.1*mindistance
+        return true
+    else 
+        return false
+    end
+end

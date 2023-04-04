@@ -4,15 +4,11 @@ function hassemble(
     operator::BEAST.AbstractOperator,
     test_functions,
     trial_functions;
-    compressor=:aca,
-    acaoptions=ACAOptions(),
-    tol=1e-4,
     treeoptions=BoxTreeOptions(nmin=100),
-    maxrank=200,
-    threading=:single,
+    compressor=ACAOptions(),
     quadstrat=BEAST.defaultquadstrat(operator, test_functions, trial_functions),
-    verbose=false,
-    svdrecompress=false
+    multithreading=false,
+    verbose=false
 )
 
     @views blkasm = BEAST.blockassembler(operator, test_functions, trial_functions)
@@ -44,14 +40,10 @@ function hassemble(
         trial_tree,
         Int64,
         scalartype(operator),
-        acaoptions=acaoptions,
-        compressor=compressor,
-        tol=tol,
-        maxrank=maxrank,
-        threading=threading,
         farmatrixassembler=farassembler,
-        verbose=verbose,
-        svdrecompress=svdrecompress
+        compressor=compressor,
+        multithreading=multithreading,
+        verbose=verbose
     )
     return hmat
 end

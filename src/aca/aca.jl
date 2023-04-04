@@ -1,6 +1,9 @@
-struct ACAOptions{B, F}
+using BEAST 
+
+struct ACAOptions{B, I, F}
     rowpivstrat::PivStrat
     columnpivstrat::PivStrat
+    maxrank::I
     tol::F
     svdrecompress::B
 end
@@ -8,10 +11,11 @@ end
 function ACAOptions(;
     rowpivstrat=MaxPivoting(),
     columnpivstrat=MaxPivoting(),
+    maxrank=50,
     tol=1e-14,
     svdrecompress=false
 )
-    return ACAOptions(rowpivstrat, columnpivstrat, tol, svdrecompress)
+    return ACAOptions(rowpivstrat, columnpivstrat, maxrank, tol, svdrecompress)
 end
 
 struct LazyMatrix{I, F} <: AbstractMatrix{F}

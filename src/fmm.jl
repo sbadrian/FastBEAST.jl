@@ -5,6 +5,8 @@ using LinearMaps
 using SparseArrays
 using StaticArrays
 
+#struct FMMOptions{I, K}
+
 """
     assemble_fmm(
         spoints::Matrix{F},
@@ -100,8 +102,8 @@ function getfullrankblocks(
     test_tree = create_tree(test_functions.pos, FastBEAST.BoxTreeOptions(nmin=nmin))
     trial_tree = create_tree(trial_functions.pos, FastBEAST.BoxTreeOptions(nmin=nmin))
 
-    fullinteractions = []
-    compressableinteractions = []
+    fullinteractions = SVector{2}[]
+    compressableinteractions = SVector{2}[]
 
     FastBEAST.computerinteractions!(
         test_tree,

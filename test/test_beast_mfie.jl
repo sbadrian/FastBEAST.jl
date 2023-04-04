@@ -37,7 +37,7 @@ k = 2*π/λ
 η = sqrt(μ/ε)
 
 a = 1.0
-Γ_orig = CompScienceMeshes.meshcuboid(a, a, a, 0.2)
+Γ_orig = CompScienceMeshes.meshcuboid(a, a, a, 0.1)
 Γ = translate(Γ_orig,SVector(-a/2,-a/2,-a/2))
 
 Φ, Θ = [0.0], range(0,stop=π,length=100)
@@ -69,13 +69,10 @@ K_bc = hassemble(
     𝓚,
     Y,
     X,
-    acaoptions=FastBEAST.ACAOptions(rowpivstrat=FastBEAST.FillDistance(Y.pos)),
-    treeoptions=BoxTreeOptions(nmin=50),
-    threading=:multi,
-    tol=1e-4,
-    maxrank=50,
+    treeoptions=KMeansTreeOptions(nmin=50),
+    compressor=FastBEAST.ACAOptions(rowpivstrat=FastBEAST.FillDistance(Y.pos), maxrank=100, tol=1e-4),    
     verbose=true,
-    svdrecompress=false
+    multithreading=true
 )
 
 

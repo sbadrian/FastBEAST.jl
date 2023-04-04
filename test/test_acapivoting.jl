@@ -143,10 +143,7 @@ src2 = CompScienceMeshes.translate(src2, SVector(-1, 1,-1))
 Γtrg = CompScienceMeshes.translate(Γsrc, SVector(0, 2, 0))
 
 ##
-using Plotly
-Plotly.plot([CompScienceMeshes.wireframe(Γsrc), CompScienceMeshes.wireframe(Γtrg)])
 
-##
 MS = Maxwell3D.singlelayer(wavenumber=k)
 MD = Maxwell3D.doublelayer(wavenumber=k)
 
