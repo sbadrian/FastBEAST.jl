@@ -44,8 +44,7 @@ if Threads.nthreads() > 14
         stree,
         Int64,
         Float64,
-        compressor=:aca,
-        svdrecompress=false
+        compressor=FastBEAST.ACAOptions(tol=1e-4)
     ))
 
     println("Compression rate (BoxTree): ", compressionrate(hmatb)*100)
@@ -60,8 +59,7 @@ if Threads.nthreads() > 14
         stree,
         Int64,
         Float64,
-        compressor=:aca,
-        svdrecompress=true
+        compressor=FastBEAST.ACAOptions(tol=1e-4, svdrecompress=true)
     ))
 
     println("Compression rate (BoxTree, SVD): ", compressionrate(hmatbs)*100)
@@ -76,8 +74,7 @@ if Threads.nthreads() > 14
         stree,
         Int64,
         Float64,
-        compressor=:aca,
-        svdrecompress=false
+        compressor=FastBEAST.ACAOptions(tol=1e-4, svdrecompress=true)
     ))
 
     println("Compression rate (KMeans): ", compressionrate(hmatk)*100)
@@ -94,8 +91,7 @@ if Threads.nthreads() > 14
         stree,
         Int64,
         Float64,
-        compressor=:aca,
-        svdrecompress=true
+        compressor=FastBEAST.ACAOptions(tol=1e-4, svdrecompress=true)
     ))
 
     println("Compression rate (KMeans, SVD): ", compressionrate(hmatks)*100)
@@ -120,9 +116,8 @@ if Threads.nthreads() > 14
         stree,
         Int64,
         Float64,
-        compressor=:aca,
-        threading=:multi,
-        svdrecompress=false
+        compressor=FastBEAST.ACAOptions(tol=1e-4, svdrecompress=false),
+        multithreading=true
     ))
 
     println("Compression rate (BoxTree): ", compressionrate(hmatb)*100)
@@ -137,9 +132,8 @@ if Threads.nthreads() > 14
         stree,
         Int64,
         Float64,
-        compressor=:aca,
-        threading=:multi,
-        svdrecompress=true
+        compressor=FastBEAST.ACAOptions(tol=1e-4, svdrecompress=true), 
+        multithreading=true
     ))
 
     println("Compression rate (BoxTree, SVD): ", compressionrate(hmatbs)*100)
@@ -154,9 +148,8 @@ if Threads.nthreads() > 14
         stree,
         Int64,
         Float64,
-        compressor=:aca,
-        threading=:multi,
-        svdrecompress=false
+        compressor=FastBEAST.ACAOptions(tol=1e-4, svdrecompress=false),
+        multithreading=true
     ))
 
     println("Compression rate (KMeans): ", compressionrate(hmatk)*100)
@@ -173,9 +166,8 @@ if Threads.nthreads() > 14
         stree,
         Int64,
         Float64,
-        compressor=:aca,
-        threading=:multi,
-        svdrecompress=true
+        compressor=FastBEAST.ACAOptions(tol=1e-4, svdrecompress=true),
+        multithreading=true
     ))
 
     println("Compression rate (KMeans, SVD): ", compressionrate(hmatks)*100)

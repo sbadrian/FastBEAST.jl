@@ -62,15 +62,15 @@ M_IDPSL = fmmassemble(
     S,
     X0,
     X0,
-    threading=:multi,
-    fmmoptions=HelmholtzFMMOptions(ComplexF64(k))
+    fmmoptions=HelmholtzFMMOptions(ComplexF64(k)),
+    multithreading=true
 ) # Single layer (SL)
 M_IDPDL =  (-1 / 2 * assemble(BEAST.Identity(), X1, X1) + fmmassemble(
     D,
     X1,
     X1,
-    threading=:multi,
-    fmmoptions=HelmholtzFMMOptions(ComplexF64(k))
+    fmmoptions=HelmholtzFMMOptions(ComplexF64(k)),
+    multithreading=true
 )) # Double layer (DL)
 # Interior Neumann problem
 # Neumann derivative from DL potential with deflected nullspace
@@ -78,17 +78,17 @@ M_INPDL = -fmmassemble(
     N,
     X1,
     X1,
-    threading=:multi,
-    nmin=20,
-    fmmoptions=HelmholtzFMMOptions(ComplexF64(k))
+    treeoptions=FastBEAST.BoxTreeOptions(nmin=20),
+    fmmoptions=HelmholtzFMMOptions(ComplexF64(k)),
+    multithreading=true
 ) + G * o * o' * G
 # Neumann derivative from SL potential with deflected nullspace
 M_INPSL = (1 / 2 * assemble(BEAST.Identity(), X1, X1) + fmmassemble(
     Dt,
     X1,
     X1,
-    threading=:multi,
-    fmmoptions=HelmholtzFMMOptions(ComplexF64(k))
+    fmmoptions=HelmholtzFMMOptions(ComplexF64(k)),
+    multithreading=true
 )) + G * o * o' * G 
 
 ρ_IDPSL = IterativeSolvers.gmres(M_IDPSL, -gD0, verbose=true, reltol=1e-4, maxiter=200)

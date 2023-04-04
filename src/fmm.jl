@@ -5,6 +5,8 @@ using LinearMaps
 using SparseArrays
 using StaticArrays
 
+#struct FMMOptions{I, K}
+
 """
     assemble_fmm(
         spoints::Matrix{F},
@@ -53,9 +55,9 @@ The correct evalueated blocks of the close interactions are added to the solutio
 - `operator::BEAST.AbstractOperator`: Operator of BEM.
 - `test_functions::BEAST.Space`: Test functions.
 - `trial_functions::BEAST.Space`: Trial functions.
-- `threading`: Determines weather the computations is single or multithreaded.
-- `nmin`: Minimal number of points in a block of the tree to get split up 
-in eight children blocks (3D).
+- `treeoptions`: Defines which tree is build and the minimal number of basis functions
+in each box.
+- `multithreading`: Determines weather the computations is single or multithreaded.
 - `quadstratcbk`: Quadrature strategy used for the correction of the FMM. 
 SafeDoubleNumQStrat() uses a classical Gaussian quadrature and returns zero 
 if test equals trial function.
@@ -66,8 +68,8 @@ function getfullrankblocks(
     operator::BEAST.AbstractOperator,
     test_functions::BEAST.Space,
     trial_functions::BEAST.Space;
-    threading=:single,
-    nmin=10,
+    treeoptions=BoxTreeOptions(nmin=10),
+    multithreading=false,
     quadstratcbk=SafeDoubleNumQStrat(1, 1),
     quadstratfbk=BEAST.defaultquadstrat(operator, test_functions, trial_functions)
 )
@@ -97,11 +99,11 @@ function getfullrankblocks(
     correctionblocks = MBF[]
     correctionblocks_perthread = Vector{MBF}[]
 
-    test_tree = create_tree(test_functions.pos, FastBEAST.BoxTreeOptions(nmin=nmin))
-    trial_tree = create_tree(trial_functions.pos, FastBEAST.BoxTreeOptions(nmin=nmin))
+    test_tree = create_tree(test_functions.pos, treeoptions)
+    trial_tree = create_tree(trial_functions.pos, treeoptions)
 
-    fullinteractions = []
-    compressableinteractions = []
+    fullinteractions = SVector{2}[]
+    compressableinteractions = SVector{2}[]
 
     FastBEAST.computerinteractions!(
         test_tree,
@@ -110,7 +112,7 @@ function getfullrankblocks(
         compressableinteractions
     )
 
-    if threading == :single
+    if !multithreading
         for fullinteraction in fullinteractions
             push!(
                 fullrankblocks,
@@ -133,7 +135,7 @@ function getfullrankblocks(
                 )
             )
         end
-    elseif threading == :multi
+    elseif multithreading
         for i in 1:Threads.nthreads()
             push!(fullrankblocks_perthread, MBF[])
             push!(correctionblocks_perthread, MBF[])

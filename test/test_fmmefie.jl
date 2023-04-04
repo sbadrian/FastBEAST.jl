@@ -47,9 +47,9 @@ T = fmmassemble(
     𝓣,
     X,
     X,
-    nmin=50,
-    threading=:multi,
-    fmmoptions=HelmholtzFMMOptions(ComplexF64(k))
+    treeoptions= FastBEAST.BoxTreeOptions(nmin=50),
+    fmmoptions=HelmholtzFMMOptions(ComplexF64(k)),
+    multithreading=true
 )
 
 e = assemble(𝒆,X)

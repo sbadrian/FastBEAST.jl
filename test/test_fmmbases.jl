@@ -29,33 +29,32 @@ yX0 = fmmassemble(
     S,
     X0,
     X0,
-    threading=:multi,
-    nmin=10,
-    fmmoptions=HelmholtzFMMOptions(ComplexF64(k))
+    fmmoptions=HelmholtzFMMOptions(ComplexF64(k)),
+    multithreading=true
 ) * xX0
 
 yX1 = fmmassemble(
     S,
     X1,
     X1,
-    threading=:multi,
-    fmmoptions=HelmholtzFMMOptions(ComplexF64(k))
+    fmmoptions=HelmholtzFMMOptions(ComplexF64(k)),
+    multithreading=true
 ) * xX1
 
 yXd0 = fmmassemble(
     S,
     Xd0,
     Xd0,
-    threading=:multi,
-    fmmoptions=HelmholtzFMMOptions(ComplexF64(k))
+    fmmoptions=HelmholtzFMMOptions(ComplexF64(k)),
+    multithreading=true
 ) * xXd0
 
 yXd1 = fmmassemble(
     S,
     Xd1,
     Xd1,
-    threading=:multi,
-    fmmoptions=HelmholtzFMMOptions(ComplexF64(k))
+    fmmoptions=HelmholtzFMMOptions(ComplexF64(k)),
+    multithreading=true
 ) * xXd1
 
 yX0_true = assemble(S, X0, X0) * xX0
