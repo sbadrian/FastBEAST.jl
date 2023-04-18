@@ -1,4 +1,4 @@
-using BEAST 
+using BEAST
 
 struct ACAOptions{B, I, F}
     rowpivstrat::PivStrat
@@ -47,150 +47,242 @@ end
     A.μ(view(Z, I, J), view(A.τ, I), view(A.σ, J))
 end
 
-struct ACAGlobalMemory{F}
-    U::Matrix{F}
-    V::Matrix{F}
+
+mutable struct ACAGlobalMemory{I, F, K}
+    Ic::I
+    Jc::I
+    U::Matrix{K}
+    V::Matrix{K}
     used_I::Vector{Bool}
     used_J::Vector{Bool}
+    normUV::F
 end
 
-function allocate_aca_memory(::Type{F}, maxrows, maxcolumns; maxrank = 40) where {F}
+maxrank(acamemory::ACAGlobalMemory) = size(acamemory.U, 2)
+
+function allocate_aca_memory(::Type{F}, maxrows, maxcolumns; maxrank=40) where {F}
 
     U = zeros(F, maxrows, maxrank)
     V = zeros(F, maxrank, maxcolumns)
     used_I = zeros(Bool, maxrows)
     used_J = zeros(Bool, maxcolumns)
-    return ACAGlobalMemory(U, V, used_I, used_J)
+    return ACAGlobalMemory(1, 1, U, V, used_I, used_J, 0.0)
 end
 
-maxrank(acamemory::ACAGlobalMemory) = size(acamemory.U, 2)
+function checkconvergence(
+    normU::F,
+    normV::F,
+    maxrows::I,
+    maxcolumns::I,
+    am::ACAGlobalMemory{I, F, K},
+    rowpivstrat::FastBEAST.FillDistance{3, F},
+    columnpivstrat::FastBEAST.MaxPivoting{I},
+    tol::F,
+) where {I, F, K}
+
+    if normU == 0 || normV == 0
+        #println("Alternatly structured matrixblock.")
+        if am.Ic > 1
+            am.Ic -= 1
+            am.Jc -= 1
+        end
+        rowpivstrat = FastBEAST.MaxPivoting()
+        
+        return false, rowpivstrat, columnpivstrat
+    else
+        am.normUV += (normU * normV)^2
+        for j = 1:(am.Jc-1)
+            @views am.normUV += 2*abs.(dot(am.U[1:maxrows, am.Jc], am.U[1:maxrows, j]) * dot(
+                am.V[am.Ic, 1:maxcolumns],
+                am.V[j, 1:maxcolumns])
+            )
+        end
+
+        return normU*normV <= tol*sqrt(am.normUV), rowpivstrat, columnpivstrat
+    end
+end
+
+function checkconvergence(
+    normU::F,
+    normV::F,
+    maxrows::I,
+    maxcolumns::I,
+    am::ACAGlobalMemory{I, F, K},
+    rowpivstrat::FastBEAST.MaxPivoting{I},
+    columnpivstrat::FastBEAST.MaxPivoting{I},
+    tol::F,
+) where {I, F, K}
+
+    if normU == 0 || normV == 0
+        # println("Alternatly structured matrixblock.")
+        if am.Ic > 1
+            am.Ic -= 1
+            am.Jc -= 1
+        end
+
+        return false, rowpivstrat, columnpivstrat
+    else
+        am.normUV += (normU * normV)^2
+        for j = 1:(am.Jc-1)
+            @views am.normUV += 2*abs.(dot(am.U[1:maxrows, am.Jc], am.U[1:maxrows, j]) * dot(
+                am.V[am.Ic, 1:maxcolumns],
+                am.V[j, 1:maxcolumns])
+            )
+        end
+        return normU*normV <= tol*sqrt(am.normUV), rowpivstrat, columnpivstrat
+    end
+end
 
 function aca(
-    M::LazyMatrix{I, F},
-    am::ACAGlobalMemory{F};
+    M::FastBEAST.LazyMatrix{I, K},
+    am::ACAGlobalMemory{I, F, K};
     rowpivstrat=MaxPivoting(1),
     columnpivstrat=MaxPivoting(1),
     tol=1e-14,
     svdrecompress=true
-) where {I, F}
+) where {I, F, K}
 
-    Ic = 1
-    Jc = 1
+    isconverged = false    
 
     (maxrows, maxcolumns) = size(M)
 
-    rowpivstrat, nextrow = firstindex(rowpivstrat, M.τ)
+    rowpivstrat, nextrow = FastBEAST.firstindex(rowpivstrat, M.τ)
     am.used_I[nextrow] = true
     i = 1
 
     @views M.μ(
-        am.V[Ic:Ic, 1:maxcolumns], 
+        am.V[am.Ic:am.Ic, 1:maxcolumns], 
         M.τ[nextrow:nextrow],
         M.σ[1:size(M,2)]
     )
 
-    @views nextcolumn = pivoting(
+    @views nextcolumn = FastBEAST.pivoting(
         columnpivstrat,
-        abs.(am.V[Ic, 1:maxcolumns]),
+        abs.(am.V[am.Ic, 1:maxcolumns]),
         am.used_J[1:maxcolumns],
         M.σ
     )
 
     am.used_J[nextcolumn] = true
 
-    dividor = am.V[Ic, nextcolumn]
+    dividor = am.V[am.Ic, nextcolumn]
     if dividor != 0
-        @views am.V[Ic:Ic, 1:maxcolumns] ./= dividor
+        @views am.V[am.Ic:am.Ic, 1:maxcolumns] ./= dividor
     end
+
     @views M.μ(
-        am.U[1:maxrows, Jc:Jc], 
+        am.U[1:maxrows, am.Jc:am.Jc], 
         M.τ[1:size(M, 1)], 
         M.σ[nextcolumn:nextcolumn]
     )
 
-    @views normUVlastupdate = norm(am.U[1:maxrows, 1])*norm(am.V[1, 1:maxcolumns])
-    normUVsqared = normUVlastupdate^2
-   
-    while normUVlastupdate > sqrt(normUVsqared)*tol && 
+    @views normU = norm(am.U[1:maxrows, am.Jc])
+    @views normV = norm(am.V[am.Ic, 1:maxcolumns])
+
+    if isapprox(normU, 0.0) && isapprox(normV, 0.0)
+        println("Matrix seems to have exact rank: ", am.Ic)
+        isconverged = true
+    else
+        isconverged, rowpivstrat, columnpivstrat = checkconvergence(
+            normU,
+            normV,
+            maxrows,
+            maxcolumns,
+            am,
+            rowpivstrat,
+            columnpivstrat,
+            tol
+        )
+    end
+    
+    while !isconverged &&
         i <= length(M.τ)-1 &&
         i <= length(M.σ)-1 &&
-        Jc < maxrank(am)
+        am.Jc < maxrank(am)
 
         i += 1
-
-        @views nextrow = pivoting(
+        
+        
+        @views nextrow = FastBEAST.pivoting(
             rowpivstrat,
-            abs.(am.U[1:maxrows,Jc]),
+            abs.(am.U[1:maxrows,am.Jc]),
             am.used_I[1:maxrows],
             M.τ
         )
 
         am.used_I[nextrow] = true
 
-        Ic += 1
+        am.Ic += 1
         @views M.μ(
-            am.V[Ic:Ic, 1:maxcolumns],
+            am.V[am.Ic:am.Ic, 1:maxcolumns],
             M.τ[nextrow:nextrow],
             M.σ[1:size(M, 2)]
         )
 
-        @assert Jc == (Ic - 1)
-        for k = 1:Jc
+        @assert am.Jc == (am.Ic - 1)
+        for k = 1:am.Jc
             for kk=1:maxcolumns
-                am.V[Ic, kk] -= am.U[nextrow, k]*am.V[k, kk]
+                am.V[am.Ic, kk] -= am.U[nextrow, k]*am.V[k, kk]
             end
         end
 
-        @views nextcolumn = pivoting(
+        @views nextcolumn = FastBEAST.pivoting(
             columnpivstrat,
-            abs.(am.V[Ic, 1:maxcolumns]),
+            abs.(am.V[am.Ic, 1:maxcolumns]),
             am.used_J[1:maxcolumns],
             M.σ
         )
 
-        if (isapprox(am.V[Ic, nextcolumn], 0.0))
-            normUVlastupdate = 0.0
-            am.V[Ic:Ic, 1:maxcolumns] .= 0.0
-            Ic -= 1
-            println("Matrix seems to have exact rank: ", Ic)
+        dividor = am.V[am.Ic, nextcolumn]
+        if dividor != 0
+            @views am.V[am.Ic:am.Ic, 1:maxcolumns] ./= dividor
+        end
+
+        am.used_J[nextcolumn] = true
+        am.Jc += 1
+        
+        @views M.μ(
+            am.U[1:maxrows, am.Jc:am.Jc], 
+            M.τ[1:size(M, 1)],
+            M.σ[nextcolumn:nextcolumn]
+        )
+        
+        @assert am.Jc == am.Ic
+        for k = 1:(am.Jc-1)
+            for kk = 1:maxrows
+                am.U[kk, am.Jc] -= am.U[kk, k]*am.V[k, nextcolumn]
+            end
+        end
+
+        @views normU = norm(am.U[1:maxrows, am.Jc])
+        @views normV = norm(am.V[am.Ic, 1:maxcolumns])
+
+        if isapprox(normU, 0.0) && isapprox(normV, 0.0)
+            println("Matrix seems to have exact rank: ", am.Ic-1)
+            am.Ic -= 1
+            am.Jc -= 1
+            isconverged = true
         else
-            dividor = am.V[Ic, nextcolumn]
-            if dividor != 0
-                @views am.V[Ic:Ic, 1:maxcolumns] ./= dividor
-            end
-
-            am.used_J[nextcolumn] = true
-
-            Jc += 1
-            @views M.μ(
-                am.U[1:maxrows, Jc:Jc], 
-                M.τ[1:size(M, 1)],
-                M.σ[nextcolumn:nextcolumn]
+            isconverged, rowpivstrat, columnpivstrat = checkconvergence(
+                normU,
+                normV,
+                maxrows,
+                maxcolumns,
+                am,
+                rowpivstrat,
+                columnpivstrat,
+                tol
             )
-
-            @assert Jc == Ic
-            for k = 1:(Jc-1)
-                for kk = 1:maxrows
-                    am.U[kk, Jc] -= am.U[kk, k]*am.V[k, nextcolumn]
-                end
-            end
-
-            @views normUVlastupdate = norm(am.U[1:maxrows,Jc])*norm(am.V[Ic,1:maxcolumns])
-
-            normUVsqared += normUVlastupdate^2
-            for j = 1:(Jc-1)
-                @views normUVsqared += 2*real(dot(am.U[1:maxrows,Jc], am.U[1:maxrows,j])*dot(am.V[Ic,1:maxcolumns], am.V[j,1:maxcolumns]))
-            end
         end
     end
 
-    if Jc == maxrank(am)
+    if am.Jc == maxrank(am)
         println("WARNING: aborted ACA after maximum allowed rank")
     end
 
-    if svdrecompress && Jc > 1
-        @views Q,R = qr(am.U[1:maxrows,1:Jc])
-        @views U,s,V = svd(R*am.V[1:Ic,1:maxcolumns])
+    if svdrecompress && am.Jc > 1
+        @views Q,R = qr(am.U[1:maxrows,1:am.Jc])
+        @views U,s,V = svd(R*am.V[1:am.Ic,1:maxcolumns])
 
         opt_r = length(s)
         for i in eachindex(s)
@@ -200,31 +292,39 @@ function aca(
             end
         end
 
-        A = (Q*U)[1:maxrows,1:opt_r]
-        B = (diagm(s)*V')[1:opt_r,1:maxcolumns]
+        A = (Q*U)[1:maxrows, 1:opt_r]
+        B = (diagm(s)*V')[1:opt_r, 1:maxcolumns]
 
-        am.U[1:maxrows, 1:Jc] .= 0.0
-        am.V[1:Ic, 1:maxcolumns] .= 0.0
+        am.U[1:maxrows, 1:am.Jc] .= 0.0
+        am.V[1:am.Ic, 1:maxcolumns] .= 0.0
         am.used_J[1:maxcolumns] .= false
         am.used_I[1:maxrows] .= false
+        am.Ic = 1
+        am.Jc = 1
+        am.normUV = 0.0
 
         return A, B
     else
-        retU = am.U[1:maxrows,1:Jc]
-        retV = am.V[1:Ic,1:maxcolumns]
-        am.U[1:maxrows, 1:Jc] .= 0.0
-        am.V[1:Ic, 1:maxcolumns] .= 0.0
+        retU = am.U[1:maxrows, 1:am.Jc]
+        retV = am.V[1:am.Ic, 1:maxcolumns]
+        
+        am.U[1:maxrows, 1:am.Jc] .= 0.0
+        am.V[1:am.Ic, 1:maxcolumns] .= 0.0
         am.used_J[1:maxcolumns] .= false
         am.used_I[1:maxrows] .= false
+        am.Ic = 1
+        am.Jc = 1
+        am.normUV = 0.0
+        
 
         return retU, retV
-    end    
+    end
 end
 
 function aca(
-    M::LazyMatrix{I, F};
-    rowpivstrat=MaxPivoting(1),
-    columnpivstrat=MaxPivoting(1),
+    M::FastBEAST.LazyMatrix{I, F};
+    rowpivstrat=FastBEAST.MaxPivoting(1),
+    columnpivstrat=FastBEAST.MaxPivoting(1),
     tol=1e-14,
     maxrank=40,
     svdrecompress=true
@@ -238,23 +338,5 @@ function aca(
         tol=tol,
         svdrecompress=svdrecompress
     )
-end
 
-function aca(
-    M::LazyMatrix{I, F},
-    am::ACAGlobalMemory{F},
-    rowpivstrat::MaxPivoting{I};
-    columnpivstrat=MaxPivoting(1),
-    tol=1e-14,
-    svdrecompress=true
-) where {I, F}
-
-    return aca(
-        M,
-        am,
-        rowpivstrat=rowpivstrat,
-        columnpivstrat=columnpivstrat,
-        tol=tol,
-        svdrecompress=svdrecompress
-    )
 end

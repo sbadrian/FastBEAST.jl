@@ -47,6 +47,7 @@ T = hassemble(
     𝓣,
     X,
     X,
+    quadstrat=BEAST.DoubleNumQStrat(2,2),
     treeoptions=KMeansTreeOptions(nmin=30),
     compressor=FastBEAST.ACAOptions(maxrank=100, tol=1e-4),    
     verbose=true,
