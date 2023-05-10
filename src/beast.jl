@@ -118,22 +118,13 @@ function BEAST.quaddata(op, tref, bref,
     BEAST.quaddata(op, tref, bref, tels, bels, qs)
 end
 
-# Copied from BEAST/examples/quadstrat.jl
 function BEAST.quadrule(op, tref, bref,
     i ,τ, j, σ, qd, qs::BEAST.DoubleNumQStrat)
 
     return BEAST.DoubleQuadRule(
-        qd.test_qp[1,i],
-        qd.bsis_qp[1,j])
+        qd.tpoints[1,i],
+        qd.bpoints[1,j])
 end
-
-#function BEAST.quadrule(op, tref, bref,
-#    i ,τ, j, σ, qd, qs::BEAST.DoubleNumQStrat)
-#
-#    return BEAST.DoubleQuadRule(
-#        qd.tpoints[1,i],
-#        qd.bpoints[1,j])
-#end
 
 
 # Safe evaluation of Greens function
@@ -149,8 +140,8 @@ end
 
 function BEAST.quadrule(op, tref, bref, i ,τ, j, σ, qd, qs::SafeDoubleNumQStrat)
     return SafeDoubleQuadRule(
-        qd.test_qp[1,i],
-        qd.bsis_qp[1,j])
+        qd.tpoints[1,i],
+        qd.bpoints[1,j])
 end
 
 function BEAST.quaddata(
@@ -165,10 +156,10 @@ function BEAST.quaddata(
     test_eval(x)  = test_refspace(x,  Val{:withcurl})
     trial_eval(x) = trial_refspace(x, Val{:withcurl})
 
-    test_qp = BEAST.quadpoints(test_eval,  test_elements,  (qs.outer_rule,))
-    bsis_qp = BEAST.quadpoints(trial_eval, trial_elements, (qs.inner_rule,))
+    tpoints = BEAST.quadpoints(test_eval,  test_elements,  (qs.outer_rule,))
+    bpoints = BEAST.quadpoints(trial_eval, trial_elements, (qs.inner_rule,))
 
-    return (;test_qp, bsis_qp)
+    return (;tpoints, bpoints)
 end
 
 function BEAST.quaddata(
@@ -183,10 +174,10 @@ function BEAST.quaddata(
     test_eval(x)  = test_refspace(x)
     trial_eval(x) = trial_refspace(x)
 
-    test_qp = BEAST.quadpoints(test_eval,  test_elements,  (qs.outer_rule,))
-    bsis_qp = BEAST.quadpoints(trial_eval, trial_elements, (qs.inner_rule,))
+    tpoints = BEAST.quadpoints(test_eval,  test_elements,  (qs.outer_rule,))
+    bpoints = BEAST.quadpoints(trial_eval, trial_elements, (qs.inner_rule,))
 
-    return (;test_qp, bsis_qp)
+    return (;tpoints, bpoints)
 end
 
 function BEAST.momintegrals!(biop, tshs, bshs, tcell, bcell, z, strat::SafeDoubleQuadRule)

@@ -12,7 +12,7 @@ struct HMatrix{I, K} <: LinearMaps.LinearMap{K}
     ismultithreaded::Bool
 end
 
-function nnz(hmat::HMatrix) where HT <: HMatrix
+function nnz(hmat::HT) where HT <: HMatrix
     return hmat.nnz
 end
 
@@ -211,7 +211,7 @@ function HMatrix(
     if !multithreading
         am = allocate_aca_memory(K, rowdim, coldim, maxrank=compressor.maxrank)
     else
-        ams = ACAGlobalMemory{K}[]
+        ams = ACAGlobalMemory{I, real(K), K}[]
         for i in 1:Threads.nthreads()
             push!(ams, allocate_aca_memory(K, rowdim, coldim, maxrank=compressor.maxrank))
         end
@@ -436,8 +436,8 @@ function getcompressedmatrix(
 
         U, V = aca(
             lm,
-            am,
-            compressor.rowpivstrat;
+            am;
+            rowpivstrat=compressor.rowpivstrat,
             columnpivstrat=compressor.columnpivstrat,
             tol=compressor.tol,
             svdrecompress=compressor.svdrecompress
@@ -451,3 +451,7 @@ function getcompressedmatrix(
 
     return mbl
 end
+
+##
+
+real(ComplexF64)

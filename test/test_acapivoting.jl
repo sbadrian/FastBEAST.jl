@@ -57,11 +57,6 @@ tfd = FastBEAST.TrueFillDistance(t)
 @show size(U)
 @test norm(U*V - A) / norm(A) ≈ 0 atol=1e-5
 
-# adaptive aca
-@time U, V = aca(lm, fd, maxrank=100, tol=1e-6);
-@show size(U)
-@test norm(U*V - A) / norm(A) ≈ 0 atol=1e-5
-
 # classic aca max pivoting
 @time U, V = aca(lm, maxrank=100, tol=1e-6);
 @show size(U)
@@ -104,11 +99,6 @@ fd = FastBEAST.FillDistance(XS.pos)
 
 # classic aca filldistance
 @time U, V = aca(lm, rowpivstrat=fd, tol=1e-4, svdrecompress=false);
-@show size(U)
-@test norm(U*V - A) / norm(A) ≈ 0 atol=1e-3
-
-# adaptive aca
-@time U, V = aca(lm, fd, maxrank=100, tol=1e-4);
 @show size(U)
 @test norm(U*V - A) / norm(A) ≈ 0 atol=1e-3
 
@@ -172,11 +162,6 @@ fd = FastBEAST.FillDistance(Ytrg.pos)
 
 # classic aca filldistance
 @time U, V = aca(lm, rowpivstrat=fd, tol=1e-5);
-@show size(U)
-@show norm(U*V - A) / norm(A)
-
-# adaptive aca
-@time U, V = aca(lm, fd, maxrank=100, tol=1e-5);
 @show size(U)
 @show norm(U*V - A) / norm(A)
 

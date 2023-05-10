@@ -69,6 +69,7 @@ K_bc = hassemble(
     𝓚,
     Y,
     X,
+    quadstrat=BEAST.DoubleNumQStrat(2,2),
     treeoptions=KMeansTreeOptions(nmin=50),
     compressor=FastBEAST.ACAOptions(rowpivstrat=FastBEAST.FillDistance(Y.pos), maxrank=100, tol=1e-4),    
     verbose=true,
