@@ -71,9 +71,11 @@ end
         A.fmm*conj.(A.normals_trial[:,3] .* (A.B_trial * x))
     )[:,1]
 
-    y2 = A.fmm.fmmoptions.wavek^2 * A.B_test * (fmm_res1 + fmm_res2 + fmm_res3)
+    if !(A.fmm.fmmoptions isa LaplaceFMMOptions)
+        y1 -= A.fmm.fmmoptions.wavek^2 * A.B_test * (fmm_res1 + fmm_res2 + fmm_res3)
+    end
 
-    y .= (y1 - y2) - A.BtCB*x + A.fullmat*x
+    y .= y1 - A.BtCB*x + A.fullmat*x
 
     return y
 end
