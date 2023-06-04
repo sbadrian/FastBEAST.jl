@@ -101,7 +101,7 @@ end
 end
 
 function FMMMatrix(
-    op::BEAST.HH3DDoubleLayerTransposed,
+    op::BEAST.HH3DDoubleLayerTransposedFDBIO,
     test_functions::BEAST.Space, 
     trial_functions::BEAST.Space, 
     testqp::Matrix,
@@ -126,7 +126,7 @@ function FMMMatrix(
 end
 
 function sample_basisfunctions(
-    op::BEAST.HH3DDoubleLayerTransposed,
+    op::BEAST.HH3DDoubleLayerTransposedFDBIO,
     test_functions::BEAST.Space, 
     trial_functions::BEAST.Space, 
     testqp::Matrix,
