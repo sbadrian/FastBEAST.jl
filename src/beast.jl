@@ -49,14 +49,14 @@ function hassemble(
 end
 
 function fmmassemble(
-    operator::BEAST.AbstractOperator,
+    operator,
     test_functions::BEAST.Space,
     trial_functions::BEAST.Space;
     treeoptions=BoxTreeOptions(nmin=10),
     fmmoptions=LaplaceFMMOptions(),
     quadstrat=SafeDoubleNumQStrat(3, 3),
     multithreading=false,
-    verbose=false    
+    verbose=false
 )
     fullrankblocks, correctionblocks, _ = getfullrankblocks(
         operator,
@@ -105,6 +105,19 @@ function fmmassemble(
         BtCB,
         fullmat,
     )
+end
+
+function fmmassemble(
+    operator::BEAST.Identity,
+    test_functions::BEAST.Space,
+    trial_functions::BEAST.Space;
+    treeoptions=BoxTreeOptions(nmin=10),
+    fmmoptions=LaplaceFMMOptions(),
+    quadstrat=SafeDoubleNumQStrat(3, 3),
+    multithreading=false,
+    verbose=false
+)
+    return assemble(operator, test_functions, trial_functions)
 end
 
 # The following to function ensure that no dynamic dispatching is
@@ -210,4 +223,28 @@ function BEAST.momintegrals!(biop, tshs, bshs, tcell, bcell, z, strat::SafeDoubl
     end
 
     return z
+end
+
+function fmmassemble(op::BEAST.LinearCombinationOfOperators, X::BEAST.Space, Y::BEAST.Space; 
+    treeoptions=BoxTreeOptions(nmin=10),
+    fmmoptions=LaplaceFMMOptions(),
+    quadstrat=SafeDoubleNumQStrat(3, 3),
+    multithreading=false,
+    verbose=false
+)
+
+    T = scalartype(op, X, Y)
+
+    M = numfunctions(X)
+    N = numfunctions(Y)
+    A = BEAST.ZeroMap{T}(1:M, 1:N)
+
+    counter = 0
+    for (α,term) in zip(op.coeffs, op.ops)
+        counter += 1
+        println("Compress operator: ", counter)
+        A = A + α * fmmassemble(term, X, Y; treeoptions=treeoptions, fmmoptions=fmmoptions, quadstrat=quadstrat, multithreading=multithreading, verbose=verbose)
+    end
+
+    return A
 end
