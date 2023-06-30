@@ -50,10 +50,17 @@ end
 @views function LinearAlgebra.mul!(y::AbstractVecOrMat, A::FMMMatrixHS, x::AbstractVector)
     LinearMaps.check_dim_mul(y, A, x)
 
+    fill!(y, zero(eltype(y)))
+
+    if eltype(x) <: Complex
+        y .+= mul!(copy(y), A, real.(x))
+        y .+= im .* mul!(copy(y), A, imag.(x))
+        return y
+    end
+
     if eltype(x) != eltype(A)
         x = eltype(A).(x)
     end
-    fill!(y, zero(eltype(y)))
 
     fmm_curl1 = A.B1curl_test * conj.(A.fmm * conj.(A.B1curl_trial * x))[:,1]
     fmm_curl2 = A.B2curl_test * conj.(A.fmm * conj.(A.B2curl_trial * x))[:,1]
@@ -87,10 +94,17 @@ end
 )
     LinearMaps.check_dim_mul(y, A, x)
 
+    fill!(y, zero(eltype(y)))
+
+    if eltype(x) <: Complex
+        y .+= mul!(copy(y), A, real.(x))
+        y .+= im .* mul!(copy(y), A, imag.(x)) 
+        return y
+    end
+
     if eltype(x) != eltype(A)
         x = eltype(A).(x)
     end
-    fill!(y, zero(eltype(y)))
 
     fmm_curl1 = A.B1curl_test * conj.(A.fmm * conj.(A.B1curl_trial * x))[:,1]
     fmm_curl2 = A.B2curl_test * conj.(A.fmm * conj.(A.B2curl_trial * x))[:,1]

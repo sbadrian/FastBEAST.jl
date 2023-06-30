@@ -43,11 +43,19 @@ end
 @views function LinearAlgebra.mul!(y::AbstractVecOrMat, A::FMMMatrixDL, x::AbstractVector)
     LinearMaps.check_dim_mul(y, A, x)
 
+    fill!(y, zero(eltype(y)))
+
+    if eltype(x) <: Complex
+        y .+= mul!(copy(y), A, real.(x))
+        y .+= im .* mul!(copy(y), A, imag.(x)) 
+        return y
+    end
+
     if eltype(x) != eltype(A)
         x = eltype(A).(x)
     end
-    fill!(y, zero(eltype(y)))
 
+#=
     a = A.normals[:,1] .* (A.B_trial * x)
     b = A.normals[:,2] .* (A.B_trial * x)
     c = A.normals[:,3] .* (A.B_trial * x)
@@ -63,6 +71,19 @@ end
     fmm_res3 = A.B_test * cc
     fmm_res = -(fmm_res1 + fmm_res2 + fmm_res3)
     y .= fmm_res - A.BtCB*x + A.fullmat*x
+=#
+    try
+        fmm_res1 = A.B_test * conj.(A.fmm*conj.(A.normals[:,1] .* (A.B_trial * x)))[:,2]
+        fmm_res2 = A.B_test * conj.(A.fmm*conj.(A.normals[:,2] .* (A.B_trial * x)))[:,3]
+        fmm_res3 = A.B_test * conj.(A.fmm*conj.(A.normals[:,3] .* (A.B_trial * x)))[:,4]
+        fmm_res = -(fmm_res1 + fmm_res2 + fmm_res3)
+        y .= fmm_res - A.BtCB*x + A.fullmat*x
+    catch
+        @show size(x)
+        @show size(A.B_trial)
+        @show size(A.normals[:,2])
+        @show size(A.B_test)
+    end
 
     return y
 end
