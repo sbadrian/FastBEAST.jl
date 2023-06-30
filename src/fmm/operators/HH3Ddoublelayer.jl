@@ -48,9 +48,19 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    fmm_res1 = A.B_test * conj.(A.fmm*conj.(A.normals[:,1] .* (A.B_trial * x)))[:,2]
-    fmm_res2 = A.B_test * conj.(A.fmm*conj.(A.normals[:,2] .* (A.B_trial * x)))[:,3]
-    fmm_res3 = A.B_test * conj.(A.fmm*conj.(A.normals[:,3] .* (A.B_trial * x)))[:,4]
+    a = A.normals[:,1] .* (A.B_trial * x)
+    b = A.normals[:,2] .* (A.B_trial * x)
+    c = A.normals[:,3] .* (A.B_trial * x)
+
+    aa = conj.(A.fmm*conj.(a))[:,1]
+    bb = conj.(A.fmm*conj.(b))[:,2]
+    cc = conj.(A.fmm*conj.(c))[:,3]
+
+    @show size(A.B_test)
+    @show size(aa)
+    fmm_res1 = A.B_test * aa
+    fmm_res2 = A.B_test * bb
+    fmm_res3 = A.B_test * cc
     fmm_res = -(fmm_res1 + fmm_res2 + fmm_res3)
     y .= fmm_res - A.BtCB*x + A.fullmat*x
 
@@ -146,7 +156,7 @@ function sample_basisfunctions(
 
     if test_functions != trial_functions 
         rc_test, vals_test = sample_basisfunctions(op, testqp, test_functions)
-        B_test = dropzeros(sparse(rc_test[:, 1], rc_test[:, 2], vals_test))
+        B_test = sparse(transpose(dropzeros(sparse(rc_test[:, 1], rc_test[:, 2], vals_test))))
     else
         B_test = sparse(transpose(B))
     end

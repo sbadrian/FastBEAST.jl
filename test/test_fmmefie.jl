@@ -18,7 +18,7 @@ k = 2*π/λ
 η = sqrt(μ/ε)
 
 a = 1.0
-Γ_orig = CompScienceMeshes.meshcuboid(a,a,a,0.2)
+Γ_orig = CompScienceMeshes.meshcuboid(a,a,a,0.1)
 Γ = translate(Γ_orig, SVector(-a/2,-a/2,-a/2))
 
 Φ, Θ = [0.0], range(0,stop=π,length=100)
