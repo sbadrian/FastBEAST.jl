@@ -29,30 +29,16 @@ q = 100.0
 pos1 = SVector(r * 1.5, 0.0, 0.0)  # positioning of point charges
 pos2 = SVector(-r * 1.5, 0.0, 0.0)
 
-function Φ_inc(x)
-    return q / (4 * π * ϵ) * (
-        exp(-im * k * norm(x - pos1)) / (norm(x - pos1)) -
-        exp(-im * k * norm(x - pos2)) / (norm(x - pos2))
-    )
-end
+charge1 = Helmholtz3D.monopole(position=pos1, amplitude=q/(4*π*ϵ), wavenumber=k)
+charge2 = Helmholtz3D.monopole(position=pos2, amplitude=-q/(4*π*ϵ), wavenumber=k)
 
-function ∂nΦ_inc(x)
-    return -q / (4 * π * ϵ * r) * (
-        (dot(
-            x,
-            (x - pos1) * exp(-im * k * norm(x - pos1)) / (norm(x - pos1)^2) *
-            (im * k + 1 / (norm(x - pos1))),
-        )) - (dot(
-            x,
-            (x - pos2) * exp(-im * k * norm(x - pos2)) / (norm(x - pos2)^2) *
-            (im * k + 1 / (norm(x - pos2))),
-        ))
-    )
-end
+# Potential of point charges
 
-gD0 = assemble(ScalarTrace(Φ_inc), X0)
-gD1 = assemble(ScalarTrace(Φ_inc), X1)
-gN = assemble(ScalarTrace(∂nΦ_inc), X1)
+Φ_inc(x) = charge1(x) + charge2(x)
+
+gD0 = assemble(DirichletTrace(charge1), X0) + assemble(DirichletTrace(charge2), X0)
+gD1 = assemble(DirichletTrace(charge1), X1) + assemble(DirichletTrace(charge2), X1)
+gN = assemble(∂n(charge1), X1) + assemble(BEAST.n ⋅ grad(charge2), X1)
 
 G = assemble(BEAST.Identity(), X1, X1)
 o = ones(numfunctions(X1))
@@ -74,7 +60,7 @@ M_IDPDL =  (-1 / 2 * assemble(BEAST.Identity(), X1, X1) + fmmassemble(
 )) # Double layer (DL)
 # Interior Neumann problem
 # Neumann derivative from DL potential with deflected nullspace
-M_INPDL = -fmmassemble(
+M_INPDL = fmmassemble(
     N,
     X1,
     X1,
@@ -92,7 +78,7 @@ M_INPSL = (1 / 2 * assemble(BEAST.Identity(), X1, X1) + fmmassemble(
 )) + G * o * o' * G 
 
 ρ_IDPSL = IterativeSolvers.gmres(M_IDPSL, -gD0, verbose=true, reltol=1e-4, maxiter=200)
-ρ_IDPDL = IterativeSolvers.gmres(M_IDPDL, gD1, verbose=true, reltol=1e-4, maxiter=200)
+ρ_IDPDL = IterativeSolvers.gmres(M_IDPDL, -gD1, verbose=true, reltol=1e-4, maxiter=200)
 ρ_INPDL = IterativeSolvers.gmres(M_INPDL, gN, verbose=true, reltol=1e-4, maxiter=200)
 ρ_INPSL = IterativeSolvers.gmres(M_INPSL, -gN, verbose=true, reltol=1e-4, maxiter=200)
 
