@@ -146,7 +146,7 @@ function sample_basisfunctions(
 
     if test_functions != trial_functions 
         rc_test, vals_test = sample_basisfunctions(op, testqp, test_functions)
-        B_test = dropzeros(sparse(rc_test[:, 1], rc_test[:, 2], vals_test))
+        B_test = sparse(transpose(dropzeros(sparse(rc_test[:, 1], rc_test[:, 2], vals_test))))
     else
         B_test = sparse(transpose(B))
     end
