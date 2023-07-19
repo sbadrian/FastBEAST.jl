@@ -55,9 +55,9 @@ end
         x = eltype(A).(x)
     end
 
-    fmm_res1 = A.B_test * conj.(A.fmm*conj.(A.normals[:,1] .* (A.B_trial * x)))[:,2]
-    fmm_res2 = A.B_test * conj.(A.fmm*conj.(A.normals[:,2] .* (A.B_trial * x)))[:,3]
-    fmm_res3 = A.B_test * conj.(A.fmm*conj.(A.normals[:,3] .* (A.B_trial * x)))[:,4]
+    fmm_res1 = A.B_test * (A.fmm*(A.normals[:,1] .* (A.B_trial * x)))[:,2]
+    fmm_res2 = A.B_test * (A.fmm*(A.normals[:,2] .* (A.B_trial * x)))[:,3]
+    fmm_res3 = A.B_test * (A.fmm*(A.normals[:,3] .* (A.B_trial * x)))[:,4]
     fmm_res = -(fmm_res1 + fmm_res2 + fmm_res3)
     y .= fmm_res - A.BtCB*x + A.fullmat*x
 
@@ -76,9 +76,9 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    fmm_res1 = A.B_test * conj.(A.fmm*conj.(A.normals[:,1] .* (A.B_trial * x)))[:,2]
-    fmm_res2 = A.B_test * conj.(A.fmm*conj.(A.normals[:,2] .* (A.B_trial * x)))[:,3]
-    fmm_res3 = A.B_test * conj.(A.fmm*conj.(A.normals[:,3] .* (A.B_trial * x)))[:,4]
+    fmm_res1 = A.B_test * (A.fmm*(A.normals[:,1] .* (A.B_trial * x)))[:,2]
+    fmm_res2 = A.B_test * (A.fmm*(A.normals[:,2] .* (A.B_trial * x)))[:,3]
+    fmm_res3 = A.B_test * (A.fmm*(A.normals[:,3] .* (A.B_trial * x)))[:,4]
     fmm_res = -(fmm_res1 + fmm_res2 + fmm_res3)
     y .= fmm_res - A.BtCB*x + A.fullmat*x
 
@@ -98,9 +98,9 @@ end
 
     fill!(y, zero(eltype(y)))
 
-    fmm_res1 = A.B_test * conj.(A.fmm*conj.(A.normals[:,1] .* (A.B_trial * x)))[:,2]
-    fmm_res2 = A.B_test * conj.(A.fmm*conj.(A.normals[:,2] .* (A.B_trial * x)))[:,3]
-    fmm_res3 = A.B_test * conj.(A.fmm*conj.(A.normals[:,3] .* (A.B_trial * x)))[:,4]
+    fmm_res1 = A.B_test * (A.fmm*(A.normals[:,1] .* (A.B_trial * x)))[:,2]
+    fmm_res2 = A.B_test * (A.fmm*(A.normals[:,2] .* (A.B_trial * x)))[:,3]
+    fmm_res3 = A.B_test * (A.fmm*(A.normals[:,3] .* (A.B_trial * x)))[:,4]
     fmm_res = -(fmm_res1 + fmm_res2 + fmm_res3)
     y .= fmm_res - A.BtCB*x + A.fullmat*x
 

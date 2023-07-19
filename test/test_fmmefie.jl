@@ -45,10 +45,10 @@ println("Number of RWG functions: ", numfunctions(X))
 
 T = fmmassemble(
     𝓣,
+    HelmholtzFMMOptions(ComplexF64(-k)),
     X,
     X,
     treeoptions= FastBEAST.BoxTreeOptions(nmin=50),
-    fmmoptions=HelmholtzFMMOptions(ComplexF64(k)),
     multithreading=true
 )
 

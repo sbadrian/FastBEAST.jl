@@ -62,20 +62,20 @@ end
         x = eltype(A).(x)
     end
 
-    fmm_curl1 = A.B1curl_test * conj.(A.fmm * conj.(A.B1curl_trial * x))[:,1]
-    fmm_curl2 = A.B2curl_test * conj.(A.fmm * conj.(A.B2curl_trial * x))[:,1]
-    fmm_curl3 = A.B3curl_test * conj.(A.fmm * conj.(A.B3curl_trial * x))[:,1]
+    fmm_curl1 = A.B1curl_test * (A.fmm * (A.B1curl_trial * x))[:,1]
+    fmm_curl2 = A.B2curl_test * (A.fmm * (A.B2curl_trial * x))[:,1]
+    fmm_curl3 = A.B3curl_test * (A.fmm * (A.B3curl_trial * x))[:,1]
 
     y1 = fmm_curl1 + fmm_curl2 + fmm_curl3
 
-    fmm_res1 = A.normals_test[:,1] .* conj.(
-        A.fmm*conj.(A.normals_trial[:,1] .* (A.B_trial * x))
+    fmm_res1 = A.normals_test[:,1] .* (
+        A.fmm * (A.normals_trial[:,1] .* (A.B_trial * x))
     )[:,1]
-    fmm_res2 = A.normals_test[:,2] .* conj.(
-        A.fmm*conj.(A.normals_trial[:,2] .* (A.B_trial * x))
+    fmm_res2 = A.normals_test[:,2] .* (
+        A.fmm * (A.normals_trial[:,2] .* (A.B_trial * x))
     )[:,1]
-    fmm_res3 = A.normals_test[:,3] .* conj.(
-        A.fmm*conj.(A.normals_trial[:,3] .* (A.B_trial * x))
+    fmm_res3 = A.normals_test[:,3] .* (
+        A.fmm * (A.normals_trial[:,3] .* (A.B_trial * x))
     )[:,1]
 
     if !(A.fmm.fmmoptions isa LaplaceFMMOptions)
@@ -106,20 +106,20 @@ end
         x = eltype(A).(x)
     end
 
-    fmm_curl1 = A.B1curl_test * conj.(A.fmm * conj.(A.B1curl_trial * x))[:,1]
-    fmm_curl2 = A.B2curl_test * conj.(A.fmm * conj.(A.B2curl_trial * x))[:,1]
-    fmm_curl3 = A.B3curl_test * conj.(A.fmm * conj.(A.B3curl_trial * x))[:,1]
+    fmm_curl1 = A.B1curl_test * (A.fmm * (A.B1curl_trial * x))[:,1]
+    fmm_curl2 = A.B2curl_test * (A.fmm * (A.B2curl_trial * x))[:,1]
+    fmm_curl3 = A.B3curl_test * (A.fmm * (A.B3curl_trial * x))[:,1]
 
     y1 = fmm_curl1 + fmm_curl2 + fmm_curl3
 
-    fmm_res1 = A.normals_test[:,1] .* conj.(
-        A.fmm*conj.(A.normals_trial[:,1] .* (A.B_trial * x))
+    fmm_res1 = A.normals_test[:,1] .* (
+        A.fmm * (A.normals_trial[:,1] .* (A.B_trial * x))
     )[:,1]
-    fmm_res2 = A.normals_test[:,2] .* conj.(
-        A.fmm*conj.(A.normals_trial[:,2] .* (A.B_trial * x))
+    fmm_res2 = A.normals_test[:,2] .* (
+        A.fmm * (A.normals_trial[:,2] .* (A.B_trial * x))
     )[:,1]
-    fmm_res3 = A.normals_test[:,3] .* conj.(
-        A.fmm*conj.(A.normals_trial[:,3] .* (A.B_trial * x))
+    fmm_res3 = A.normals_test[:,3] .* (
+        A.fmm * (A.normals_trial[:,3] .* (A.B_trial * x))
     )[:,1]
 
     y2 = A.fmm.fmmoptions.wavek^2 * A.B_test * (fmm_res1 + fmm_res2 + fmm_res3)
@@ -141,20 +141,20 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    fmm_curl1 = A.B1curl_test * conj.(A.fmm * conj.(A.B1curl_trial * x))[:,1]
-    fmm_curl2 = A.B2curl_test * conj.(A.fmm * conj.(A.B2curl_trial * x))[:,1]
-    fmm_curl3 = A.B3curl_test * conj.(A.fmm * conj.(A.B3curl_trial * x))[:,1]
+    fmm_curl1 = A.B1curl_test * (A.fmm * (A.B1curl_trial * x))[:,1]
+    fmm_curl2 = A.B2curl_test * (A.fmm * (A.B2curl_trial * x))[:,1]
+    fmm_curl3 = A.B3curl_test * (A.fmm * (A.B3curl_trial * x))[:,1]
 
     y1 = fmm_curl1 + fmm_curl2 + fmm_curl3
 
-    fmm_res1 = A.normals_test[:,1] .* conj.(
-        A.fmm*conj.(A.normals_trial[:,1] .* (A.B_trial * x))
+    fmm_res1 = A.normals_test[:,1] .* (
+        A.fmm * (A.normals_trial[:,1] .* (A.B_trial * x))
     )[:,1]
-    fmm_res2 = A.normals_test[:,2] .* conj.(
-        A.fmm*conj.(A.normals_trial[:,2] .* (A.B_trial * x))
+    fmm_res2 = A.normals_test[:,2] .* (
+        A.fmm * (A.normals_trial[:,2] .* (A.B_trial * x))
     )[:,1]
-    fmm_res3 = A.normals_test[:,3] .* conj.(
-        A.fmm*conj.(A.normals_trial[:,3] .* (A.B_trial * x))
+    fmm_res3 = A.normals_test[:,3] .* (
+        A.fmm * (A.normals_trial[:,3] .* (A.B_trial * x))
     )[:,1]
 
     y2 = A.fmm.fmmoptions.wavek^2 * A.B_test * (fmm_res1 + fmm_res2 + fmm_res3)

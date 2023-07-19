@@ -50,6 +50,10 @@ end
     include("test_fmmoperators.jl")
 end
 
-@testitem "FMM EFIE and MFIE" tags=[:fast] begin
+@testitem "ExaFMM EFIE" begin
+    include("test_fmmefie.jl")
+end
+
+@testitem "ExaFMM MFIE" tags=[:fast] begin
     include("test_fmmmfie.jl")
 end

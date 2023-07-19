@@ -50,9 +50,9 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    res1 = conj.(A.fmm * conj.(A.B1 * x))[:,2:4]
-    res2 = conj.(A.fmm * conj.(A.B2 * x))[:,2:4]
-    res3 = conj.(A.fmm * conj.(A.B3 * x))[:,2:4]
+    res1 = (A.fmm * (A.B1 * x))[:,2:4]
+    res2 = (A.fmm * (A.B2 * x))[:,2:4]
+    res3 = (A.fmm * (A.B3 * x))[:,2:4]
 
     y1 = A.B1_test * (res3[:,2] - res2[:,3])
     y2 = A.B2_test * (res1[:,3] - res3[:,1])
@@ -75,9 +75,9 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    res1 = conj.(A.fmm * conj.(A.B1 * x))[:,2:4]
-    res2 = conj.(A.fmm * conj.(A.B2 * x))[:,2:4]
-    res3 = conj.(A.fmm * conj.(A.B3 * x))[:,2:4]
+    res1 = (A.fmm * (A.B1 * x))[:,2:4]
+    res2 = (A.fmm * (A.B2 * x))[:,2:4]
+    res3 = (A.fmm * (A.B3 * x))[:,2:4]
 
     y1 = A.B1_test * (res3[:,2] - res2[:,3])
     y2 = A.B2_test * (res1[:,3] - res3[:,1])
@@ -100,9 +100,9 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    res1 = conj.(A.fmm * conj.(A.B1 * x))[:,2:4]
-    res2 = conj.(A.fmm * conj.(A.B2 * x))[:,2:4]
-    res3 = conj.(A.fmm * conj.(A.B3 * x))[:,2:4]
+    res1 = (A.fmm * (A.B1 * x))[:,2:4]
+    res2 = (A.fmm * (A.B2 * x))[:,2:4]
+    res3 = (A.fmm * (A.B3 * x))[:,2:4]
 
     y1 = A.B1_test * (res3[:,2] - res2[:,3])
     y2 = A.B2_test * (res1[:,3] - res3[:,1])

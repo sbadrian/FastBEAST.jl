@@ -54,7 +54,7 @@ end
         x = eltype(A).(x)
     end
 
-    y .= A.B_test * conj.(A.fmm * conj.(A.B_trial * x))[:,1] - A.BtCB * x + A.fullmat * x
+    y .= A.B_test * (A.fmm * (A.B_trial * x))[:,1] - A.BtCB * x + A.fullmat * x
 
     return y
 end
@@ -71,7 +71,7 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    y .= A.B_test * conj.(A.fmm * conj.(A.B_trial * x))[:,1] - A.BtCB * x + A.fullmat * x
+    y .= A.B_test * (A.fmm * (A.B_trial * x))[:,1] - A.BtCB * x + A.fullmat * x
 
     return y
 end
@@ -89,7 +89,7 @@ end
 
     fill!(y, zero(eltype(y)))
 
-    y .= A.B_test * conj.(A.fmm * conj.(A.B_trial * x))[:,1] - A.BtCB * x + A.fullmat * x
+    y .= A.B_test * (A.fmm * (A.B_trial * x))[:,1] - A.BtCB * x + A.fullmat * x
 
     return y
 end

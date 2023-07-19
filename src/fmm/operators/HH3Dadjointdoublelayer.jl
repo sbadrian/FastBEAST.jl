@@ -55,10 +55,10 @@ end
         x = eltype(A).(x)
     end
 
-    res = A.fmm*conj.(A.B_trial * x)
-    fmm_res1 = A.normals[:,1] .* conj.(res)[:,2]
-    fmm_res2 = A.normals[:,2] .* conj.(res)[:,3]
-    fmm_res3 = A.normals[:,3] .* conj.(res)[:,4]
+    res = A.fmm * (A.B_trial * x)
+    fmm_res1 = A.normals[:,1] .* (res)[:,2]
+    fmm_res2 = A.normals[:,2] .* (res)[:,3]
+    fmm_res3 = A.normals[:,3] .* (res)[:,4]
     y.= A.Bt_test * (fmm_res1 + fmm_res2 + fmm_res3) - A.BtCB*x + A.fullmat*x
     
     return y
@@ -76,10 +76,10 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    res = A.fmm*conj.(A.B_trial * x)
-    fmm_res1 = A.normals[:,1] .* conj.(res)[:,2]
-    fmm_res2 = A.normals[:,2] .* conj.(res)[:,3]
-    fmm_res3 = A.normals[:,3] .* conj.(res)[:,4]
+    res = A.fmm * (A.B_trial * x)
+    fmm_res1 = A.normals[:,1] .* (res)[:,2]
+    fmm_res2 = A.normals[:,2] .* (res)[:,3]
+    fmm_res3 = A.normals[:,3] .* (res)[:,4]
     y.= A.Bt_test * (fmm_res1 + fmm_res2 + fmm_res3) - A.BtCB*x + A.fullmat*x
 
     return y
@@ -98,10 +98,10 @@ end
 
     fill!(y, zero(eltype(y)))
 
-    res = A.fmm*conj.(A.B_trial * x)
-    fmm_res1 = A.normals[:,1] .* conj.(res)[:,2]
-    fmm_res2 = A.normals[:,2] .* conj.(res)[:,3]
-    fmm_res3 = A.normals[:,3] .* conj.(res)[:,4]
+    res = A.fmm * (A.B_trial * x)
+    fmm_res1 = A.normals[:,1] .* (res)[:,2]
+    fmm_res2 = A.normals[:,2] .* (res)[:,3]
+    fmm_res3 = A.normals[:,3] .* (res)[:,4]
     y.= A.Bt_test * (fmm_res1 + fmm_res2 + fmm_res3) - A.BtCB*x + A.fullmat*x
 
     return y

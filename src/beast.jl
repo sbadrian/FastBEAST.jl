@@ -50,10 +50,10 @@ end
 
 function fmmassemble(
     operator,
+    fmmoptions,
     test_functions::BEAST.Space,
     trial_functions::BEAST.Space;
     treeoptions=BoxTreeOptions(nmin=10),
-    fmmoptions=LaplaceFMMOptions(),
     quadstrat=SafeDoubleNumQStrat(3, 3),
     multithreading=false,
     verbose=false
@@ -104,6 +104,34 @@ function fmmassemble(
         fmm,
         BtCB,
         fullmat,
+    )
+end
+
+fmmoptions(gamma::T ; p=8, ncrit=100) where {T <: Nothing} = LaplaceFMMOptions(; p=p, ncrit=ncrit)
+#TODO: Write unit tests for the ModifiedHelmholtzFMMOptions
+fmmoptions(gamma::T ; p=8, ncrit=100) where {T <: Real} = ModifiedHelmholtzFMMOptions(gamma; p=p, ncrit=ncrit)
+fmmoptions(gamma::T ; p=8, ncrit=100) where {T <: Complex} = HelmholtzFMMOptions(-gamma/im; p=p, ncrit=ncrit)
+
+
+function fmmassemble(
+    operator::Union{BEAST.Helmholtz3DOp{T,K}, BEAST.Helmholtz3DOpReg{T,K}},
+    test_functions::BEAST.Space,
+    trial_functions::BEAST.Space;
+    treeoptions=BoxTreeOptions(nmin=10),
+    quadstrat=SafeDoubleNumQStrat(3, 3),
+    multithreading=false,
+    verbose=false
+) where {T, K}
+
+    return fmmassemble(
+        operator,
+        fmmoptions(operator.gamma),
+        test_functions,
+        trial_functions;
+        treeoptions=treeoptions,
+        quadstrat=quadstrat,
+        multithreading=multithreading,
+        verbose=verbose
     )
 end
 

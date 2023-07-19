@@ -52,14 +52,14 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    res1 = A.B1_test * conj.(A.fmm * conj.(A.B1 * x))[:,1]
-    res2 = A.B2_test * conj.(A.fmm * conj.(A.B2 * x))[:,1]
-    res3 = A.B3_test * conj.(A.fmm * conj.(A.B3 * x))[:,1]
+    res1 = A.B1_test * (A.fmm * (A.B1 * x))[:,1]
+    res2 = A.B2_test * (A.fmm * (A.B2 * x))[:,1]
+    res3 = A.B3_test * (A.fmm * (A.B3 * x))[:,1]
 
     y1 = -(im * A.fmm.fmmoptions.wavek .* (res1 + res2 + res3))
 
     y2 = 1 / (im * A.fmm.fmmoptions.wavek) .* 
-        (A.Bdiv_test * conj.(A.fmm * conj.(A.Bdiv * x))[:,1])
+        (A.Bdiv_test * (A.fmm * (A.Bdiv * x))[:,1])
 
     y.= (y1 - y2) - A.BtCB * x + A.fullmat * x
     
@@ -78,14 +78,14 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    res1 = A.B1_test * conj.(A.fmm * conj.(A.B1 * x))[:,1]
-    res2 = A.B2_test * conj.(A.fmm * conj.(A.B2 * x))[:,1]
-    res3 = A.B3_test * conj.(A.fmm * conj.(A.B3 * x))[:,1]
+    res1 = A.B1_test * (A.fmm * (A.B1 * x))[:,1]
+    res2 = A.B2_test * (A.fmm * (A.B2 * x))[:,1]
+    res3 = A.B3_test * (A.fmm * (A.B3 * x))[:,1]
 
     y1 = -(im * A.fmm.fmmoptions.wavek .* (res1 + res2 + res3))
 
     y2 = 1 / (im * A.fmm.fmmoptions.wavek) .* 
-        (A.Bdiv_test * conj.(A.fmm * conj.(A.Bdiv * x))[:,1])
+        (A.Bdiv_test * (A.fmm * (A.Bdiv * x))[:,1])
 
     y.= (y1 - y2) - A.BtCB * x + A.fullmat * x
 
@@ -104,14 +104,14 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    res1 = A.B1_test * conj.(A.fmm * conj.(A.B1 * x))[:,1]
-    res2 = A.B2_test * conj.(A.fmm * conj.(A.B2 * x))[:,1]
-    res3 = A.B3_test * conj.(A.fmm * conj.(A.B3 * x))[:,1]
+    res1 = A.B1_test * (A.fmm * (A.B1 * x))[:,1]
+    res2 = A.B2_test * (A.fmm * (A.B2 * x))[:,1]
+    res3 = A.B3_test * (A.fmm * (A.B3 * x))[:,1]
 
     y1 = -(im * A.fmm.fmmoptions.wavek .* (res1 + res2 + res3))
 
     y2 = 1 / (im * A.fmm.fmmoptions.wavek) .* 
-        (A.Bdiv_test * conj.(A.fmm * conj.(A.Bdiv * x))[:,1])
+        (A.Bdiv_test * (A.fmm * (A.Bdiv * x))[:,1])
 
     y.= (y1 - y2) - A.BtCB * x + A.fullmat * x
 
