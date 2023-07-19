@@ -44,12 +44,12 @@ end
         quadstratfbk=BEAST.defaultquadstrat(operator, test_functions, trial_functions)
     )
 
-Function assembles the fullrankblocks that contain the closeinteractions of basis and 
-test functions. 
-These interactions are faulty when computed by the FMM. 
-The faulty values of the FMM are subtracted of the solution using direct evaluations with 
-the same quadrature strategy as used do sample the input points of the FMM.
-The correct evalueated blocks of the close interactions are added to the solution.
+Function assembles the fullrankblocks that contain the close interactions of basis and
+test functions.
+These interactions are inaccurate when computed by the FMM.
+The inaccurate values of the FMM are subtracted of the solution using direct evaluations with
+the same quadrature strategy as used to sample the input points of the FMM.
+The corrected evaluated blocks of the close interactions are added to the solution.
 
 # Arguments
 - `operator::BEAST.AbstractOperator`: Operator of BEM.

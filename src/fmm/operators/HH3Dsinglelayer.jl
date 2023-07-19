@@ -42,10 +42,17 @@ end
 @views function LinearAlgebra.mul!(y::AbstractVecOrMat, A::FMMMatrixSL, x::AbstractVector)
     LinearMaps.check_dim_mul(y, A, x)
 
+    fill!(y, zero(eltype(y)))
+
+    if eltype(x) <: Complex
+        y .+= mul!(copy(y), A, real.(x))
+        y .+= im .* mul!(copy(y), A, imag.(x)) 
+        return y
+    end
+
     if eltype(x) != eltype(A)
         x = eltype(A).(x)
     end
-    fill!(y, zero(eltype(y)))
 
     y .= A.B_test * conj.(A.fmm * conj.(A.B_trial * x))[:,1] - A.BtCB * x + A.fullmat * x
 
