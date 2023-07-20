@@ -114,7 +114,7 @@ fmmoptions(gamma::T ; p=8, ncrit=100) where {T <: Complex} = HelmholtzFMMOptions
 
 
 function fmmassemble(
-    operator::Union{BEAST.Helmholtz3DOp{T,K}, BEAST.Helmholtz3DOpReg{T,K}},
+    operator::BEAST.MaxwellOperator3D{T,K},
     test_functions::BEAST.Space,
     trial_functions::BEAST.Space;
     treeoptions=BoxTreeOptions(nmin=10),

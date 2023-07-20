@@ -5,8 +5,9 @@ using LinearMaps
 using SparseArrays
 
 
-struct FMMMatrixDL{I, F <: Real, K} <: LinearMaps.LinearMap{K}
-    fmm::ExaFMMt.ExaFMM{K}
+struct FMMMatrixDL{I, F <: Real, K, KE} <: LinearMaps.LinearMap{K}
+    fmm::ExaFMMt.ExaFMM{KE}
+    op::BEAST.HH3DDoubleLayerFDBIO
     normals::Matrix{F}
     B_trial::SparseMatrixCSC{F, I}
     B_test::SparseMatrixCSC{F, I}
@@ -59,50 +60,67 @@ end
     fmm_res2 = A.B_test * (A.fmm*(A.normals[:,2] .* (A.B_trial * x)))[:,3]
     fmm_res3 = A.B_test * (A.fmm*(A.normals[:,3] .* (A.B_trial * x)))[:,4]
     fmm_res = -(fmm_res1 + fmm_res2 + fmm_res3)
-    y .= fmm_res - A.BtCB*x + A.fullmat*x
+    y .= A.op.alpha .* fmm_res - A.BtCB*x + A.fullmat*x
 
     return y
 end
 
 @views function LinearAlgebra.mul!(
     y::AbstractVecOrMat,
-    A::LinearMaps.TransposeMap{<:Any,<:FMMMatrixDL},
+    At::LinearMaps.TransposeMap{<:Any,<:FMMMatrixDL},
     x::AbstractVector
 )
-    LinearMaps.check_dim_mul(y, A, x)
+    LinearMaps.check_dim_mul(y, At, x)
+
+    fill!(y, zero(eltype(y)))
+
+    if eltype(x) <: Complex
+        y .+= mul!(copy(y), A, real.(x))
+        y .+= im .* mul!(copy(y), A, imag.(x)) 
+        return y
+    end
+
+    A = At.lmap
 
     if eltype(x) != eltype(A)
         x = eltype(A).(x)
     end
-    fill!(y, zero(eltype(y)))
 
     fmm_res1 = A.B_test * (A.fmm*(A.normals[:,1] .* (A.B_trial * x)))[:,2]
     fmm_res2 = A.B_test * (A.fmm*(A.normals[:,2] .* (A.B_trial * x)))[:,3]
     fmm_res3 = A.B_test * (A.fmm*(A.normals[:,3] .* (A.B_trial * x)))[:,4]
     fmm_res = -(fmm_res1 + fmm_res2 + fmm_res3)
-    y .= fmm_res - A.BtCB*x + A.fullmat*x
+    y .= A.op.alpha .* fmm_res - A.BtCB*x + A.fullmat*x
 
     return y
 end
 
 @views function LinearAlgebra.mul!(
     y::AbstractVecOrMat,
-    A::LinearMaps.AdjointMap{<:Any,<:FMMMatrixDL},
+    At::LinearMaps.AdjointMap{<:Any,<:FMMMatrixDL},
     x::AbstractVector
 )
     LinearMaps.check_dim_mul(y, A, x)
+
+    fill!(y, zero(eltype(y)))
+
+    if eltype(x) <: Complex
+        y .+= mul!(copy(y), A, real.(x))
+        y .+= im .* mul!(copy(y), A, imag.(x)) 
+        return y
+    end
+
+    A = At.lmap
 
     if eltype(x) != eltype(A)
         x = eltype(A).(x)
     end
 
-    fill!(y, zero(eltype(y)))
-
     fmm_res1 = A.B_test * (A.fmm*(A.normals[:,1] .* (A.B_trial * x)))[:,2]
     fmm_res2 = A.B_test * (A.fmm*(A.normals[:,2] .* (A.B_trial * x)))[:,3]
     fmm_res3 = A.B_test * (A.fmm*(A.normals[:,3] .* (A.B_trial * x)))[:,4]
     fmm_res = -(fmm_res1 + fmm_res2 + fmm_res3)
-    y .= fmm_res - A.BtCB*x + A.fullmat*x
+    y .= A.op.alpha .* fmm_res - A.BtCB*x + A.fullmat*x
 
     return y
 end
@@ -113,10 +131,10 @@ function FMMMatrix(
     trial_functions::BEAST.Space, 
     testqp::Matrix,
     trialqp::Matrix,
-    fmm::ExaFMMt.ExaFMM{K},
+    fmm::ExaFMMt.ExaFMM{KE},
     BtCB::HMatrix{I, K},
     fullmat::HMatrix{I, K}
-) where {I, K}
+) where {I, K, KE}
 
     B, normals, B_test = sample_basisfunctions(
         op,
@@ -128,6 +146,7 @@ function FMMMatrix(
 
     return FMMMatrixDL(
         fmm,
+        op,
         normals,
         B,
         B_test,
@@ -153,7 +172,7 @@ function sample_basisfunctions(
 
     if test_functions != trial_functions 
         rc_test, vals_test = sample_basisfunctions(op, testqp, test_functions)
-        B_test = sparse(transpose(dropzeros(sparse(rc_test[:, 1], rc_test[:, 2], vals_test))))
+        B_test = dropzeros(sparse(rc_test[:, 2], rc_test[:, 1], vals_test))
     else
         B_test = sparse(transpose(B))
     end

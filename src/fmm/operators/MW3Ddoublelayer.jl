@@ -6,6 +6,7 @@ using SparseArrays
 
 struct FMMMatrixMWDL{I, F <: Real, K} <: LinearMaps.LinearMap{K}
     fmm::ExaFMMt.ExaFMM{K}
+    op::BEAST.MWDoubleLayer3D
     B1::SparseMatrixCSC{F, I}
     B2::SparseMatrixCSC{F, I}
     B3::SparseMatrixCSC{F, I}
@@ -85,7 +86,7 @@ end
 
     y.= (y1 + y2 + y3) - A.BtCB * x + A.fullmat * x
 
-    return y
+    return A.op.alpha .* y
 end
 
 @views function LinearAlgebra.mul!(
@@ -108,7 +109,7 @@ end
     y2 = A.B2_test * (res1[:,3] - res3[:,1])
     y3 = A.B3_test * (res2[:,1] - res1[:,2])
 
-    y.= (y1 + y2 + y3) - A.BtCB * x + A.fullmat * x
+    y.= A.op.alpha .* (y1 + y2 + y3) - A.BtCB * x + A.fullmat * x
 
     return y
 end
@@ -134,6 +135,7 @@ function FMMMatrix(
       
     return FMMMatrixMWDL(
         fmm,
+        op,
         B1,
         B2,
         B3,
