@@ -59,28 +59,30 @@ end
         return y
     end
 
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
+    if eltype(x) != eltype(A.fmm)
+        xfmm = eltype(A.fmm).(x)
+    else
+        xfmm = x
     end
 
     if A.op.alpha != 0.0
         fmm_res1 = A.normals_test[:,1] .* (
-            A.fmm * (A.normals_trial[:,1] .* (A.B_trial * x))
+            A.fmm * (A.normals_trial[:,1] .* (A.B_trial * xfmm))
         )[:,1]
         fmm_res2 = A.normals_test[:,2] .* (
-            A.fmm * (A.normals_trial[:,2] .* (A.B_trial * x))
+            A.fmm * (A.normals_trial[:,2] .* (A.B_trial * xfmm))
         )[:,1]
         fmm_res3 = A.normals_test[:,3] .* (
-            A.fmm * (A.normals_trial[:,3] .* (A.B_trial * x))
+            A.fmm * (A.normals_trial[:,3] .* (A.B_trial * xfmm))
         )[:,1]
 
         y .+= A.op.alpha * A.B_test * (fmm_res1 + fmm_res2 + fmm_res3)
     end
 
     if A.op.beta != 0.0
-        fmm_curl1 = A.B1curl_test * (A.fmm * (A.B1curl_trial * x))[:,1]
-        fmm_curl2 = A.B2curl_test * (A.fmm * (A.B2curl_trial * x))[:,1]
-        fmm_curl3 = A.B3curl_test * (A.fmm * (A.B3curl_trial * x))[:,1]
+        fmm_curl1 = A.B1curl_test * (A.fmm * (A.B1curl_trial * xfmm))[:,1]
+        fmm_curl2 = A.B2curl_test * (A.fmm * (A.B2curl_trial * xfmm))[:,1]
+        fmm_curl3 = A.B3curl_test * (A.fmm * (A.B3curl_trial * xfmm))[:,1]
     
         y .+= A.op.beta .* (fmm_curl1 + fmm_curl2 + fmm_curl3)
     end

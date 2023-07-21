@@ -52,13 +52,15 @@ end
         return y
     end
 
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
+    if eltype(x) != eltype(A.fmm)
+        xfmm = eltype(A.fmm).(x)
+    else
+        xfmm = x
     end
 
-    fmm_res1 = A.B_test * (A.fmm*(A.normals[:,1] .* (A.B_trial * x)))[:,2]
-    fmm_res2 = A.B_test * (A.fmm*(A.normals[:,2] .* (A.B_trial * x)))[:,3]
-    fmm_res3 = A.B_test * (A.fmm*(A.normals[:,3] .* (A.B_trial * x)))[:,4]
+    fmm_res1 = A.B_test * (A.fmm*(A.normals[:,1] .* (A.B_trial * xfmm)))[:,2]
+    fmm_res2 = A.B_test * (A.fmm*(A.normals[:,2] .* (A.B_trial * xfmm)))[:,3]
+    fmm_res3 = A.B_test * (A.fmm*(A.normals[:,3] .* (A.B_trial * xfmm)))[:,4]
     fmm_res = -(fmm_res1 + fmm_res2 + fmm_res3)
     y .= A.op.alpha .* fmm_res - A.BtCB*x + A.fullmat*x
 
@@ -112,13 +114,15 @@ end
 
     A = At.lmap
 
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
+    if eltype(x) != eltype(A.fmm)
+        xfmm = eltype(A.fmm).(x)
+    else
+        xfmm = x
     end
 
-    fmm_res1 = A.B_test * (A.fmm*(A.normals[:,1] .* (A.B_trial * x)))[:,2]
-    fmm_res2 = A.B_test * (A.fmm*(A.normals[:,2] .* (A.B_trial * x)))[:,3]
-    fmm_res3 = A.B_test * (A.fmm*(A.normals[:,3] .* (A.B_trial * x)))[:,4]
+    fmm_res1 = A.B_test * (A.fmm*(A.normals[:,1] .* (A.B_trial * xfmm)))[:,2]
+    fmm_res2 = A.B_test * (A.fmm*(A.normals[:,2] .* (A.B_trial * xfmm)))[:,3]
+    fmm_res3 = A.B_test * (A.fmm*(A.normals[:,3] .* (A.B_trial * xfmm)))[:,4]
     fmm_res = -(fmm_res1 + fmm_res2 + fmm_res3)
     y .= A.op.alpha .* fmm_res - A.BtCB*x + A.fullmat*x
 

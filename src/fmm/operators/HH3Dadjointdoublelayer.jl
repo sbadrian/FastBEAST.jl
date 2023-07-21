@@ -52,11 +52,13 @@ end
         return y
     end
 
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
+    if eltype(x) != eltype(A.fmm)
+        xfmm = eltype(A.fmm).(x)
+    else
+        xfmm = x
     end
 
-    res = A.fmm * (A.B_trial * x)
+    res = A.fmm * (A.B_trial * xfmm)
     fmm_res1 = A.normals[:,1] .* (res)[:,2]
     fmm_res2 = A.normals[:,2] .* (res)[:,3]
     fmm_res3 = A.normals[:,3] .* (res)[:,4]

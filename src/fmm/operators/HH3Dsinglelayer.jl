@@ -51,11 +51,13 @@ end
         return y
     end
 
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
+    if eltype(x) != eltype(A.fmm)
+        xfmm = eltype(A.fmm).(x)
+    else
+        xfmm = x
     end
 
-    y .= A.op.alpha .* (A.B_test * (A.fmm * (A.B_trial * x))[:,1]) - A.BtCB * x + A.fullmat * x
+    y .= A.op.alpha .* (A.B_test * (A.fmm * (A.B_trial * xfmm))[:,1]) - A.BtCB * x + A.fullmat * x
 
     return y
 end
