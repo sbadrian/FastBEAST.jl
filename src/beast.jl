@@ -255,7 +255,6 @@ end
 
 function fmmassemble(op::BEAST.LinearCombinationOfOperators, X::BEAST.Space, Y::BEAST.Space; 
     treeoptions=BoxTreeOptions(nmin=10),
-    fmmoptions=LaplaceFMMOptions(),
     quadstrat=SafeDoubleNumQStrat(3, 3),
     multithreading=false,
     verbose=false
@@ -271,7 +270,7 @@ function fmmassemble(op::BEAST.LinearCombinationOfOperators, X::BEAST.Space, Y::
     for (α,term) in zip(op.coeffs, op.ops)
         counter += 1
         println("Compress operator: ", counter)
-        A = A + α * fmmassemble(term, X, Y; treeoptions=treeoptions, fmmoptions=fmmoptions, quadstrat=quadstrat, multithreading=multithreading, verbose=verbose)
+        A = A + α * fmmassemble(term, X, Y; treeoptions=treeoptions, quadstrat=quadstrat, multithreading=multithreading, verbose=verbose)
     end
 
     return A
