@@ -2,7 +2,8 @@ module FastBEAST
 using LinearAlgebra
 include("tree/tree.jl")
 
-include("aca.jl")
+include("aca/pivoting.jl")
+include("aca/aca.jl")
 include("skeletons.jl")
 include("hmatrix.jl")
 include("utils.jl")

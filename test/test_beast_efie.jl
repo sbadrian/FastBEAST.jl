@@ -15,9 +15,9 @@ k = 2*π/λ
 ω = k*c
 η = sqrt(μ/ε)
 
-a = 1
-Γ_orig = CompScienceMeshes.meshcuboid(a,a,a,0.05)
-Γ = translate(Γ_orig,SVector(-a/2,-a/2,-a/2))
+a = 1.0
+Γ_orig = CompScienceMeshes.meshcuboid(a, a, a, 0.1)
+Γ = translate(Γ_orig,SVector(-a/2, -a/2, -a/2))
 
 Φ, Θ = [0.0], range(0,stop=π,length=100)
 pts = [point(cos(ϕ)*sin(θ), sin(ϕ)*sin(θ), cos(θ)) for ϕ in Φ for θ in Θ]
@@ -47,15 +47,15 @@ T = hassemble(
     𝓣,
     X,
     X,
+    quadstrat=BEAST.DoubleNumQStrat(2,2),
     treeoptions=KMeansTreeOptions(nmin=30),
-    threading=:single,
-    quadstrat=BEAST.DoubleNumQStrat(1, 1),
+    compressor=FastBEAST.ACAOptions(maxrank=100, tol=1e-4),    
     verbose=true,
-    svdrecompress=false
+    multithreading=true
 )
 
 e = assemble(𝒆,X)
-##
+
 println("Enter iterative solver")
 @time j_EFIE, ch = IterativeSolvers.gmres(T, e, log=true, reltol=1e-4, maxiter=500)
 println("Finished iterative solver part. Number of iterations: ", ch.iters)

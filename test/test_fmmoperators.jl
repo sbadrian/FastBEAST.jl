@@ -15,7 +15,59 @@ k = 2 * π / λ
 sphere = meshsphere(r, 0.1 * r)
 X0 = lagrangecxd0(sphere)
 X1 = lagrangec0d1(sphere)
+Y1 = duallagrangec0d1(sphere)
+##
+Os = [
+    (Helmholtz3D.singlelayer(;), Y1, X1)
+    (Helmholtz3D.doublelayer(;), Y1, X1)
+    (Helmholtz3D.doublelayer_transposed(;), Y1, X1)
+    (Helmholtz3D.hypersingular(;), Y1, X1)
+    (Helmholtz3D.singlelayer(; alpha=30.0), Y1, X1)
+    (Helmholtz3D.doublelayer(; alpha=30.0), Y1, X1)
+    (Helmholtz3D.doublelayer_transposed(; alpha=30.0), Y1, X1)
+    (Helmholtz3D.hypersingular(; alpha=30.0), Y1, X1)
+    (Helmholtz3D.hypersingular(; alpha=0.0, beta=-100.0), Y1, X1)
+    (Helmholtz3D.singlelayer(; gamma=3.0), Y1, X1) # Does not work with dual testing functions
+    (Helmholtz3D.doublelayer(; gamma=3.0), Y1, X1) # Does not work with dual testing functions
+    (Helmholtz3D.doublelayer_transposed(; gamma=3.0), Y1, X1) # Does not work with dual testing functions
+    (Helmholtz3D.hypersingular(; gamma=3.0), Y1, X1) # Does not work with dual testing functions
+    (Helmholtz3D.singlelayer(; wavenumber=k), Y1, X1)
+    (Helmholtz3D.doublelayer(; wavenumber=k), Y1, X1)
+    (Helmholtz3D.doublelayer_transposed(; wavenumber=k), Y1, X1)
+    (Helmholtz3D.hypersingular(; wavenumber=k), Y1, X1)
+    (Helmholtz3D.singlelayer(; alpha=3.0im, gamma=3.0), Y1, X1)
+    (Helmholtz3D.doublelayer(; alpha=3.0im, gamma=3.0), Y1, X1)
+    (Helmholtz3D.doublelayer_transposed(; alpha=3.0im, gamma=3.0), Y1, X1)
+    (Helmholtz3D.hypersingular(; alpha=3.0im, beta=1/2.0im, gamma=3.0), Y1, X1)
+]
 
+@testset "FMM mvp test: $O" for (O, Y1, X1) in Os
+    #O = Helmholtz3D.hypersingular(;alpha=3000.0)
+    Oft = fmmassemble(O, Y1, X1) # fast
+    Ofl = assemble(O, Y1, X1) # full
+
+    x = rand(numfunctions(X1))
+
+    for matop in [x -> x] #[x -> x, x-> transpose(x)]#, x -> adjoint(x)]
+        yt = matop(Oft)*x
+        yl = matop(Ofl)*x
+        @test eltype(yt) == promote_type(eltype(x), eltype(Oft)) 
+        @test norm(yt - yl)/norm(yl) ≈ 0 atol=1e-2
+    end
+end
+##
+#=
+O = Helmholtz3D.singlelayer(; alpha=1.0, wavenumber=k)
+Oft = fmmassemble(O, Y1, X1) # fast
+Ofl = assemble(O, Y1, X1) # full
+
+x = rand(numfunctions(X1))
+yt = Oft*x
+yl = Ofl*x
+norm(yt - yl)/norm(yl)=#
+##
+# Integration test: A bit too long and we do not check all possible permutations
+#=
 S = Helmholtz3D.singlelayer(; gamma=im * k)
 D = Helmholtz3D.doublelayer(; gamma=im * k)
 Dt = Helmholtz3D.doublelayer_transposed(; gamma=im * k)
@@ -29,30 +81,16 @@ q = 100.0
 pos1 = SVector(r * 1.5, 0.0, 0.0)  # positioning of point charges
 pos2 = SVector(-r * 1.5, 0.0, 0.0)
 
-function Φ_inc(x)
-    return q / (4 * π * ϵ) * (
-        exp(-im * k * norm(x - pos1)) / (norm(x - pos1)) -
-        exp(-im * k * norm(x - pos2)) / (norm(x - pos2))
-    )
-end
+charge1 = Helmholtz3D.monopole(position=pos1, amplitude=q/(4*π*ϵ), wavenumber=k)
+charge2 = Helmholtz3D.monopole(position=pos2, amplitude=-q/(4*π*ϵ), wavenumber=k)
 
-function ∂nΦ_inc(x)
-    return -q / (4 * π * ϵ * r) * (
-        (dot(
-            x,
-            (x - pos1) * exp(-im * k * norm(x - pos1)) / (norm(x - pos1)^2) *
-            (im * k + 1 / (norm(x - pos1))),
-        )) - (dot(
-            x,
-            (x - pos2) * exp(-im * k * norm(x - pos2)) / (norm(x - pos2)^2) *
-            (im * k + 1 / (norm(x - pos2))),
-        ))
-    )
-end
+# Potential of point charges
 
-gD0 = assemble(ScalarTrace(Φ_inc), X0)
-gD1 = assemble(ScalarTrace(Φ_inc), X1)
-gN = assemble(ScalarTrace(∂nΦ_inc), X1)
+Φ_inc(x) = charge1(x) + charge2(x)
+
+gD0 = assemble(DirichletTrace(charge1), X0) + assemble(DirichletTrace(charge2), X0)
+gD1 = assemble(DirichletTrace(charge1), X1) + assemble(DirichletTrace(charge2), X1)
+gN = assemble(∂n(charge1), X1) + assemble(BEAST.n ⋅ grad(charge2), X1)
 
 G = assemble(BEAST.Identity(), X1, X1)
 o = ones(numfunctions(X1))
@@ -62,37 +100,33 @@ M_IDPSL = fmmassemble(
     S,
     X0,
     X0,
-    threading=:multi,
-    fmmoptions=HelmholtzFMMOptions(ComplexF64(k))
+    multithreading=true
 ) # Single layer (SL)
 M_IDPDL =  (-1 / 2 * assemble(BEAST.Identity(), X1, X1) + fmmassemble(
     D,
     X1,
     X1,
-    threading=:multi,
-    fmmoptions=HelmholtzFMMOptions(ComplexF64(k))
+    multithreading=true
 )) # Double layer (DL)
 # Interior Neumann problem
 # Neumann derivative from DL potential with deflected nullspace
-M_INPDL = -fmmassemble(
+M_INPDL = fmmassemble(
     N,
     X1,
     X1,
-    threading=:multi,
-    nmin=20,
-    fmmoptions=HelmholtzFMMOptions(ComplexF64(k))
+    treeoptions=FastBEAST.BoxTreeOptions(nmin=20),
+    multithreading=true
 ) + G * o * o' * G
 # Neumann derivative from SL potential with deflected nullspace
 M_INPSL = (1 / 2 * assemble(BEAST.Identity(), X1, X1) + fmmassemble(
     Dt,
     X1,
     X1,
-    threading=:multi,
-    fmmoptions=HelmholtzFMMOptions(ComplexF64(k))
+    multithreading=true
 )) + G * o * o' * G 
 
 ρ_IDPSL = IterativeSolvers.gmres(M_IDPSL, -gD0, verbose=true, reltol=1e-4, maxiter=200)
-ρ_IDPDL = IterativeSolvers.gmres(M_IDPDL, gD1, verbose=true, reltol=1e-4, maxiter=200)
+ρ_IDPDL = IterativeSolvers.gmres(M_IDPDL, -gD1, verbose=true, reltol=1e-4, maxiter=200)
 ρ_INPDL = IterativeSolvers.gmres(M_INPDL, gN, verbose=true, reltol=1e-4, maxiter=200)
 ρ_INPSL = IterativeSolvers.gmres(M_INPSL, -gN, verbose=true, reltol=1e-4, maxiter=200)
 
@@ -115,3 +149,4 @@ err_INPDL_pot = norm(pot_INPDL + Φ_inc.(pts)) / norm(Φ_inc.(pts))
 @test err_IDPDL_pot < 0.01
 @test err_INPSL_pot < 0.01
 @test err_INPDL_pot < 0.01
+=#

@@ -6,6 +6,7 @@ using SparseArrays
 
 struct FMMMatrixMWSL{I, F <: Real, K} <: LinearMaps.LinearMap{K}
     fmm::ExaFMMt.ExaFMM{K}
+    op::BEAST.MWSingleLayer3D
     B1::SparseMatrixCSC{F, I}
     B2::SparseMatrixCSC{F, I}
     B3::SparseMatrixCSC{F, I}
@@ -52,14 +53,14 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    res1 = A.B1_test * conj.(A.fmm * conj.(A.B1 * x))[:,1]
-    res2 = A.B2_test * conj.(A.fmm * conj.(A.B2 * x))[:,1]
-    res3 = A.B3_test * conj.(A.fmm * conj.(A.B3 * x))[:,1]
+    res1 = A.B1_test * (A.fmm * (A.B1 * x))[:,1]
+    res2 = A.B2_test * (A.fmm * (A.B2 * x))[:,1]
+    res3 = A.B3_test * (A.fmm * (A.B3 * x))[:,1]
 
-    y1 = -(im * A.fmm.fmmoptions.wavek .* (res1 + res2 + res3))
+    y1 = (A.op.α .* (res1 + res2 + res3))
 
-    y2 = 1 / (im * A.fmm.fmmoptions.wavek) .* 
-        (A.Bdiv_test * conj.(A.fmm * conj.(A.Bdiv * x))[:,1])
+    y2 = - (A.op.β) .*
+        (A.Bdiv_test * (A.fmm * (A.Bdiv * x))[:,1])
 
     y.= (y1 - y2) - A.BtCB * x + A.fullmat * x
     
@@ -78,14 +79,14 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    res1 = A.B1_test * conj.(A.fmm * conj.(A.B1 * x))[:,1]
-    res2 = A.B2_test * conj.(A.fmm * conj.(A.B2 * x))[:,1]
-    res3 = A.B3_test * conj.(A.fmm * conj.(A.B3 * x))[:,1]
+    res1 = A.B1_test * (A.fmm * (A.B1 * x))[:,1]
+    res2 = A.B2_test * (A.fmm * (A.B2 * x))[:,1]
+    res3 = A.B3_test * (A.fmm * (A.B3 * x))[:,1]
 
-    y1 = -(im * A.fmm.fmmoptions.wavek .* (res1 + res2 + res3))
+    y1 = (A.op.α .* (res1 + res2 + res3))
 
-    y2 = 1 / (im * A.fmm.fmmoptions.wavek) .* 
-        (A.Bdiv_test * conj.(A.fmm * conj.(A.Bdiv * x))[:,1])
+    y2 = - (A.op.β) .*
+        (A.Bdiv_test * (A.fmm * (A.Bdiv * x))[:,1])
 
     y.= (y1 - y2) - A.BtCB * x + A.fullmat * x
 
@@ -104,14 +105,14 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    res1 = A.B1_test * conj.(A.fmm * conj.(A.B1 * x))[:,1]
-    res2 = A.B2_test * conj.(A.fmm * conj.(A.B2 * x))[:,1]
-    res3 = A.B3_test * conj.(A.fmm * conj.(A.B3 * x))[:,1]
+    res1 = A.B1_test * (A.fmm * (A.B1 * x))[:,1]
+    res2 = A.B2_test * (A.fmm * (A.B2 * x))[:,1]
+    res3 = A.B3_test * (A.fmm * (A.B3 * x))[:,1]
 
-    y1 = -(im * A.fmm.fmmoptions.wavek .* (res1 + res2 + res3))
+    y1 = (A.op.α  .* (res1 + res2 + res3))
 
-    y2 = 1 / (im * A.fmm.fmmoptions.wavek) .* 
-        (A.Bdiv_test * conj.(A.fmm * conj.(A.Bdiv * x))[:,1])
+    y2 = - (A.op.β) .*
+        (A.Bdiv_test * (A.fmm * (A.Bdiv * x))[:,1])
 
     y.= (y1 - y2) - A.BtCB * x + A.fullmat * x
 
@@ -139,6 +140,7 @@ function FMMMatrix(
 
     return FMMMatrixMWSL(
         fmm,
+        op,
         B1,
         B2,
         B3,
@@ -177,7 +179,7 @@ function sample_basisfunctions(
         B2_test = dropzeros(sparse(rc_test[:, 2], rc_test[:, 1], vals_test[:, 2]))
         B3_test = dropzeros(sparse(rc_test[:, 2], rc_test[:, 1], vals_test[:, 3]))
         rcdiv_test, valsdiv_test = sample_divbasisfunctions(testqp, test_functions)
-        Bdiv_test = dropzeros(sprase(rcdiv_test[:, 2], rcdiv_test[:, 1], valsdiv_test))
+        Bdiv_test = dropzeros(sparse(rcdiv_test[:, 2], rcdiv_test[:, 1], valsdiv_test))
     else
         B1_test = sparse(transpose(B1_test))
         B2_test = sparse(transpose(B2_test))

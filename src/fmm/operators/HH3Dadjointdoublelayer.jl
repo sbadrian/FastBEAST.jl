@@ -5,8 +5,9 @@ using LinearMaps
 using SparseArrays
 
 
-struct FMMMatrixADL{I, F <: Real, K} <: LinearMaps.LinearMap{K}
-    fmm::ExaFMMt.ExaFMM{K}
+struct FMMMatrixADL{I, F <: Real, K, KE} <: LinearMaps.LinearMap{K}
+    fmm::ExaFMMt.ExaFMM{KE}
+    op::BEAST.HH3DDoubleLayerTransposedFDBIO
     normals::Matrix{F}
     B_trial::SparseMatrixCSC{F, I}
     Bt_test::SparseMatrixCSC{F, I}
@@ -43,78 +44,106 @@ end
 @views function LinearAlgebra.mul!(y::AbstractVecOrMat, A::FMMMatrixADL, x::AbstractVector)
     LinearMaps.check_dim_mul(y, A, x)
 
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
-    end
     fill!(y, zero(eltype(y)))
 
-    res = A.fmm*conj.(A.B_trial * x)
-    fmm_res1 = A.normals[:,1] .* conj.(res)[:,2]
-    fmm_res2 = A.normals[:,2] .* conj.(res)[:,3]
-    fmm_res3 = A.normals[:,3] .* conj.(res)[:,4]
-    y.= A.Bt_test * (fmm_res1 + fmm_res2 + fmm_res3) - A.BtCB*x + A.fullmat*x
+    if eltype(x) <: Complex
+        y .+= mul!(copy(y), A, real.(x))
+        y .+= im .* mul!(copy(y), A, imag.(x))
+        return y
+    end
+
+    if eltype(x) != eltype(A.fmm)
+        xfmm = eltype(A.fmm).(x)
+    else
+        xfmm = x
+    end
+
+    res = A.fmm * (A.B_trial * xfmm)
+    fmm_res1 = A.normals[:,1] .* (res)[:,2]
+    fmm_res2 = A.normals[:,2] .* (res)[:,3]
+    fmm_res3 = A.normals[:,3] .* (res)[:,4]
+
+    y .= A.op.alpha .* (A.Bt_test * (fmm_res1 + fmm_res2 + fmm_res3)) - A.BtCB*x + A.fullmat*x
     
     return y
 end
 
 @views function LinearAlgebra.mul!(
     y::AbstractVecOrMat,
-    A::LinearMaps.TransposeMap{<:Any,<:FMMMatrixADL},
+    At::LinearMaps.TransposeMap{<:Any,<:FMMMatrixADL},
     x::AbstractVector
 )
-    LinearMaps.check_dim_mul(y, A, x)
+    LinearMaps.check_dim_mul(y, At, x)
+
+    fill!(y, zero(eltype(y)))
+
+    if eltype(x) <: Complex
+        y .+= mul!(copy(y), A, real.(x))
+        y .+= im .* mul!(copy(y), A, imag.(x)) 
+        return y
+    end
+
+    A = At.lmap
 
     if eltype(x) != eltype(A)
         x = eltype(A).(x)
     end
-    fill!(y, zero(eltype(y)))
 
-    res = A.fmm*conj.(A.B_trial * x)
-    fmm_res1 = A.normals[:,1] .* conj.(res)[:,2]
-    fmm_res2 = A.normals[:,2] .* conj.(res)[:,3]
-    fmm_res3 = A.normals[:,3] .* conj.(res)[:,4]
-    y.= A.Bt_test * (fmm_res1 + fmm_res2 + fmm_res3) - A.BtCB*x + A.fullmat*x
+    res = A.fmm * (A.B_trial * x)
+    fmm_res1 = A.normals[:,1] .* (res)[:,2]
+    fmm_res2 = A.normals[:,2] .* (res)[:,3]
+    fmm_res3 = A.normals[:,3] .* (res)[:,4]
+    y.= A.op.alpha .* (A.Bt_test * (fmm_res1 + fmm_res2 + fmm_res3)) - A.BtCB*x + A.fullmat*x
 
     return y
 end
 
 @views function LinearAlgebra.mul!(
     y::AbstractVecOrMat,
-    A::LinearMaps.AdjointMap{<:Any,<:FMMMatrixADL},
+    At::LinearMaps.AdjointMap{<:Any,<:FMMMatrixADL},
     x::AbstractVector
 )
-    LinearMaps.check_dim_mul(y, A, x)
+    LinearMaps.check_dim_mul(y, At, x)
+
+    fill!(y, zero(eltype(y)))
+
+    if eltype(x) <: Complex
+        y .+= mul!(copy(y), A, real.(x))
+        y .+= im .* mul!(copy(y), A, imag.(x)) 
+        return y
+    end
+
+    A = At.lmap
 
     if eltype(x) != eltype(A)
         x = eltype(A).(x)
     end
 
-    fill!(y, zero(eltype(y)))
-
-    res = A.fmm*conj.(A.B_trial * x)
-    fmm_res1 = A.normals[:,1] .* conj.(res)[:,2]
-    fmm_res2 = A.normals[:,2] .* conj.(res)[:,3]
-    fmm_res3 = A.normals[:,3] .* conj.(res)[:,4]
-    y.= A.Bt_test * (fmm_res1 + fmm_res2 + fmm_res3) - A.BtCB*x + A.fullmat*x
+    res = A.fmm * (A.B_trial * x)
+    fmm_res1 = A.normals[:,1] .* (res)[:,2]
+    fmm_res2 = A.normals[:,2] .* (res)[:,3]
+    fmm_res3 = A.normals[:,3] .* (res)[:,4]
+    y.= A.op.alpha .* (A.Bt_test * (fmm_res1 + fmm_res2 + fmm_res3)) - A.BtCB*x + A.fullmat*x
 
     return y
 end
 
 function FMMMatrix(
-    op::BEAST.HH3DDoubleLayerTransposed,
+    op::BEAST.HH3DDoubleLayerTransposedFDBIO,
     test_functions::BEAST.Space, 
     trial_functions::BEAST.Space, 
     testqp::Matrix,
     trialqp::Matrix,
-    fmm::ExaFMMt.ExaFMM{K},
+    fmm::ExaFMMt.ExaFMM{KE},
     BtCB::HMatrix{I, K},
     fullmat::HMatrix{I, K}
-) where {I, K}
+) where {I, K, KE}
 
     B, normals, B_test = sample_basisfunctions(op, test_functions, trial_functions, testqp, trialqp)
 
     return FMMMatrixADL(
         fmm,
+        op,
         normals,
         B,
         B_test,
@@ -126,13 +155,13 @@ function FMMMatrix(
 end
 
 function sample_basisfunctions(
-    op::BEAST.HH3DDoubleLayerTransposed,
+    op::BEAST.HH3DDoubleLayerTransposedFDBIO,
     test_functions::BEAST.Space, 
     trial_functions::BEAST.Space, 
     testqp::Matrix,
     trialqp::Matrix
 )   
-    normals = getnormals(trialqp)
+    normals = getnormals(testqp)
     rc, vals = sample_basisfunctions(op, trialqp, trial_functions)
     B = dropzeros(sparse(rc[:, 1], rc[:, 2], vals)) 
     B_test = B

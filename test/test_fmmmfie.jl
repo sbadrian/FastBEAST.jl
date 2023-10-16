@@ -50,9 +50,8 @@ K_bc = fmmassemble(
     𝓚,
     Y,
     X,
-    nmin=30,
-    threading=:multi,
-    fmmoptions=HelmholtzFMMOptions(ComplexF64(k))
+    treeoptions=FastBEAST.BoxTreeOptions(nmin=30),
+    multithreading=true    
 )
 
 G_nxbc_rt = Matrix(assemble(𝓝,Y,X))

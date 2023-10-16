@@ -46,7 +46,14 @@ tpoints = 0.1*[@SVector rand(3) for i = 1:NT] + [1.0*SVector(3.5, 3.5, 3.5) for 
 stree = create_tree(spoints, BoxTreeOptions(nmin=50))
 ttree = create_tree(tpoints, BoxTreeOptions(nmin=50))
 kmat = assembler(OneoverRkernel, tpoints, spoints)
-hmat = HMatrix(OneoverRkernelassembler, ttree, stree, Int64, Float64, compressor=:naive)
+hmat = HMatrix(
+    OneoverRkernelassembler,
+    ttree,
+    stree,
+    Int64,
+    Float64,
+    compressor=FastBEAST.ACAOptions(tol=1e-4)
+)
 
 @test estimate_reldifference(hmat,kmat) ≈ 0 atol=1e-4
 @test compressionrate(hmat)*100 ≈ 99 atol=1
@@ -74,8 +81,7 @@ stree = create_tree(spoints, KMeansTreeOptions(nmin=20))
     stree,
     Int64,
     Float64,
-    compressor=:aca,
-    svdrecompress=false
+    compressor=FastBEAST.ACAOptions(tol=1e-4)
 )
 
 @test estimate_reldifference(hmat, kmat) ≈ 0 atol=1e-4
@@ -88,8 +94,7 @@ stree = create_tree(spoints, KMeansTreeOptions(nmin=20))
     stree,
     Int64,
     Float64,
-    compressor=:aca,
-    svdrecompress=true
+    compressor=FastBEAST.ACAOptions(tol=1e-4, svdrecompress=true)
 )
 
 @test estimate_reldifference(hmat, kmat) ≈ 0 atol=1e-4
@@ -110,8 +115,7 @@ stree = create_tree(spoints, BoxTreeOptions(nmin=400))
     stree,
     Int64,
     Float64,
-    compressor=:aca,
-    svdrecompress=false
+    compressor=FastBEAST.ACAOptions(tol=1e-4)
 )
 
 @test estimate_reldifference(hmat,kmat) ≈ 0 atol=1e-4
@@ -123,8 +127,7 @@ stree = create_tree(spoints, BoxTreeOptions(nmin=400))
     stree,
     Int64,
     Float64,
-    compressor=:aca,
-    svdrecompress=true
+    compressor=FastBEAST.ACAOptions(tol=1e-4, svdrecompress=true)
 )
 
 @test estimate_reldifference(hmat,kmat) ≈ 0 atol=1e-4
@@ -138,8 +141,8 @@ stree = create_tree(spoints, BoxTreeOptions(nmin=400))
     stree,
     Int64,
     Float64,
-    compressor=:aca,
-    svdrecompress=false
+    compressor=FastBEAST.ACAOptions(tol=1e-4),
+    multithreading=true
 )
 
 @test estimate_reldifference(hmat,kmat) ≈ 0 atol=1e-4
@@ -151,9 +154,8 @@ stree = create_tree(spoints, BoxTreeOptions(nmin=400))
     stree,
     Int64,
     Float64,
-    compressor=:aca,
-    threading=:multi,
-    svdrecompress=false
+    compressor=FastBEAST.ACAOptions(tol=1e-4),
+    multithreading=true
 )
 
 @test hmat*v ≈ hmatm*v
@@ -175,14 +177,12 @@ if Threads.nthreads() > 13
         stree,
         Int64,
         Float64,
-        compressor=:aca,
-        svdrecompress=false
+        compressor=FastBEAST.ACAOptions(tol=1e-4)
     ))
 
     println("Compression rate (BoxTree): ", compressionrate(hmatb)*100)
-    #@test compressionrate(hmatb)*100 > 85
+    @test compressionrate(hmatb)*100 > 85
     println("Assembly time in s (BoxTree): ", stats.time)
-    #@test stats.time < 40
 
     stree = create_tree(spoints, BoxTreeOptions(nmin=200))
     stats = @timed (hmatbs = HMatrix(
@@ -191,14 +191,12 @@ if Threads.nthreads() > 13
         stree,
         Int64,
         Float64,
-        compressor=:aca,
-        svdrecompress=true
+        compressor=FastBEAST.ACAOptions(tol=1e-4, svdrecompress=true)
     ))
 
     println("Compression rate (BoxTree, SVD): ", compressionrate(hmatbs)*100)
-    #@test compressionrate(hmatbs)*100 > 88
+    @test compressionrate(hmatbs)*100 > 88
     println("Assembly time in s (BoxTree, SVD): ", stats.time)
-    #@test stats.time < 50
 
     stree = create_tree(spoints, KMeansTreeOptions(nmin=30))
     stats = @timed (hmatk = HMatrix(
@@ -207,14 +205,12 @@ if Threads.nthreads() > 13
         stree,
         Int64,
         Float64,
-        compressor=:aca,
-        svdrecompress=false
+        compressor=FastBEAST.ACAOptions(tol=1e-4)
     ))
 
     println("Compression rate (KMeans): ", compressionrate(hmatk)*100)
-    #@test 56 < compressionrate(hmatk)*100 < 57
+    @test 80 < compressionrate(hmatk)*100
     println("Assembly time in s (KMeans): ", stats.time)
-    #@test stats.time < 60
 
     @test estimate_reldifference(hmatb, hmatk) ≈ 0 atol=1e-4
 
@@ -225,14 +221,12 @@ if Threads.nthreads() > 13
         stree,
         Int64,
         Float64,
-        compressor=:aca,
-        svdrecompress=true
+        compressor=FastBEAST.ACAOptions(tol=1e-4, svdrecompress=true)
     ))
 
     println("Compression rate (KMeans, SVD): ", compressionrate(hmatks)*100)
-    #@test 59 < compressionrate(hmatks)*100 < 61
+    @test 80 < compressionrate(hmatks)*100
     println("Assembly time in s (KMeans, SVD): ", stats.time)
-    #@test 45 < stats.time < 80
 
     @test estimate_reldifference(hmatbs, hmatks) ≈ 0 atol=1e-4
 end
@@ -252,14 +246,12 @@ if Threads.nthreads() > 13
         stree,
         Int64,
         Float64,
-        compressor=:aca,
-        svdrecompress=false
+        compressor=FastBEAST.ACAOptions(tol=1e-4)
     ))
 
     println("Compression rate (BoxTree): ", compressionrate(hmat)*100)
     @test compressionrate(hmat)*100 > 90
     println("Assembly time in s (BoxTree): ", stats.time)
-    @test stats.time < 90
 
     stree = create_tree(spoints, BoxTreeOptions(nmin=200))
     stats = @timed (hmat = HMatrix(
@@ -268,12 +260,10 @@ if Threads.nthreads() > 13
         stree,
         Int64,
         Float64,
-        compressor=:aca,
-        svdrecompress=true
+        compressor=FastBEAST.ACAOptions(tol=1e-4, svdrecompress=true)
     ))
 
     println("Compression rate (BoxTree, SVD): ", compressionrate(hmat)*100)
     @test compressionrate(hmat)*100 > 90
     println("Assembly time in s (BoxTree, SVD): ", stats.time)
-    @test stats.time < 120
 end

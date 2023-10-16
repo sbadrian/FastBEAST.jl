@@ -5,8 +5,9 @@ using LinearMaps
 using SparseArrays
 
 
-struct FMMMatrixHS{I, F <: Real, K} <: LinearMaps.LinearMap{K}
-    fmm::ExaFMMt.ExaFMM{K}
+struct FMMMatrixHS{I, F <: Real, K, KE} <: LinearMaps.LinearMap{K}
+    fmm::ExaFMMt.ExaFMM{KE}
+    op::BEAST.HH3DHyperSingularFDBIO
     normals_trial::Matrix{F}
     normals_test::Matrix{F}
     B1curl_trial::SparseMatrixCSC{F, I}
@@ -50,100 +51,140 @@ end
 @views function LinearAlgebra.mul!(y::AbstractVecOrMat, A::FMMMatrixHS, x::AbstractVector)
     LinearMaps.check_dim_mul(y, A, x)
 
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
-    end
     fill!(y, zero(eltype(y)))
 
-    fmm_curl1 = A.B1curl_test * conj.(A.fmm * conj.(A.B1curl_trial * x))[:,1]
-    fmm_curl2 = A.B2curl_test * conj.(A.fmm * conj.(A.B2curl_trial * x))[:,1]
-    fmm_curl3 = A.B3curl_test * conj.(A.fmm * conj.(A.B3curl_trial * x))[:,1]
+    if eltype(x) <: Complex
+        y .+= mul!(copy(y), A, real.(x))
+        y .+= im .* mul!(copy(y), A, imag.(x))
+        return y
+    end
 
-    y1 = fmm_curl1 + fmm_curl2 + fmm_curl3
+    if eltype(x) != eltype(A.fmm)
+        xfmm = eltype(A.fmm).(x)
+    else
+        xfmm = x
+    end
 
-    fmm_res1 = A.normals_test[:,1] .* conj.(
-        A.fmm*conj.(A.normals_trial[:,1] .* (A.B_trial * x))
-    )[:,1]
-    fmm_res2 = A.normals_test[:,2] .* conj.(
-        A.fmm*conj.(A.normals_trial[:,2] .* (A.B_trial * x))
-    )[:,1]
-    fmm_res3 = A.normals_test[:,3] .* conj.(
-        A.fmm*conj.(A.normals_trial[:,3] .* (A.B_trial * x))
-    )[:,1]
+    if A.op.alpha != 0.0
+        fmm_res1 = A.normals_test[:,1] .* (
+            A.fmm * (A.normals_trial[:,1] .* (A.B_trial * xfmm))
+        )[:,1]
+        fmm_res2 = A.normals_test[:,2] .* (
+            A.fmm * (A.normals_trial[:,2] .* (A.B_trial * xfmm))
+        )[:,1]
+        fmm_res3 = A.normals_test[:,3] .* (
+            A.fmm * (A.normals_trial[:,3] .* (A.B_trial * xfmm))
+        )[:,1]
 
-    y2 = A.fmm.fmmoptions.wavek^2 * A.B_test * (fmm_res1 + fmm_res2 + fmm_res3)
+        y .+= A.op.alpha * A.B_test * (fmm_res1 + fmm_res2 + fmm_res3)
+    end
 
-    y .= (y1 - y2) - A.BtCB*x + A.fullmat*x
+    if A.op.beta != 0.0
+        fmm_curl1 = A.B1curl_test * (A.fmm * (A.B1curl_trial * xfmm))[:,1]
+        fmm_curl2 = A.B2curl_test * (A.fmm * (A.B2curl_trial * xfmm))[:,1]
+        fmm_curl3 = A.B3curl_test * (A.fmm * (A.B3curl_trial * xfmm))[:,1]
+    
+        y .+= A.op.beta .* (fmm_curl1 + fmm_curl2 + fmm_curl3)
+    end
+
+    y .+= - A.BtCB*x + A.fullmat*x
 
     return y
 end
 
 @views function LinearAlgebra.mul!(
     y::AbstractVecOrMat,
-    A::LinearMaps.TransposeMap{<:Any,<:FMMMatrixHS},
+    At::LinearMaps.TransposeMap{<:Any,<:FMMMatrixHS},
     x::AbstractVector
 )
-    LinearMaps.check_dim_mul(y, A, x)
+    LinearMaps.check_dim_mul(y, At, x)
+
+    fill!(y, zero(eltype(y)))
+
+    if eltype(x) <: Complex
+        y .+= mul!(copy(y), At, real.(x))
+        y .+= im .* mul!(copy(y), At, imag.(x)) 
+        return y
+    end
+
+    A = At.lmap
 
     if eltype(x) != eltype(A)
         x = eltype(A).(x)
     end
-    fill!(y, zero(eltype(y)))
 
-    fmm_curl1 = A.B1curl_test * conj.(A.fmm * conj.(A.B1curl_trial * x))[:,1]
-    fmm_curl2 = A.B2curl_test * conj.(A.fmm * conj.(A.B2curl_trial * x))[:,1]
-    fmm_curl3 = A.B3curl_test * conj.(A.fmm * conj.(A.B3curl_trial * x))[:,1]
+    if A.op.alpha != 0.0
+        fmm_res1 = A.normals_test[:,1] .* (
+            A.fmm * (A.normals_trial[:,1] .* (A.B_trial * x))
+        )[:,1]
+        fmm_res2 = A.normals_test[:,2] .* (
+            A.fmm * (A.normals_trial[:,2] .* (A.B_trial * x))
+        )[:,1]
+        fmm_res3 = A.normals_test[:,3] .* (
+            A.fmm * (A.normals_trial[:,3] .* (A.B_trial * x))
+        )[:,1]
+    
+        y .+= A.op.alpha * A.B_test * (fmm_res1 + fmm_res2 + fmm_res3)    
+    end
 
-    y1 = fmm_curl1 + fmm_curl2 + fmm_curl3
+    if A.op.beta != 0.0
+        fmm_curl1 = A.B1curl_test * (A.fmm * (A.B1curl_trial * x))[:,1]
+        fmm_curl2 = A.B2curl_test * (A.fmm * (A.B2curl_trial * x))[:,1]
+        fmm_curl3 = A.B3curl_test * (A.fmm * (A.B3curl_trial * x))[:,1]
 
-    fmm_res1 = A.normals_test[:,1] .* conj.(
-        A.fmm*conj.(A.normals_trial[:,1] .* (A.B_trial * x))
-    )[:,1]
-    fmm_res2 = A.normals_test[:,2] .* conj.(
-        A.fmm*conj.(A.normals_trial[:,2] .* (A.B_trial * x))
-    )[:,1]
-    fmm_res3 = A.normals_test[:,3] .* conj.(
-        A.fmm*conj.(A.normals_trial[:,3] .* (A.B_trial * x))
-    )[:,1]
+        y .+= A.op.beta .* (fmm_curl1 + fmm_curl2 + fmm_curl3)
+    end
 
-    y2 = A.fmm.fmmoptions.wavek^2 * A.B_test * (fmm_res1 + fmm_res2 + fmm_res3)
-
-    y .= (y1 - y2) - A.BtCB*x + A.fullmat*x
+    y .+= - A.BtCB*x + A.fullmat*x
 
     return y
 end
 
 @views function LinearAlgebra.mul!(
     y::AbstractVecOrMat,
-    A::LinearMaps.AdjointMap{<:Any,<:FMMMatrixHS},
+    At::LinearMaps.AdjointMap{<:Any,<:FMMMatrixHS},
     x::AbstractVector
 )
-    LinearMaps.check_dim_mul(y, A, x)
+    LinearMaps.check_dim_mul(y, At, x)
+
+    fill!(y, zero(eltype(y)))
+
+    if eltype(x) <: Complex
+        y .+= mul!(copy(y), At, real.(x))
+        y .+= im .* mul!(copy(y), At, imag.(x)) 
+        return y
+    end
+
+    A = At.lmap
 
     if eltype(x) != eltype(A)
         x = eltype(A).(x)
     end
-    fill!(y, zero(eltype(y)))
 
-    fmm_curl1 = A.B1curl_test * conj.(A.fmm * conj.(A.B1curl_trial * x))[:,1]
-    fmm_curl2 = A.B2curl_test * conj.(A.fmm * conj.(A.B2curl_trial * x))[:,1]
-    fmm_curl3 = A.B3curl_test * conj.(A.fmm * conj.(A.B3curl_trial * x))[:,1]
+    if A.op.alpha != 0.0
+        fmm_res1 = A.normals_test[:,1] .* (
+        A.fmm * (A.normals_trial[:,1] .* (A.B_trial * x))
+        )[:,1]
+        fmm_res2 = A.normals_test[:,2] .* (
+            A.fmm * (A.normals_trial[:,2] .* (A.B_trial * x))
+        )[:,1]
+        fmm_res3 = A.normals_test[:,3] .* (
+            A.fmm * (A.normals_trial[:,3] .* (A.B_trial * x))
+        )[:,1]
 
-    y1 = fmm_curl1 + fmm_curl2 + fmm_curl3
+        y .+= A.op.alpha * A.B_test * (fmm_res1 + fmm_res2 + fmm_res3) 
+    end
 
-    fmm_res1 = A.normals_test[:,1] .* conj.(
-        A.fmm*conj.(A.normals_trial[:,1] .* (A.B_trial * x))
-    )[:,1]
-    fmm_res2 = A.normals_test[:,2] .* conj.(
-        A.fmm*conj.(A.normals_trial[:,2] .* (A.B_trial * x))
-    )[:,1]
-    fmm_res3 = A.normals_test[:,3] .* conj.(
-        A.fmm*conj.(A.normals_trial[:,3] .* (A.B_trial * x))
-    )[:,1]
+    if A.op.beta != 0.0
+        fmm_curl1 = A.B1curl_test * (A.fmm * (A.B1curl_trial * x))[:,1]
+        fmm_curl2 = A.B2curl_test * (A.fmm * (A.B2curl_trial * x))[:,1]
+        fmm_curl3 = A.B3curl_test * (A.fmm * (A.B3curl_trial * x))[:,1]
 
-    y2 = A.fmm.fmmoptions.wavek^2 * A.B_test * (fmm_res1 + fmm_res2 + fmm_res3)
+        y .+= A.op.beta .* (fmm_curl1 + fmm_curl2 + fmm_curl3)
+    end
 
-    y .= (y1 - y2) - A.BtCB*x + A.fullmat*x
+    y .+= - A.BtCB*x + A.fullmat*x
+
     return y
 end
 
@@ -153,10 +194,10 @@ function FMMMatrix(
     trial_functions::BEAST.Space, 
     testqp::Matrix,
     trialqp::Matrix,
-    fmm::ExaFMMt.ExaFMM{K},
+    fmm::ExaFMMt.ExaFMM{KE},
     BtCB::HMatrix{I, K},
     fullmat::HMatrix{I, K},
-) where {I, K}
+) where {I, K, KE}
 
     normals, B1curl, B2curl, B3curl, B, normals_test, 
         B1curl_test, B2curl_test, B3curl_test, B_test = sample_basisfunctions(
@@ -169,6 +210,7 @@ function FMMMatrix(
 
     return FMMMatrixHS(
         fmm,
+        op,
         normals,
         normals_test,
         B1curl,

@@ -6,6 +6,7 @@ using SparseArrays
 
 struct FMMMatrixMWDL{I, F <: Real, K} <: LinearMaps.LinearMap{K}
     fmm::ExaFMMt.ExaFMM{K}
+    op::BEAST.MWDoubleLayer3D
     B1::SparseMatrixCSC{F, I}
     B2::SparseMatrixCSC{F, I}
     B3::SparseMatrixCSC{F, I}
@@ -50,9 +51,9 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    res1 = conj.(A.fmm * conj.(A.B1 * x))[:,2:4]
-    res2 = conj.(A.fmm * conj.(A.B2 * x))[:,2:4]
-    res3 = conj.(A.fmm * conj.(A.B3 * x))[:,2:4]
+    res1 = (A.fmm * (A.B1 * x))[:,2:4]
+    res2 = (A.fmm * (A.B2 * x))[:,2:4]
+    res3 = (A.fmm * (A.B3 * x))[:,2:4]
 
     y1 = A.B1_test * (res3[:,2] - res2[:,3])
     y2 = A.B2_test * (res1[:,3] - res3[:,1])
@@ -75,9 +76,9 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    res1 = conj.(A.fmm * conj.(A.B1 * x))[:,2:4]
-    res2 = conj.(A.fmm * conj.(A.B2 * x))[:,2:4]
-    res3 = conj.(A.fmm * conj.(A.B3 * x))[:,2:4]
+    res1 = (A.fmm * (A.B1 * x))[:,2:4]
+    res2 = (A.fmm * (A.B2 * x))[:,2:4]
+    res3 = (A.fmm * (A.B3 * x))[:,2:4]
 
     y1 = A.B1_test * (res3[:,2] - res2[:,3])
     y2 = A.B2_test * (res1[:,3] - res3[:,1])
@@ -85,7 +86,7 @@ end
 
     y.= (y1 + y2 + y3) - A.BtCB * x + A.fullmat * x
 
-    return y
+    return A.op.alpha .* y
 end
 
 @views function LinearAlgebra.mul!(
@@ -100,15 +101,15 @@ end
     end
     fill!(y, zero(eltype(y)))
 
-    res1 = conj.(A.fmm * conj.(A.B1 * x))[:,2:4]
-    res2 = conj.(A.fmm * conj.(A.B2 * x))[:,2:4]
-    res3 = conj.(A.fmm * conj.(A.B3 * x))[:,2:4]
+    res1 = (A.fmm * (A.B1 * x))[:,2:4]
+    res2 = (A.fmm * (A.B2 * x))[:,2:4]
+    res3 = (A.fmm * (A.B3 * x))[:,2:4]
 
     y1 = A.B1_test * (res3[:,2] - res2[:,3])
     y2 = A.B2_test * (res1[:,3] - res3[:,1])
     y3 = A.B3_test * (res2[:,1] - res1[:,2])
 
-    y.= (y1 + y2 + y3) - A.BtCB * x + A.fullmat * x
+    y.= A.op.alpha .* (y1 + y2 + y3) - A.BtCB * x + A.fullmat * x
 
     return y
 end
@@ -134,6 +135,7 @@ function FMMMatrix(
       
     return FMMMatrixMWDL(
         fmm,
+        op,
         B1,
         B2,
         B3,

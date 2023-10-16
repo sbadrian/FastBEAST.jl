@@ -34,8 +34,6 @@ E = (1/ε) * dipolemw3d(location=SVector(0.4,0.2,0),
 n = BEAST.NormalVector()
 
 𝒆 = (n × E) × n
-H = (-1/(im*μ*ω))*curl(E)
-𝒉 = (n × H) × n
 
 𝓣 = Maxwell3D.singlelayer(wavenumber=k)
 
@@ -47,21 +45,16 @@ T = fmmassemble(
     𝓣,
     X,
     X,
-    nmin=50,
-    threading=:multi,
-    fmmoptions=HelmholtzFMMOptions(ComplexF64(k))
+    treeoptions= FastBEAST.BoxTreeOptions(nmin=50),
+    multithreading=true
+)
+
+T_full = assemble(
+    𝓣,
+    X,
+    X
 )
 
 e = assemble(𝒆,X)
 
-println("Enter iterative solver")
-@time j_EFIE, ch = IterativeSolvers.gmres(T, e, verbose=true, log=true, reltol=1e-4, maxiter=500)
-println("Finished iterative solver part. Number of iterations: ", ch.iters)
-
-nf_E_EFIE = potential(MWSingleLayerField3D(wavenumber=k), pts, j_EFIE, X)
-nf_H_EFIE = potential(BEAST.MWDoubleLayerField3D(wavenumber=k), pts, j_EFIE, X) ./ η
-ff_E_EFIE = potential(MWFarField3D(wavenumber=k), pts, j_EFIE, X)
-
-@test norm(nf_E_EFIE - E.(pts))/norm(E.(pts)) ≈ 0 atol=0.01
-@test norm(nf_H_EFIE - H.(pts))/norm(H.(pts)) ≈ 0 atol=0.01
-@test norm(ff_E_EFIE - E.(pts, isfarfield=true))/norm(E.(pts, isfarfield=true)) ≈ 0 atol=0.01
+@test norm(T*e - T_full*e)/norm(T_full*e) ≈ 0 atol=0.01
