@@ -36,7 +36,8 @@ yX1 = fmmassemble(
     S,
     X1,
     X1,
-    multithreading=true
+    multithreading=true,
+    treeoptions=BoxTreeOptions(nmin=20),
 ) * xX1
 
 yXd0 = fmmassemble(

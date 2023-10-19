@@ -12,7 +12,7 @@ r = 10.0
 λ = 20 * r
 k = 2 * π / λ
 
-sphere = meshsphere(r, 0.1 * r)
+sphere = meshsphere(r, 0.2 * r)
 X0 = lagrangecxd0(sphere)
 X1 = lagrangec0d1(sphere)
 Y1 = duallagrangec0d1(sphere)
@@ -43,7 +43,7 @@ Os = [
 
 @testset "FMM mvp test: $O" for (O, Y1, X1) in Os
     #O = Helmholtz3D.hypersingular(;alpha=3000.0)
-    Oft = fmmassemble(O, Y1, X1) # fast
+    Oft = fmmassemble(O, Y1, X1, treeoptions=BoxTreeOptions(nmin=20)) # fast
     Ofl = assemble(O, Y1, X1) # full
 
     x = rand(numfunctions(X1))
@@ -55,98 +55,3 @@ Os = [
         @test norm(yt - yl)/norm(yl) ≈ 0 atol=1e-2
     end
 end
-##
-#=
-O = Helmholtz3D.singlelayer(; alpha=1.0, wavenumber=k)
-Oft = fmmassemble(O, Y1, X1) # fast
-Ofl = assemble(O, Y1, X1) # full
-
-x = rand(numfunctions(X1))
-yt = Oft*x
-yl = Ofl*x
-norm(yt - yl)/norm(yl)=#
-##
-# Integration test: A bit too long and we do not check all possible permutations
-#=
-S = Helmholtz3D.singlelayer(; gamma=im * k)
-D = Helmholtz3D.doublelayer(; gamma=im * k)
-Dt = Helmholtz3D.doublelayer_transposed(; gamma=im * k)
-N = Helmholtz3D.hypersingular(; gamma=im * k)
-
-q = 100.0
-ϵ = 1.0
-
-# Interior problem
-# Formulations from Sauter and Schwab, Boundary Element Methods(2011), Chapter 3.4.1.1
-pos1 = SVector(r * 1.5, 0.0, 0.0)  # positioning of point charges
-pos2 = SVector(-r * 1.5, 0.0, 0.0)
-
-charge1 = Helmholtz3D.monopole(position=pos1, amplitude=q/(4*π*ϵ), wavenumber=k)
-charge2 = Helmholtz3D.monopole(position=pos2, amplitude=-q/(4*π*ϵ), wavenumber=k)
-
-# Potential of point charges
-
-Φ_inc(x) = charge1(x) + charge2(x)
-
-gD0 = assemble(DirichletTrace(charge1), X0) + assemble(DirichletTrace(charge2), X0)
-gD1 = assemble(DirichletTrace(charge1), X1) + assemble(DirichletTrace(charge2), X1)
-gN = assemble(∂n(charge1), X1) + assemble(BEAST.n ⋅ grad(charge2), X1)
-
-G = assemble(BEAST.Identity(), X1, X1)
-o = ones(numfunctions(X1))
-
-# Interior Dirichlet problem
-M_IDPSL = fmmassemble(
-    S,
-    X0,
-    X0,
-    multithreading=true
-) # Single layer (SL)
-M_IDPDL =  (-1 / 2 * assemble(BEAST.Identity(), X1, X1) + fmmassemble(
-    D,
-    X1,
-    X1,
-    multithreading=true
-)) # Double layer (DL)
-# Interior Neumann problem
-# Neumann derivative from DL potential with deflected nullspace
-M_INPDL = fmmassemble(
-    N,
-    X1,
-    X1,
-    treeoptions=FastBEAST.BoxTreeOptions(nmin=20),
-    multithreading=true
-) + G * o * o' * G
-# Neumann derivative from SL potential with deflected nullspace
-M_INPSL = (1 / 2 * assemble(BEAST.Identity(), X1, X1) + fmmassemble(
-    Dt,
-    X1,
-    X1,
-    multithreading=true
-)) + G * o * o' * G 
-
-ρ_IDPSL = IterativeSolvers.gmres(M_IDPSL, -gD0, verbose=true, reltol=1e-4, maxiter=200)
-ρ_IDPDL = IterativeSolvers.gmres(M_IDPDL, -gD1, verbose=true, reltol=1e-4, maxiter=200)
-ρ_INPDL = IterativeSolvers.gmres(M_INPDL, gN, verbose=true, reltol=1e-4, maxiter=200)
-ρ_INPSL = IterativeSolvers.gmres(M_INPSL, -gN, verbose=true, reltol=1e-4, maxiter=200)
-
-pts = meshsphere(0.8 * r, 0.8 * 0.6 * r).vertices # sphere inside on which the potential and field are evaluated
-
-pot_IDPSL = potential(HH3DSingleLayerNear(im * k), pts, ρ_IDPSL, X0; type=ComplexF64)
-pot_IDPDL = potential(HH3DDoubleLayerNear(im * k), pts, ρ_IDPDL, X1; type=ComplexF64)
-
-pot_INPSL = potential(HH3DSingleLayerNear(im * k), pts, ρ_INPSL, X1; type=ComplexF64)
-pot_INPDL = potential(HH3DDoubleLayerNear(im * k), pts, ρ_INPDL, X1; type=ComplexF64)
-
-# Total field inside should be zero
-err_IDPSL_pot = norm(pot_IDPSL + Φ_inc.(pts)) / norm(Φ_inc.(pts))
-err_IDPDL_pot = norm(pot_IDPDL + Φ_inc.(pts)) / norm(Φ_inc.(pts))
-
-err_INPSL_pot = norm(pot_INPSL + Φ_inc.(pts)) / norm(Φ_inc.(pts))
-err_INPDL_pot = norm(pot_INPDL + Φ_inc.(pts)) / norm(Φ_inc.(pts))
-
-@test err_IDPSL_pot < 0.01
-@test err_IDPDL_pot < 0.01
-@test err_INPSL_pot < 0.01
-@test err_INPDL_pot < 0.01
-=#
