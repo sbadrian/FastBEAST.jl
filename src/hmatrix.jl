@@ -193,6 +193,7 @@ function HMatrix(
     
     fullinteractions = SVector{2}[]
     compressableinteractions = SVector{2}[]
+    fullcompressableinteractions = SVector{2}[]
     
     computerinteractions!(
         testtree,
@@ -323,6 +324,64 @@ function HMatrix(
         end
     end
 
+    correctionindices = []
+    for (ind, lbk) in enumerate(lowrankblocks)
+        maxrowcols = Int(floor(length(lbk.τ)*length(lbk.σ)/(length(lbk.τ)+length(lbk.σ))))
+
+        if maxrowcols == size(lbk.M.U)[2] || size(lbk.M.U)[2] == compressor.maxrank
+            push!(fullcompressableinteractions, SVector(lbk.τ, lbk.σ))
+            push!(correctionindices, ind)
+        end 
+    end
+    deleteat!(lowrankblocks, correctionindices)
+
+    if verbose
+        p = Progress(length(fullcompressableinteractions), desc="Correcting far interactions: ")
+    end
+
+
+
+    if !multithreading
+        for fullcompressableinteraction in fullcompressableinteractions
+            push!(
+                fullrankblocks, 
+                getfulllowrankmatrixview(
+                    matrixassembler,
+                    fullcompressableinteraction[1],
+                    fullcompressableinteraction[2],
+                    I,
+                    K
+                )
+            )
+            verbose && next!(p)
+        end
+    elseif multithreading
+
+        fulllowrankblocks_perthread = Vector{MBF}[]
+
+        for i in 1:Threads.nthreads()
+            push!(fulllowrankblocks_perthread, MBL[])
+        end
+
+        Threads.@threads for fullcompressableinteraction in fullcompressableinteractions
+            push!(
+                fulllowrankblocks_perthread[Threads.threadid()],
+                getfulllowrankmatrixview(
+                    matrixassembler,
+                    fullcompressableinteraction[1],
+                    fullcompressableinteraction[2],
+                    I,
+                    K
+                )
+            )
+            verbose && next!(p)
+        end
+
+        for i in eachindex(fulllowrankblocks_perthread)
+            append!(fullrankblocks, fulllowrankblocks_perthread[i])
+        end
+    end
+
     return HMatrix{I, K}(
         fullrankblocks,
         lowrankblocks,
@@ -422,6 +481,23 @@ function getfullmatrixview(
     )
 end
 
+function getfulllowrankmatrixview(
+    matrixassembler,
+    testind,
+    sourceind,
+    ::Type{I},
+    ::Type{K};
+) where {I, K}
+    matrix = zeros(K, length(testind), length(sourceind))
+    matrixassembler(matrix, testind, sourceind)
+
+    return MatrixBlock{I, K, Matrix{K}}(
+        matrix,
+        testind,
+        sourceind
+    )
+end
+
 function getcompressedmatrix(
     matrixassembler::Function,
     testnode,
@@ -439,6 +515,7 @@ function getcompressedmatrix(
             am;
             rowpivstrat=compressor.rowpivstrat,
             columnpivstrat=compressor.columnpivstrat,
+            convergcrit=compressor.convergcrit,
             tol=compressor.tol,
             svdrecompress=compressor.svdrecompress
         )

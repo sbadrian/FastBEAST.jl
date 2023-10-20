@@ -11,17 +11,45 @@ function MaxPivoting()
     return MaxPivoting(1)
 end
 
+""" 
+    function firstindex(strat::MaxPivoting{I}, totalindices) where I
+
+Returns first index of the pivoting strategy. For `MaxPivoting` this will be 1 
+if not defined.
+
+# Arguments 
+- `strat::MaxPivoting{I}`: Pivoting strategy.
+- `totalindices`: Indices corresponding to the matrix block, here not used.
+
+"""
 function firstindex(strat::MaxPivoting{I}, totalindices) where I
     return strat, strat.firstindex
 end
 
+""" 
+    function pivoting(
+        strat::MaxPivoting{I},
+        roworcolumn,
+        acausedindices,
+        totalindices
+    ) where {I}
+
+Returns next row or column used for approximation.
+
+# Arguments 
+- `strat::MaxPivoting{I}`: Pivoting strategy. 
+- `roworcolumn`: Last row or column.
+- `acausedindices`: Already used indices. Rows/colums can be used only once.
+- `totalindices`: All indices corresponding to the matrix block
+
+"""
 function pivoting(
     strat::MaxPivoting{I},
     roworcolumn,
     acausedindices,
     totalindices
 ) where {I}
-    
+
     if maximum(roworcolumn) != 0 
         return argmax(roworcolumn .* (.!acausedindices))
     else 
@@ -35,25 +63,46 @@ struct FillDistance{I, F} <: PivStrat
     dist::Vector{F}
 end
 
+""" 
+    function FillDistance(loc::Vector{SVector{I, F}}) where {I, F}
+
+Cunstructor of fill-distance pivoting strategy.
+
+# Arguments 
+- `loc::Vector{SVector{I, F}}`: Geometric positions of basis functions
+
+"""
 function FillDistance(loc::Vector{SVector{I, F}}) where {I, F}
 
     return FillDistance(loc, zeros(F, length(loc)))
 end
 
+""" 
+    function firstindex(strat::FillDistance{I, F}, globalindices) where {I, F}
+
+Returns first index of the pivoting strategy. For `FillDistance` this will be the 
+basis function closest to the center of the distribution.
+
+# Arguments 
+- `strat::FillDistance{I, F}`: Pivoting strategy.
+- `totalindices`: Indices corresponding to the matrix block, used to determine the
+basis functions/positions used for pivoting.
+
+"""
 function firstindex(strat::FillDistance{I, F}, globalindices) where {I, F}
-    
+
     nglobalindices = length(globalindices)
     distances = zeros(F, nglobalindices)
     dist = zeros(Float64, nglobalindices)
-    
+
     firstlocalindex = 1
-    
+
     for l = 1:nglobalindices
         dist[l] = norm(
             strat.loc[globalindices[l]] - strat.loc[globalindices[firstlocalindex]]
         )
     end
-    
+
     maxdist = maximum(dist)
 
     for l = 2:nglobalindices
@@ -79,6 +128,23 @@ function firstindex(strat::FillDistance{I, F}, globalindices) where {I, F}
     return FillDistance(strat.loc[globalindices], dist), firstlocalindex
 end
 
+""" 
+    function pivoting(
+        strat::FillDistance{I, F},
+        roworcolumn,
+        acausedindices,
+        totalindices
+    ) where {I, F}
+
+Returns next row or column used for approximation.
+
+# Arguments 
+- `strat::FillDistance{I, F}`: Pivoting strategy. 
+- `roworcolumn`: Last row or column.
+- `acausedindices`: Already used indices. Rows/colums can be used only once.
+- `totalindices`: All indices corresponding to the matrix block
+
+"""
 function pivoting(
     strat::FillDistance{I, F},
     roworcolumn,
@@ -108,13 +174,34 @@ struct TrueFillDistance{I, F} <: PivStrat
     dist::Vector{F}
 end
 
+""" 
+    function TrueFillDistance(loc::Vector{SVector{I, F}}) where {I, F}
+
+Cunstructor of fill-distance pivoting strategy.
+
+# Arguments 
+- `loc::Vector{SVector{I, F}}`: Geometric positions of basis functions
+
+"""
 function TrueFillDistance(loc::Vector{SVector{I, F}}) where {I, F}
 
     return TrueFillDistance(loc, zeros(F, length(loc)))
 end
 
+""" 
+    function firstindex(strat::TrueFillDistance{I, F}, globalindices) where {I, F}
+
+Returns first index of the pivoting strategy. For `TrueFillDistance` this will be the 
+basis function closest to the center of the distribution.
+
+# Arguments 
+- `strat::TrueFillDistance{I, F}`: Pivoting strategy.
+- `totalindices`: Indices corresponding to the matrix block, used to determine the
+basis functions/positions used for pivoting. 
+
+"""
 function firstindex(strat::TrueFillDistance{I, F}, globalindices) where {I, F}
-    
+
     nglobalindices = length(globalindices)
     distances = zeros(F, nglobalindices)
     dist = zeros(Float64, nglobalindices)
@@ -152,6 +239,23 @@ function firstindex(strat::TrueFillDistance{I, F}, globalindices) where {I, F}
     return TrueFillDistance(strat.loc[globalindices], dist), firstlocalindex
 end
 
+""" 
+    function pivoting(
+        strat::TrueFillDistance{I, F},
+        roworcolumn,
+        acausedindices,
+        totalindices
+    ) where {I, F}
+
+Returns next row or column used for approximation.
+
+# Arguments 
+- `strat::TrueFillDistance{I, F}`: Pivoting strategy. 
+- `roworcolumn`: Last row or column.
+- `acausedindices`: Already used indices. Rows/colums can be used only once.
+- `totalindices`: All indices corresponding to the matrix block
+
+"""
 function pivoting(
     strat::TrueFillDistance{I, F},
     roworcolumn,
