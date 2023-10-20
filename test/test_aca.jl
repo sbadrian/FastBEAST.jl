@@ -1,20 +1,14 @@
 using Test
 using FastBEAST
 using LinearAlgebra
-using StaticArrays
+using StaticArrays 
 using BenchmarkTools
 
 N = 1000
 A = rand(N, N)
 
-##
 @views function fct(B, x, y)
-    #for i in eachindex(x)
-    #    for j in eachindex(y)
-            #B[i, j] = A[x[i],y[j]]
-            B[:,:] = A[x, y]
-    #    end
-    #end
+    B[:,:] = A[x, y]
 end
 
 lm = LazyMatrix(fct, Vector(1:size(A, 1)), Vector(1:size(A, 2)), Float64)
@@ -217,3 +211,43 @@ lm = LazyMatrix(fct, Vector(1:size(A, 1)), Vector(1:size(A, 2)), Float64)
 
 U, V = aca(lm)
 @test U*V ≈ A atol = 1e-14
+
+## alternate structure
+
+N = 100
+blk = rand(N, N)
+
+U,S,V = svd(blk)
+S = [ i < 15 ? 10.0^(-i) : 0.0 for i = 1:N ]
+blk = U*diagm(S)*V'
+
+A = vcat(zeros(100, 100), blk)
+
+@views function fct(B, x, y)
+    B[:,:] = A[x, y]
+end
+
+lm = LazyMatrix(fct, Vector(1:size(A, 1)), Vector(1:size(A, 2)), Float64)
+
+U, V = aca(lm, svdrecompress=false)
+
+@test size(U)[2] == 15
+
+## blockstructure
+
+A = hcat(vcat(zeros(100, 100), blk), vcat(blk, zeros(100, 100)))
+
+@views function fct(B, x, y)
+    B[:,:] = A[x, y]
+end
+
+lm = LazyMatrix(fct, Vector(1:size(A, 1)), Vector(1:size(A, 2)), Float64)
+
+U, V = aca(
+    lm,
+    convergcrit=FastBEAST.Combined(Float64),
+    maxrank=200,
+    svdrecompress=false
+)
+
+@test norm(U*V-A)/norm(A) ≈ 0.0 atol=1e-15
