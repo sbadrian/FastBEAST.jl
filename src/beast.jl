@@ -118,6 +118,7 @@ function fmmassemble(
     test_functions::BEAST.Space,
     trial_functions::BEAST.Space;
     treeoptions=BoxTreeOptions(nmin=10),
+    fmmoptions=ExaFMMOptions(),
     quadstrat=SafeDoubleNumQStrat(3, 3),
     multithreading=false,
     verbose=false
@@ -140,7 +141,7 @@ function fmmassemble(
     test_functions::BEAST.Space,
     trial_functions::BEAST.Space;
     treeoptions=BoxTreeOptions(nmin=10),
-    fmmoptions=LaplaceFMMOptions(),
+    fmmoptions=ExaFMMOptions(),
     quadstrat=SafeDoubleNumQStrat(3, 3),
     multithreading=false,
     verbose=false
@@ -253,7 +254,8 @@ function BEAST.momintegrals!(biop, tshs, bshs, tcell, bcell, z, strat::SafeDoubl
     return z
 end
 
-function fmmassemble(op::BEAST.LinearCombinationOfOperators, X::BEAST.Space, Y::BEAST.Space; 
+function fmmassemble(op::BEAST.LinearCombinationOfOperators, X::BEAST.Space, Y::BEAST.Space;
+    fmmoptions=ExaFMMOptions(),
     treeoptions=BoxTreeOptions(nmin=10),
     quadstrat=SafeDoubleNumQStrat(3, 3),
     multithreading=false,
