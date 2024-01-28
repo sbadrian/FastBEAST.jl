@@ -194,8 +194,8 @@ function BEAST.quaddata(
     qs::SafeDoubleNumQStrat
 )
 
-    test_eval(x)  = test_refspace(x,  Val{:withcurl})
-    trial_eval(x) = trial_refspace(x, Val{:withcurl})
+    test_eval(x)  = test_refspace(x)
+    trial_eval(x) = trial_refspace(x)
 
     tpoints = BEAST.quadpoints(test_eval,  test_elements,  (qs.outer_rule,))
     bpoints = BEAST.quadpoints(trial_eval, trial_elements, (qs.inner_rule,))
