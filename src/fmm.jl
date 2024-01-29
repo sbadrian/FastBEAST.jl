@@ -7,6 +7,19 @@ using StaticArrays
 
 #struct FMMOptions{I, K}
 
+struct ExaFMMOptions{I}
+    p::I
+    ncrit::I
+end
+
+function ExaFMMOptions(; p=8, ncrit=50)
+    return ExaFMMOptions(p, ncrit)
+end
+
+function ExaFMMOptions(tol; ncrit=50)
+    # Should compute/choose p accordingly to match tolerance
+    error("This function is not yet implemented")
+end
 """
     assemble_fmm(
         spoints::Matrix{F},

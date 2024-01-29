@@ -107,10 +107,10 @@ function fmmassemble(
     )
 end
 
-fmmoptions(gamma::T ; p=8, ncrit=100) where {T <: Nothing} = LaplaceFMMOptions(; p=p, ncrit=ncrit)
+exafmmoptions(gamma::T, fmm) where {T <: Nothing} = LaplaceFMMOptions(; p=fmm.p, ncrit=fmm.ncrit)
 #TODO: Write unit tests for the ModifiedHelmholtzFMMOptions
-fmmoptions(gamma::T ; p=8, ncrit=100) where {T <: Real} = ModifiedHelmholtzFMMOptions(gamma; p=p, ncrit=ncrit)
-fmmoptions(gamma::T ; p=8, ncrit=100) where {T <: Complex} = HelmholtzFMMOptions(-gamma/im; p=p, ncrit=ncrit)
+exafmmoptions(gamma::T, fmm) where {T <: Real} = ModifiedHelmholtzFMMOptions(gamma; p=fmm.p, ncrit=fmm.ncrit)
+exafmmoptions(gamma::T, fmm) where {T <: Complex} = HelmholtzFMMOptions(-gamma/im; p=fmm.p, ncrit=fmm.ncrit)
 
 
 function fmmassemble(
@@ -118,6 +118,7 @@ function fmmassemble(
     test_functions::BEAST.Space,
     trial_functions::BEAST.Space;
     treeoptions=BoxTreeOptions(nmin=10),
+    fmmoptions=ExaFMMOptions(),
     quadstrat=SafeDoubleNumQStrat(3, 3),
     multithreading=false,
     verbose=false
@@ -125,7 +126,7 @@ function fmmassemble(
 
     return fmmassemble(
         operator,
-        fmmoptions(operator.gamma),
+        exafmmoptions(operator.gamma, fmmoptions),
         test_functions,
         trial_functions;
         treeoptions=treeoptions,
@@ -140,7 +141,7 @@ function fmmassemble(
     test_functions::BEAST.Space,
     trial_functions::BEAST.Space;
     treeoptions=BoxTreeOptions(nmin=10),
-    fmmoptions=LaplaceFMMOptions(),
+    fmmoptions=ExaFMMOptions(),
     quadstrat=SafeDoubleNumQStrat(3, 3),
     multithreading=false,
     verbose=false
@@ -253,7 +254,8 @@ function BEAST.momintegrals!(biop, tshs, bshs, tcell, bcell, z, strat::SafeDoubl
     return z
 end
 
-function fmmassemble(op::BEAST.LinearCombinationOfOperators, X::BEAST.Space, Y::BEAST.Space; 
+function fmmassemble(op::BEAST.LinearCombinationOfOperators, X::BEAST.Space, Y::BEAST.Space;
+    fmmoptions=ExaFMMOptions(),
     treeoptions=BoxTreeOptions(nmin=10),
     quadstrat=SafeDoubleNumQStrat(3, 3),
     multithreading=false,

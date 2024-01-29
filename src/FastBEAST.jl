@@ -21,6 +21,7 @@ export whichchildbox
 export BoxTreeNode
 export create_tree
 export BoxTreeOptions
+export ExaFMMOptions
 export KMeansTreeOptions
 export KMeansTreeNode
 
