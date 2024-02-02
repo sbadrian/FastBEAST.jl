@@ -1,3 +1,6 @@
+abstract type ConvergenceCriterion end
+abstract type PivStrat end
+
 struct LazyMatrix{I, F} <: AbstractMatrix{F}
     μ::Function
     τ::Vector{I}
@@ -17,16 +20,6 @@ function Base.getindex(
     return Z
 end
 
-""" 
-    function LazyMatrix(μ::Function, τ::Vector{I}, σ::Vector{I}, ::Type{F}) where {I, F}
-
-# Arguments 
-- `μ::Function`: 
-- `τ::Vector{I}`: 
-- `σ::Vector{I}`: 
-- `::Type{F}`: 
-
-"""
 function LazyMatrix(μ::Function, τ::Vector{I}, σ::Vector{I}, ::Type{F}) where {I, F}
     
     return LazyMatrix{I, F}(μ, τ, σ)
@@ -37,38 +30,50 @@ end
     A.μ(view(Z, I, J), view(A.τ, I), view(A.σ, J))
 end
 
-mutable struct ACAGlobalMemory{I, F, K}
-    Ic::I
-    Jc::I
+mutable struct ACAGlobalMemory{I, F <: Real, K}
     U::Matrix{K}
     V::Matrix{K}
     used_I::Vector{Bool}
     used_J::Vector{Bool}
-    normUV::F
+    normUV²::F
+    npivots::I
+end
+
+function clear!(am::ACAGlobalMemory{I, F, K}) where {I, F <: Real, K}
+    am.U .= K(0.0)
+    am.V .= K(0.0)
+    am.used_I .= false
+    am.used_J .= false
+    am.normUV² = F(0.0)
+    am.npivots = I(1)
 end
 
 maxrank(acamemory::ACAGlobalMemory) = size(acamemory.U, 2)
 
 """ 
-    function allocate_aca_memory(::Type{F}, maxrows, maxcolumns; maxrank=40) where {F}
+    function allocate_aca_memory(
+        ::Type{K}, maxrows::I, maxcolumns::I; maxrank=40
+    ) where {I, K}
 
 Preallocation of sorage for the ACA.
 
 # Arguments 
-- `::Type{F}`: Type of matrix entries.
-- `maxrows`: Number of rows.
-- `maxcolumns`: Number of columns.
+- `::Type{K}`: Type of matrix entries.
+- `maxrows::I`: Number of rows.
+- `maxcolumns::I`: Number of columns.
 
 # Optional Arguments 
 - `maxrank=40`: Maximum rank for the ACA. The ACA stops of more rows/columns are used for
 the approximation.
 
 """
-function allocate_aca_memory(::Type{F}, maxrows, maxcolumns; maxrank=40) where {F}
-
-    U = zeros(F, maxrows, maxrank)
-    V = zeros(F, maxrank, maxcolumns)
+function allocate_aca_memory(
+    ::Type{K}, maxrows::I, maxcolumns::I; maxrank=40
+) where {I, K}
+    U = zeros(K, maxrows, maxrank)
+    V = zeros(K, maxrank, maxcolumns)
     used_I = zeros(Bool, maxrows)
     used_J = zeros(Bool, maxcolumns)
-    return ACAGlobalMemory(1, 1, U, V, used_I, used_J, 0.0)
+
+    return ACAGlobalMemory(U, V, used_I, used_J, real(K)(0.0), I(1))
 end

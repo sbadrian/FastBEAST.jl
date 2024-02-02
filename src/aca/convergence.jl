@@ -1,74 +1,125 @@
-abstract type ConvergenceCriterion end
-
 struct Standard <: ConvergenceCriterion end
 
 """ 
-    function initconvergence!(
-        M::FastBEAST.LazyMatrix{I, K}, 
-        convergcrit::Standard
-    ) where {I, K} end
+    function initconvergence(
+        M::LazyMatrix{I, K}, convcrit::Standard
+    ) where {I, K} 
 
 # Arguments 
 - `M::FastBEAST.LazyMatrix{I, K}`: Assembler matrix used to compute rows and columns. 
 - `convergcrit::Standard`: Convergence criterion used in the ACA, here used for dispaching. 
 
 """
-function initconvergence!(
-    M::FastBEAST.LazyMatrix{I, K}, 
-    convergcrit::Standard
-) where {I, K} end
+function initconvergence(
+    M::LazyMatrix{I, K}, convcrit::Standard
+) where {I, K} 
+    return convcrit
+end
 
-mutable struct RandomSampling{I, K} <: ConvergenceCriterion
+function convergence!(
+    tol::F,
+    normUV::F,
+    am::ACAGlobalMemory{I, F, K},
+    convcrit::Standard
+) where {I, F <: Real, K}
+
+    return normUV <= tol*sqrt(am.normUV²)
+end
+
+mutable struct RandomSampling{I, F <: Real, K} <: ConvergenceCriterion
     nsamples::I
+    factor::F
     indices::Matrix{I}
     rest::Matrix{K}
 end
 
-""" 
-    function RandomSampling(::Type{K}; nsamples=0) where K
-
-Cunstructor for random-sampling convergence criterion. 
-
-# Arguments 
-- `::Type{K}`: Type of matrix entries.
-
-# Optional Arguments 
-- `nsamples=0`: Number of random samples used for the approximation. If not changed it will 
-be number of rows + number of columns.
-
-"""
-function RandomSampling(::Type{K}; nsamples=0) where K
-    return RandomSampling(nsamples, zeros(Int, nsamples, 2), zeros(K, nsamples, 1))
+function RandomSampling(::Type{K}; factor=1.0, nsamples=0) where K
+    return RandomSampling(
+        Int(ceil(nsamples*factor)),
+        factor,
+        zeros(Int, Int(ceil(nsamples*factor)), 2),
+        zeros(K, Int(ceil(nsamples*factor)), 1)
+    )
 end
 
-mutable struct Combined{I, K} <: ConvergenceCriterion
+function (::RandomSampling{I, F, K})(
+    ::Type{K}; factor=F(1.0), nsamples=I(0)
+) where {I, F, K}
+    return RandomSampling(
+        I(ceil(nsamples*factor)),
+        factor,
+        zeros(I, I(ceil(nsamples*factor)), 2),
+        zeros(K, I(ceil(nsamples*factor)), 1)
+    )
+end
+
+function convergence!(
+    tol::F,
+    normUV::F,
+    am::ACAGlobalMemory{I, F, K},
+    convcrit::RandomSampling{I, F, K}
+) where {I, F <: Real, K}
+
+    # random sampling convergence
+    for i in eachindex(convcrit.rest)
+        @views convcrit.rest[i] -= 
+            am.U[convcrit.indices[i, 1], am.npivots] * am.V[am.npivots, convcrit.indices[i, 2]] 
+    end
+
+    meanrest = sum(abs.(convcrit.rest).^2) / convcrit.nsamples
+
+    return sqrt(meanrest*size(am.U, 1)*size(am.V, 2)) <= tol*sqrt(am.normUV²)
+end
+
+mutable struct Combined{I, F <: Real, K} <: ConvergenceCriterion
     nsamples::I
+    factor::F
     indices::Matrix{I}
     rest::Matrix{K}
 end
 
-""" 
-    function Combined(::Type{K}; nsamples=0) where K
+function Combined(::Type{K}; factor=1.0, nsamples=0) where K
+    return Combined(
+        Int(ceil(nsamples*factor)),
+        factor,
+        zeros(Int, Int(ceil(nsamples*factor)), 2),
+        zeros(K, Int(ceil(nsamples*factor)), 1)
+    )
+end
 
-Cunstructor for combined convergence criterion (random sampling and standard). 
+function (::Combined{I, F, K})(::Type{K}; factor=1, nsamples=0) where {I, F, K}
+    return Combined(
+        Int(ceil(nsamples*factor)),
+        factor,
+        zeros(Int, Int(ceil(nsamples*factor)), 2),
+        zeros(K, Int(ceil(nsamples*factor)), 1)
+    )
+end
 
-# Arguments 
-- `::Type{K}`: Type of matrix entries.
+function convergence!(
+    tol::F,
+    normUV::F,
+    am::ACAGlobalMemory{I, F, K},
+    convcrit::Combined{I, F, K}
+) where {I, F <: Real, K}
 
-# Optional Arguments 
-- `nsamples=0`: Number of random samples used for the approximation. If not changed it will 
-be number of rows + number of columns.
+    # random sampling convergence
+    for i in eachindex(convcrit.rest)
+        @views convcrit.rest[i] -= 
+            am.U[convcrit.indices[i, 1], am.npivots] * am.V[am.npivots, convcrit.indices[i, 2]]
+    end
 
-"""
-function Combined(::Type{K}; nsamples=0) where K
-    return Combined(nsamples, zeros(Int, nsamples, 2), zeros(K, nsamples, 1))
+    meanrest = sum(abs.(convcrit.rest).^2) / convcrit.nsamples
+
+    return (sqrt(meanrest*size(am.U, 1)*size(am.V, 2)) <= tol*sqrt(am.normUV²) && 
+        normUV <= tol*sqrt(am.normUV²))
 end
 
 """ 
-    function initconvergence!(
-        M::FastBEAST.LazyMatrix{I, K},
-        convergcrit::Union{RandomSampling{I, K}, Combined{I, K}}
-    ) where {I, K}
+    function initconvergence(
+        M::LazyMatrix{I, K},
+        convcrit::Union{RandomSampling{I, F, K}, Combined{I, F, K}},
+    ) where {I, F <: Real, K}
 
 Setup of the convergence criterion. Computation of the random samples, and allocation 
 of the storage if not happened yet. 
@@ -79,217 +130,151 @@ of the storage if not happened yet.
 used in the ACA, here used for dispaching.
 
 """
-function initconvergence!(
-    M::FastBEAST.LazyMatrix{I, K},
-    convergcrit::Union{RandomSampling{I, K}, Combined{I, K}}
-) where {I, K}
+function initconvergence(
+    M::LazyMatrix{I, K},
+    convcrit::Union{RandomSampling{I, F, K}, Combined{I, F, K}},
+) where {I, F <: Real, K}
 
-    if convergcrit.nsamples == 0
-        convergcrit.nsamples = size(M)[1] + size(M)[2]
-        convergcrit.indices = zeros(Int, convergcrit.nsamples, 2)
-        convergcrit.rest = zeros(K, convergcrit.nsamples, 1)
-    end
+    convcrit.nsamples > length(M.τ)*length(M.σ) && println("Conv. oversampled!")
 
-    convergcrit.indices[1:convergcrit.nsamples, 1] = 
-        rand(1:length(M.τ), convergcrit.nsamples)
-    convergcrit.indices[1:convergcrit.nsamples, 2] = 
-        rand(1:length(M.σ), convergcrit.nsamples)
-    
-    for ind in eachindex(convergcrit.rest)
+    convcrit.nsamples == 0 && (convcrit = convcrit(
+        K, factor=convcrit.factor, nsamples=Int(ceil((size(M)[1] + size(M)[2])))
+    ))
+
+    convcrit.indices[1:convcrit.nsamples, 1] = rand(1:length(M.τ), convcrit.nsamples)
+    convcrit.indices[1:convcrit.nsamples, 2] = rand(1:length(M.σ), convcrit.nsamples)
+    for ind in eachindex(convcrit.rest)
         @views M.μ(
-            convergcrit.rest[ind:ind, 1:1], 
-            M.τ[convergcrit.indices[ind, 1]:convergcrit.indices[ind, 1]],
-            M.σ[convergcrit.indices[ind, 2]:convergcrit.indices[ind, 2]]
+            convcrit.rest[ind:ind, 1:1], 
+            M.τ[convcrit.indices[ind, 1]:convcrit.indices[ind, 1]],
+            M.σ[convcrit.indices[ind, 2]:convcrit.indices[ind, 2]]
         )
     end
+
+    return convcrit
 end
 
 """ 
     function checkconvergence(
-        normU::F,
-        normV::F,
+        normUV::F,
         maxrows::I,
         maxcolumns::I,
         am::ACAGlobalMemory{I, F, K},
         rowpivstrat::PivStrat,
         columnpivstrat::PivStrat,
-        convergcrit::Standard,
+        convcrit::ConvergenceCriterion,
         tol::F
-    ) where {I, F, K}
+    ) where {I, F <: Real, K}
 
-Checks if convergence in the ACA is reached using the standard criterion.
+Checks if convergence in the ACA is reached.
 
 # Arguments 
-- `normU::F`: Norm of last column.
-- `normV::F`: Norm of last row.
+- `normUV::F`: Norm of last column times norm of las row.
 - `maxrows::I`: Number of rows.
 - `maxcolumns::I`: Number of columns.
 - `am::ACAGlobalMemory{I, F, K}`: Preallocated memory used for the ACA. 
 - `rowpivstrat::PivStrat`: Pivoting strategy for the rows.
-- `columnpivstrat::PivStrat`: Pivoting strategy for the rows.
+- `columnpivstrat::PivStrat`: Pivoting strategy for the columns.
 - `convergcrit::Standard`: Convergence criterion.
 - `tol::F`: Tolerance of the ACA. 
 
 """
 function checkconvergence(
-    normU::F,
-    normV::F,
+    normUV::F,
     maxrows::I,
     maxcolumns::I,
     am::ACAGlobalMemory{I, F, K},
     rowpivstrat::PivStrat,
     columnpivstrat::PivStrat,
-    convergcrit::Standard,
+    convcrit::ConvergenceCriterion,
     tol::F
-) where {I, F, K}
+) where {I, F <: Real, K}
 
-    if normU == 0 || normV == 0
-        am.Ic -= 1 
+    if (normUV == 0) && (rowpivstrat != FastBEAST.MaxPivoting{I} || am.npivots == 1)
         rowpivstrat = FastBEAST.MaxPivoting()
-        
         return false, rowpivstrat, columnpivstrat
     else
-        am.normUV += (normU * normV)^2
-        for j = 1:(am.Jc-1)
-            @views am.normUV += 2*abs.(dot(am.U[1:maxrows, am.Jc], am.U[1:maxrows, j]) * dot(
-                am.V[am.Ic, 1:maxcolumns],
-                am.V[j, 1:maxcolumns])
-            )
+        am.normUV² += (normUV)^2
+        for j = 1:(am.npivots-1)
+            @views am.normUV² += 2*real.(
+                dot(am.U[1:maxrows, am.npivots], am.U[1:maxrows, j]
+            ) * dot(am.V[am.npivots, 1:maxcolumns], am.V[j, 1:maxcolumns]))
         end
 
-        return normU*normV <= tol*sqrt(am.normUV), rowpivstrat, columnpivstrat
+        if normUV <= eps(real(K))*am.normUV²
+            conv = convergence!(tol, normUV, am, convcrit)
+            am.npivots -= 1
+            return conv, rowpivstrat, columnpivstrat
+        end
+
+        return convergence!(tol, normUV, am, convcrit), rowpivstrat, columnpivstrat
     end
 end
 
 """ 
     function checkconvergence(
-        normU::F,
-        normV::F,
+        normUV::F,
         maxrows::I,
         maxcolumns::I,
         am::ACAGlobalMemory{I, F, K},
-        rowpivstrat::PivStrat,
+        rowpivstrat::MRFPivoting,
         columnpivstrat::PivStrat,
-        convergcrit::Combined{I, K},
-        tol::F,
-    ) where {I, F, K}
+        convcrit::ConvergenceCriterion,
+        tol::F
+    ) where {I, F <: Real, K}
 
-Checks if convergence in the ACA is reached using the combined criterion.
+Checks if convergence in the ACA is reached for MRFPivoting.
 
 # Arguments 
-- `normU::F`: Norm of last column.
-- `normV::F`: Norm of last row.
+- `normUV::F`: Norm of last column times norm of las row.
 - `maxrows::I`: Number of rows.
 - `maxcolumns::I`: Number of columns.
 - `am::ACAGlobalMemory{I, F, K}`: Preallocated memory used for the ACA. 
-- `rowpivstrat::PivStrat`: Pivoting strategy for the rows.
-- `columnpivstrat::PivStrat`: Pivoting strategy for the rows.
-- `convergcrit::Combined{I, K}`: Convergence criterion.
-- `tol::F`: Tolerance of the ACA.
+- `rowpivstrat::MRFPivoting`: Pivoting strategy for the rows.
+- `columnpivstrat::PivStrat`: Pivoting strategy for the columns.
+- `convergcrit::Standard`: Convergence criterion.
+- `tol::F`: Tolerance of the ACA. 
 
 """
 function checkconvergence(
-    normU::F,
-    normV::F,
+    normUV::F,
     maxrows::I,
     maxcolumns::I,
-    am::ACAGlobalMemory{I, F, K},
-    rowpivstrat::PivStrat,
+    am::ACAGlobalMemory{F, K},
+    rowpivstrat::MRFPivoting,
     columnpivstrat::PivStrat,
-    convergcrit::Combined{I, K},
+    convcrit::ConvergenceCriterion,
     tol::F
-) where {I, F, K}
+) where {I, F <: Real, K}
 
-    if normU == 0 || normV == 0
-        rowpivstrat = FastBEAST.MaxPivoting()
-        
+    if (normUV == 0) && (am.npivots == 1)
+        am.npivots -= 1 
+
         return false, rowpivstrat, columnpivstrat
     else
-        # standard convergence
-        am.normUV += (normU * normV)^2
-        for j = 1:(am.Jc-1)
-            @views am.normUV += 2*real(dot(am.U[1:maxrows, am.Jc], am.U[1:maxrows, j]) * dot(
-                am.V[am.Ic, 1:maxcolumns],
-                am.V[j, 1:maxcolumns])
-            )
+        am.normUV² += (normUV)^2
+        for j = 1:(am.npivots-1)
+            @views am.normUV² += 2*real.(
+                dot(am.U[1:maxrows, am.npivots], am.U[1:maxrows, j]
+            ) * dot(am.V[am.npivots, 1:maxcolumns], am.V[j, 1:maxcolumns]))
         end
         
-        # random sampling convergence
-        for i in eachindex(convergcrit.rest)
-            @views convergcrit.rest[i] -= 
-                am.U[convergcrit.indices[i, 1], am.Jc] * am.V[am.Ic, convergcrit.indices[i, 2]] 
+         # random sampling convergence
+         for i in eachindex(convcrit.rest)
+            @views convcrit.rest[i] -= 
+                am.U[convcrit.indices[i, 1], am.npivots] * am.V[am.npivots, convcrit.indices[i, 2]]
         end
 
-        meanrest = sum(abs.(convergcrit.rest).^2)/length(convergcrit.rest)
-        conv = (sqrt(meanrest*maxrows*maxcolumns) <= tol*sqrt(am.normUV) && 
-            normU*normV <= tol*sqrt(am.normUV))
-
+        meanrest = sum(abs.(convcrit.rest).^2) / convcrit.nsamples
+        lastupdate = rowpivstrat.sc && rowpivstrat.rc
+        rowpivstrat.rc = sqrt(meanrest*size(am.U, 1)*size(am.V, 2)) <= tol*sqrt(am.normUV²)
+        rowpivstrat.sc = normUV <= tol*sqrt(am.normUV²)
+        conv = rowpivstrat.sc && rowpivstrat.rc && rowpivstrat.fillstep
+        
+        if lastupdate && conv
+            am.npivots -= 1
+        end
+             
         return conv, rowpivstrat, columnpivstrat
     end
-end
-
-""" 
-    function checkconvergence(
-        normU::F,
-        normV::F,
-        maxrows::I,
-        maxcolumns::I,
-        am::ACAGlobalMemory{I, F, K},
-        rowpivstrat::PivStrat,
-        columnpivstrat::PivStrat,
-        convergcrit::RandomSampling{I, K},
-        tol::F,
-    ) where {I, F, K}
-
-Checks if convergence in the ACA is reached using the random-sampling criterion.
-
-# Arguments 
-- `normU::F`: Norm of last column.
-- `normV::F`: Norm of last row.
-- `maxrows::I`: Number of rows.
-- `maxcolumns::I`: Number of columns.
-- `am::ACAGlobalMemory{I, F, K}`: Preallocated memory used for the ACA. 
-- `rowpivstrat::PivStrat`: Pivoting strategy for the rows.
-- `columnpivstrat::PivStrat`: Pivoting strategy for the rows.
-- `convergcrit::RandomSampling{I, K}`: Convergence criterion.
-- `tol::F`: Tolerance of the ACA.
-
-"""
-function checkconvergence(
-    normU::F,
-    normV::F,
-    maxrows::I,
-    maxcolumns::I,
-    am::ACAGlobalMemory{I, F, K},
-    rowpivstrat::PivStrat,
-    columnpivstrat::PivStrat,
-    convergcrit::RandomSampling{I, K},
-    tol::F
-) where {I, F, K}
-
-    if normU == 0 || normV == 0
-        rowpivstrat = FastBEAST.MaxPivoting()
-        
-        return false, rowpivstrat, columnpivstrat
-    else
-        # standard convergence
-        am.normUV += (normU * normV)^2
-        for j = 1:(am.Jc-1)
-            @views am.normUV += 2*real(dot(am.U[1:maxrows, am.Jc], am.U[1:maxrows, j]) * dot(
-                am.V[am.Ic, 1:maxcolumns],
-                am.V[j, 1:maxcolumns])
-            )
-        end
-        
-        # random sampling convergence
-        for i in eachindex(convergcrit.rest)
-            @views convergcrit.rest[i] -= 
-                am.U[convergcrit.indices[i, 1], am.Jc] * am.V[am.Ic, convergcrit.indices[i, 2]] 
-        end
-
-        meanrest = sum(abs.(convergcrit.rest).^2)/length(convergcrit.rest)
-        conv = sqrt(meanrest*maxrows*maxcolumns) <= tol*sqrt(am.normUV)
-
-        return conv, rowpivstrat, columnpivstrat
-    end
-end
+end 
