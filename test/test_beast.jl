@@ -40,21 +40,21 @@ end
 
 mat, hmat_single = test_beast_laplace_singlelayer(0.1) 
 
-@test nnz(hmat_single) == 3957191
+@test nnz(hmat_single) == 3902035
 
 @test compressionrate(hmat_single) > 0.3
 @test estimate_reldifference(hmat_single, mat) ≈ 0 atol=1e-4
 
 mat, hmat_multi = test_beast_laplace_singlelayer(0.1, multithreading=true) 
 
-@test nnz(hmat_multi) == 3957191
+@test nnz(hmat_multi) == 3902035
 
 @test compressionrate(hmat_multi) > 0.3
 @test estimate_reldifference(hmat_multi, mat) ≈ 0 atol=1e-4
 
 mat, hmat_single = test_beast_laplace_singlelayer(0.1, quadstrat=BEAST.DoubleNumQStrat(1, 1)) 
 
-@test nnz(hmat_single) == 3957191
+@test nnz(hmat_single) == 3902035
 
 @test compressionrate(hmat_single) > 0.3
 @test estimate_reldifference(hmat_single, mat) ≈ 0 atol=1e-3
@@ -65,7 +65,7 @@ mat, hmat_multi = test_beast_laplace_singlelayer(
     quadstrat=BEAST.DoubleNumQStrat(1, 1)
 ) 
 
-@test nnz(hmat_multi) == 3957191
+@test nnz(hmat_multi) == 3902035
 
 @test compressionrate(hmat_multi) > 0.3
 @test estimate_reldifference(hmat_multi, mat) ≈ 0 atol=1e-3
@@ -77,7 +77,7 @@ mat, hmat_svdmulti = test_beast_laplace_singlelayer(
     svdrecompress=true
 ) 
 
-@test nnz(hmat_svdmulti) == 3957191
+@test nnz(hmat_svdmulti) == 3902035
 
 @test compressionrate(hmat_svdmulti) > 0.3
 @test estimate_reldifference(hmat_svdmulti, mat) ≈ 0 atol=1e-3

@@ -1,8 +1,4 @@
-using LinearAlgebra
-
-abstract type PivStrat end
-
-# max pivoting
+# Standard partial pivoting
 struct MaxPivoting{I} <: PivStrat
     firstindex::I
 end
@@ -11,285 +7,208 @@ function MaxPivoting()
     return MaxPivoting(1)
 end
 
-""" 
-    function firstindex(strat::MaxPivoting{I}, totalindices) where I
-
-Returns first index of the pivoting strategy. For `MaxPivoting` this will be 1 
-if not defined.
-
-# Arguments 
-- `strat::MaxPivoting{I}`: Pivoting strategy.
-- `totalindices`: Indices corresponding to the matrix block, here not used.
-
-"""
-function firstindex(strat::MaxPivoting{I}, totalindices) where I
-    return strat, strat.firstindex
+function maxvalue(
+    roworcolumn::Vector{K}, 
+    usedidcs::Union{Vector{Bool}, SubArray{Bool, 1, Vector{Bool}, Tuple{UnitRange{Int}}, true}}
+) where K
+    
+    idx = argmax(roworcolumn .* (.!usedidcs))
+    (!usedidcs[idx]) && return idx 
+    usedidcs[idx] && return argmin(usedidcs)
 end
 
-""" 
-    function pivoting(
-        strat::MaxPivoting{I},
-        roworcolumn,
-        acausedindices,
-        totalindices
-    ) where {I}
+function firstpivot(pivstrat::MaxPivoting{Int}, globalidcs::Vector{Int})
+    return pivstrat, pivstrat.firstindex
+end
 
-Returns next row or column used for approximation.
-
-# Arguments 
-- `strat::MaxPivoting{I}`: Pivoting strategy. 
-- `roworcolumn`: Last row or column.
-- `acausedindices`: Already used indices. Rows/colums can be used only once.
-- `totalindices`: All indices corresponding to the matrix block
-
-"""
 function pivoting(
-    strat::MaxPivoting{I},
-    roworcolumn,
-    acausedindices,
-    totalindices
-) where {I}
+    pivstrat::MaxPivoting,
+    roworcolumn::Vector{K},
+    usedidcs::Union{Vector{Bool}, SubArray{Bool, 1, Vector{Bool}, Tuple{UnitRange{Int}}, true}},
+    convcrit::ConvergenceCriterion
+) where K
 
-    if maximum(roworcolumn) != 0 
-        return argmax(roworcolumn .* (.!acausedindices))
-    else 
-        return argmin(acausedindices)
+    return maxvalue(roworcolumn, usedidcs)
+end
+
+# Fill-distance pivoting
+abstract type FD <: PivStrat end
+struct FillDistance{F <: Real} <: FD
+    h::Vector{F}
+    pos::Vector{SVector{3, F}}
+end
+
+function FillDistance(pos::Vector{SVector{3, F}}) where F <: Real
+    return FillDistance(zeros(F, length(pos)), pos)
+end
+
+function filldistance(
+    fdmemory::FillDistance{F},
+    usedidcs::Union{Vector{Bool}, SubArray{Bool, 1, Vector{Bool}, Tuple{UnitRange{Int}}, true}},
+) where F <: Real
+
+    pivots = Int[]
+    maxval = maximum(fdmemory.h)
+
+    for k in eachindex(fdmemory.h)
+        newfd = 0.0
+        for (ind, pos) in enumerate(fdmemory.pos)
+            if fdmemory.h[ind] > norm(fdmemory.pos[k] - pos) 
+                if newfd < norm(fdmemory.pos[k] - pos)
+                    newfd = norm(fdmemory.pos[k] - pos)
+                end
+            else
+                if newfd < fdmemory.h[ind]
+                    newfd = fdmemory.h[ind]
+                end
+            end
+        end
+        if !usedidcs[k]
+            if newfd < maxval
+                maxval = newfd
+                pivots = Int[k]
+            elseif newfd == maxval 
+                push!(pivots, k)
+            end
+        end
+    end
+
+    return pivots
+end
+
+struct ModifiedFillDistance{F <: Real} <: FD
+    h::Vector{F}
+    pos::Vector{SVector{3, F}}
+end
+
+function ModifiedFillDistance(pos::Vector{SVector{3, F}}) where F <: Real
+    return ModifiedFillDistance(zeros(F, length(pos)), pos)
+end
+
+function filldistance(
+    fdmemory::ModifiedFillDistance{F},
+    usedidcs::Union{Vector{Bool}, SubArray{Bool, 1, Vector{Bool}, Tuple{UnitRange{Int}}, true}},
+) where F <: Real
+
+    return [argmax(fdmemory.h)]
+end
+
+function update!(fdmemory::FD, pivotidx::Int)
+
+    for k in eachindex(fdmemory.h)
+        if fdmemory.h[k] > norm(fdmemory.pos[k] - fdmemory.pos[pivotidx])
+            fdmemory.h[k] = norm(fdmemory.pos[k] - fdmemory.pos[pivotidx])
+        end
     end
 end
 
-# fill distance pivoting
-struct FillDistance{I, F} <: PivStrat
-    loc::Vector{SVector{I, F}}
-    dist::Vector{F}
-end
-
 """ 
-    function FillDistance(loc::Vector{SVector{I, F}}) where {I, F}
-
-Cunstructor of fill-distance pivoting strategy.
-
-# Arguments 
-- `loc::Vector{SVector{I, F}}`: Geometric positions of basis functions
-
-"""
-function FillDistance(loc::Vector{SVector{I, F}}) where {I, F}
-
-    return FillDistance(loc, zeros(F, length(loc)))
-end
-
-""" 
-    function firstindex(strat::FillDistance{I, F}, globalindices) where {I, F}
+    function firstpivot(pivstrat::FD, globalidcs::Vector{Int})
 
 Returns first index of the pivoting strategy. For `FillDistance` this will be the 
 basis function closest to the center of the distribution.
 
 # Arguments 
-- `strat::FillDistance{I, F}`: Pivoting strategy.
-- `totalindices`: Indices corresponding to the matrix block, used to determine the
+- `pivstrat::FD`: Pivoting strategy.
+- `globalidcs::Vector{Int}`: Indices corresponding to the matrix block, used to determine the
 basis functions/positions used for pivoting.
 
 """
-function firstindex(strat::FillDistance{I, F}, globalindices) where {I, F}
+function firstpivot(pivstrat::FD, globalidcs::Vector{Int})
 
-    nglobalindices = length(globalindices)
-    distances = zeros(F, nglobalindices)
-    dist = zeros(Float64, nglobalindices)
+    localpos = pivstrat.pos[globalidcs]
+    center = sum(localpos) / length(localpos)
 
-    firstlocalindex = 1
-
-    for l = 1:nglobalindices
-        dist[l] = norm(
-            strat.loc[globalindices[l]] - strat.loc[globalindices[firstlocalindex]]
-        )
-    end
-
-    maxdist = maximum(dist)
-
-    for l = 2:nglobalindices
-        for ll = 1:nglobalindices
-            if maxdist < norm(strat.loc[globalindices[l]] - strat.loc[globalindices[ll]])
-                distances[ll] = norm(
-                    strat.loc[globalindices[l]] - strat.loc[globalindices[ll]]
-                )
-                break
-            else
-                distances[ll] = norm(
-                    strat.loc[globalindices[l]] - strat.loc[globalindices[ll]]
-                )
-            end
-        end
-        if maximum(distances) < maximum(dist)
-            maxdist = maximum(distances)
-            firstlocalindex = l
-            dist .= distances
+    firstidcs = 0
+    minimum = 0
+    for (ind, pos) in enumerate(localpos)
+        if ind == 1 || minimum > norm(pos - center)
+            firstidcs = ind
+            minimum = norm(pos-center)
         end
     end
 
-    return FillDistance(strat.loc[globalindices], dist), firstlocalindex
+    h = zeros(eltype(pivstrat.h), length(localpos))
+    for i in eachindex(h)
+        h[i] = norm(localpos[i] - localpos[firstidcs])
+    end
+    
+    pivstrat isa FillDistance && return FillDistance(h, localpos), firstidcs
+    pivstrat isa ModifiedFillDistance && return ModifiedFillDistance(h, localpos), firstidcs
+    pivstrat isa MRFPivoting && return MRFPivoting(h, localpos, false, false, false), firstidcs
 end
+
 
 """ 
     function pivoting(
-        strat::FillDistance{I, F},
-        roworcolumn,
-        acausedindices,
-        totalindices
-    ) where {I, F}
+        pivstrat::FD,
+        roworcolumn::Vector{K},
+        usedidcs::SubArray{Bool, 1, Vector{Bool}, Tuple{UnitRange{Int}}, true},
+        convcrit::ConvergenceCriterion
+    ) where {K}
 
 Returns next row or column used for approximation.
 
 # Arguments 
-- `strat::FillDistance{I, F}`: Pivoting strategy. 
-- `roworcolumn`: Last row or column.
-- `acausedindices`: Already used indices. Rows/colums can be used only once.
-- `totalindices`: All indices corresponding to the matrix block
+- `pivstrat::FD`: Pivoting strategy. 
+- `roworcolumn::Vector{K}`: Last row or column.
+- `usedidcs::SubArray{Bool, 1, Vector{Bool}, Tuple{UnitRange{Int}}, true}`: Already used
+indices. Rows/colums can be used only once.
+- `convcrit::ConvergenceCriterion`: Convergence criterion used only in the case of MRFPivoting
 
 """
 function pivoting(
-    strat::FillDistance{I, F},
-    roworcolumn,
-    acausedindices,
-    totalindices
-) where {I, F}
-
-    if maximum(acausedindices) == 0
-        firstind = firstindex(strat, totalindices)
-        return firstind 
-    else
-        localind = argmax(strat.dist)
-
-        for gind in eachindex(totalindices)
-            if strat.dist[gind] > norm(strat.loc[gind] - strat.loc[localind])
-                strat.dist[gind] = norm(strat.loc[gind] - strat.loc[localind])
-            end
-        end
-
-        return localind
-    end
-end
-
-# True fill distance pivoting
-struct TrueFillDistance{I, F} <: PivStrat
-    loc::Vector{SVector{I, F}}
-    dist::Vector{F}
-end
-
-""" 
-    function TrueFillDistance(loc::Vector{SVector{I, F}}) where {I, F}
-
-Cunstructor of fill-distance pivoting strategy.
-
-# Arguments 
-- `loc::Vector{SVector{I, F}}`: Geometric positions of basis functions
-
-"""
-function TrueFillDistance(loc::Vector{SVector{I, F}}) where {I, F}
-
-    return TrueFillDistance(loc, zeros(F, length(loc)))
-end
-
-""" 
-    function firstindex(strat::TrueFillDistance{I, F}, globalindices) where {I, F}
-
-Returns first index of the pivoting strategy. For `TrueFillDistance` this will be the 
-basis function closest to the center of the distribution.
-
-# Arguments 
-- `strat::TrueFillDistance{I, F}`: Pivoting strategy.
-- `totalindices`: Indices corresponding to the matrix block, used to determine the
-basis functions/positions used for pivoting. 
-
-"""
-function firstindex(strat::TrueFillDistance{I, F}, globalindices) where {I, F}
-
-    nglobalindices = length(globalindices)
-    distances = zeros(F, nglobalindices)
-    dist = zeros(Float64, nglobalindices)
+    pivstrat::FD,
+    roworcolumn::Vector{K},
+    usedidcs::SubArray{Bool, 1, Vector{Bool}, Tuple{UnitRange{Int}}, true},
+    convcrit::ConvergenceCriterion
+) where {K}
     
-    firstlocalindex = 1
+    nextpivots::Vector{Int} = filldistance(pivstrat, usedidcs)
+    nextpivot = nextpivots[1]
+    @views length(nextpivots) > 1 && (
+        nextpivot = nextpivots[argmax(roworcolumn[nextpivots])]
+    )
+    update!(pivstrat, nextpivot)
     
-    for l = 1:nglobalindices
-        dist[l] = norm(
-            strat.loc[globalindices[l]] - strat.loc[globalindices[firstlocalindex]]
-        )
-    end
-    
-    maxdist = maximum(dist)
-
-    for l = 2:nglobalindices
-        for ll = 1:nglobalindices
-            if maxdist < norm(strat.loc[globalindices[l]] - strat.loc[globalindices[ll]])
-                distances[ll] = norm(
-                    strat.loc[globalindices[l]] - strat.loc[globalindices[ll]]
-                )
-                break
-            else
-                distances[ll] = norm(
-                    strat.loc[globalindices[l]] - strat.loc[globalindices[ll]]
-                )
-            end
-        end
-        if maximum(distances) < maximum(dist)
-            maxdist = maximum(distances)
-            firstlocalindex = l
-            dist .= distances
-        end
-    end
-
-    return TrueFillDistance(strat.loc[globalindices], dist), firstlocalindex
+    return nextpivot
 end
 
-""" 
-    function pivoting(
-        strat::TrueFillDistance{I, F},
-        roworcolumn,
-        acausedindices,
-        totalindices
-    ) where {I, F}
+# MRFPivoting
+mutable struct MRFPivoting{I, F} <: FD
+    h::Vector{F}
+    pos::Vector{SVector{I, F}}
+    sc::Bool
+    rc::Bool
+    fillstep::Bool
+end
 
-Returns next row or column used for approximation.
+function MRFPivoting(pos::Vector{SVector{I, F}}) where {I, F}
 
-# Arguments 
-- `strat::TrueFillDistance{I, F}`: Pivoting strategy. 
-- `roworcolumn`: Last row or column.
-- `acausedindices`: Already used indices. Rows/colums can be used only once.
-- `totalindices`: All indices corresponding to the matrix block
+    return MRFPivoting(zeros(F, length(pos)), pos, false, false, false)
+end
 
-"""
 function pivoting(
-    strat::TrueFillDistance{I, F},
-    roworcolumn,
-    acausedindices,
-    totalindices
-) where {I, F}
+    pivstrat::MRFPivoting{3, F},
+    roworcolumn::Vector{K},
+    usedidcs::SubArray{Bool, 1, Vector{Bool}, Tuple{UnitRange{Int}}, true},
+    # ToDo: Perhaps structs of Pivoting and Converegence must be declarded in aca_utils.jl
+    convcrit::ConvergenceCriterion#Combined{I, F, K} 
+) where {F, K}
 
-    if maximum(acausedindices) == 0
-        firstind = firstindex(strat, totalindices)
-        return firstind, maximum(strat.dist) 
+    localind = 1
+    if pivstrat.sc && pivstrat.rc && pivstrat.fillstep
+        println("You should not be here.")
+    elseif pivstrat.sc && pivstrat.rc && !pivstrat.fillstep
+        pivstrat.fillstep = true
+        localind = argmax(pivstrat.h)
+    elseif pivstrat.sc
+        localind = convcrit.indices[argmax(abs.(convcrit.rest)), 1]
     else
-        nglobalindices = length(totalindices)
-        maxdist = zeros(F, nglobalindices)
-        distances = zeros(F, nglobalindices)
-        
-        for l = 1:nglobalindices
-            for ll = 1:nglobalindices
-                if strat.dist[ll] > norm(strat.loc[totalindices[l]] - strat.loc[totalindices[ll]])
-                    distances[ll] = norm(strat.loc[totalindices[l]] - strat.loc[totalindices[ll]])
-                else
-                    distances[ll] = strat.dist[ll]
-                end
-            end
-            maxdist[l] = maximum(distances)
-        end
-
-        ind = argmin(maxdist + maximum(maxdist) .* acausedindices) 
-
-        for l = 1:nglobalindices
-            if strat.dist[l] > norm(strat.loc[totalindices[l]] - strat.loc[totalindices[ind]])
-                strat.dist[l] = norm(strat.loc[totalindices[l]] - strat.loc[totalindices[ind]])
-            end 
-        end
-
-        return ind
+        localind = maxvalue(roworcolumn, usedidcs)
     end
+
+    update!(pivstrat, localind)
+
+    return localind
 end

@@ -245,7 +245,7 @@ lm = LazyMatrix(fct, Vector(1:size(A, 1)), Vector(1:size(A, 2)), Float64)
 
 U, V = aca(
     lm,
-    convergcrit=FastBEAST.Combined(Float64),
+    convcrit=FastBEAST.Combined(Float64),
     maxrank=200,
     svdrecompress=false
 )

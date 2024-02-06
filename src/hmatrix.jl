@@ -515,7 +515,7 @@ function getcompressedmatrix(
             am;
             rowpivstrat=compressor.rowpivstrat,
             columnpivstrat=compressor.columnpivstrat,
-            convergcrit=compressor.convergcrit,
+            convcrit=compressor.convcrit,
             tol=compressor.tol,
             svdrecompress=compressor.svdrecompress
         )
