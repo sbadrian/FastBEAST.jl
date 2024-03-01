@@ -1,3 +1,8 @@
+"""
+    Standard <: ConvergenceCriterion
+    
+Struct for standard convergence criterion in the ACA used for dispatching.
+"""
 struct Standard <: ConvergenceCriterion end
 
 """ 
@@ -26,6 +31,17 @@ function convergence!(
     return normUV <= tol*sqrt(am.normUV²)
 end
 
+"""
+    RandomSampling{I, F <: Real, K} <: ConvergenceCriterion 
+    
+Struct for the random sampling convergence criterion in the ACA used for dispatching.
+
+# Fields
+- `nsamples::I`: Random samples used do check convergence. 
+- `factor::F`: Factor used to reduce or increase the number of random samples.
+- `indices::Matrix{I}`: Indices of random samples.
+- `rest::Matrix{K}`: Error of the random samples in the matrix.
+"""
 mutable struct RandomSampling{I, F <: Real, K} <: ConvergenceCriterion
     nsamples::I
     factor::F
@@ -33,7 +49,17 @@ mutable struct RandomSampling{I, F <: Real, K} <: ConvergenceCriterion
     rest::Matrix{K}
 end
 
-function RandomSampling(::Type{K}; factor=1.0, nsamples=0) where K
+"""
+    RandomSampling(::Type{K}; factor=real(K)(1.0), nsamples=0) where K
+
+Constructor for random sampling convergence criterion.
+
+# Arguments
+- `::Type{K}`: Type of matrix entries.
+- `factor=real(K)(1.0)`: Factor used to reduce or increase the number of random samples.
+- `nsamples=0`: Number of random samples. Should be increased if ACA ist called directly!
+"""
+function RandomSampling(::Type{K}; factor=real(K)(1.0), nsamples=0) where K
     return RandomSampling(
         Int(ceil(nsamples*factor)),
         factor,
@@ -68,9 +94,21 @@ function convergence!(
 
     meanrest = sum(abs.(convcrit.rest).^2) / convcrit.nsamples
 
+   
     return sqrt(meanrest*size(am.U, 1)*size(am.V, 2)) <= tol*sqrt(am.normUV²)
 end
 
+"""
+    Combined{I, F <: Real, K} <: ConvergenceCriterion
+    
+Struct for the combined convergence criterion in the ACA used for dispatching.
+
+# Fields
+- `nsamples::I`: Random samples used do check convergence. 
+- `factor::F`: Factor used to reduce or increase the number of random samples.
+- `indices::Matrix{I}`: Indices of random samples.
+- `rest::Matrix{K}`: Error of the random samples in the matrix.
+"""
 mutable struct Combined{I, F <: Real, K} <: ConvergenceCriterion
     nsamples::I
     factor::F
@@ -78,7 +116,17 @@ mutable struct Combined{I, F <: Real, K} <: ConvergenceCriterion
     rest::Matrix{K}
 end
 
-function Combined(::Type{K}; factor=1.0, nsamples=0) where K
+"""
+    Combined(::Type{K}; factor=real(K)(1.0), nsamples=0) where K
+    
+Constructor for combined convergence criterion.
+
+# Arguments
+- `::Type{K}`: Type of matrix entries.
+- `factor=real(K)(1.0)`: Factor used to reduce or increase the number of random samples.
+- `nsamples=0`: Number of random samples. Should be increased if ACA ist called directly!
+"""
+function Combined(::Type{K}; factor=real(K)(1.0), nsamples=0) where K
     return Combined(
         Int(ceil(nsamples*factor)),
         factor,
@@ -115,21 +163,6 @@ function convergence!(
         normUV <= tol*sqrt(am.normUV²))
 end
 
-""" 
-    function initconvergence(
-        M::LazyMatrix{I, K},
-        convcrit::Union{RandomSampling{I, F, K}, Combined{I, F, K}},
-    ) where {I, F <: Real, K}
-
-Setup of the convergence criterion. Computation of the random samples, and allocation 
-of the storage if not happened yet. 
-
-# Arguments 
-- `M::FastBEAST.LazyMatrix{I, K}`: Assembler matrix used to compute rows and columns.
-- `convergcrit::Union{RandomSampling{I, K}, Combined{I, K}}`: Convergence criterion 
-used in the ACA, here used for dispaching.
-
-"""
 function initconvergence(
     M::LazyMatrix{I, K},
     convcrit::Union{RandomSampling{I, F, K}, Combined{I, F, K}},
@@ -154,31 +187,6 @@ function initconvergence(
     return convcrit
 end
 
-""" 
-    function checkconvergence(
-        normUV::F,
-        maxrows::I,
-        maxcolumns::I,
-        am::ACAGlobalMemory{I, F, K},
-        rowpivstrat::PivStrat,
-        columnpivstrat::PivStrat,
-        convcrit::ConvergenceCriterion,
-        tol::F
-    ) where {I, F <: Real, K}
-
-Checks if convergence in the ACA is reached.
-
-# Arguments 
-- `normUV::F`: Norm of last column times norm of las row.
-- `maxrows::I`: Number of rows.
-- `maxcolumns::I`: Number of columns.
-- `am::ACAGlobalMemory{I, F, K}`: Preallocated memory used for the ACA. 
-- `rowpivstrat::PivStrat`: Pivoting strategy for the rows.
-- `columnpivstrat::PivStrat`: Pivoting strategy for the columns.
-- `convergcrit::Standard`: Convergence criterion.
-- `tol::F`: Tolerance of the ACA. 
-
-"""
 function checkconvergence(
     normUV::F,
     maxrows::I,
@@ -211,31 +219,6 @@ function checkconvergence(
     end
 end
 
-""" 
-    function checkconvergence(
-        normUV::F,
-        maxrows::I,
-        maxcolumns::I,
-        am::ACAGlobalMemory{I, F, K},
-        rowpivstrat::MRFPivoting,
-        columnpivstrat::PivStrat,
-        convcrit::ConvergenceCriterion,
-        tol::F
-    ) where {I, F <: Real, K}
-
-Checks if convergence in the ACA is reached for MRFPivoting.
-
-# Arguments 
-- `normUV::F`: Norm of last column times norm of las row.
-- `maxrows::I`: Number of rows.
-- `maxcolumns::I`: Number of columns.
-- `am::ACAGlobalMemory{I, F, K}`: Preallocated memory used for the ACA. 
-- `rowpivstrat::MRFPivoting`: Pivoting strategy for the rows.
-- `columnpivstrat::PivStrat`: Pivoting strategy for the columns.
-- `convergcrit::Standard`: Convergence criterion.
-- `tol::F`: Tolerance of the ACA. 
-
-"""
 function checkconvergence(
     normUV::F,
     maxrows::I,

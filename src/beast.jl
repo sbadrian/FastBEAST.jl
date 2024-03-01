@@ -2,8 +2,8 @@ using BEAST
 
 function hassemble(
     operator::BEAST.AbstractOperator,
-    test_functions,
-    trial_functions;
+    test_functions::BEAST.RefSpace,
+    trial_functions::BEAST.RefSpace;
     treeoptions=BoxTreeOptions(nmin=100),
     compressor=ACAOptions(),
     quadstrat=BEAST.defaultquadstrat(operator, test_functions, trial_functions),

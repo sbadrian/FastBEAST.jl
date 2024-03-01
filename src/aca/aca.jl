@@ -19,6 +19,7 @@ function ACAOptions(;
     return ACAOptions(rowpivstrat, columnpivstrat, convcrit, maxrank, tol, svdrecompress)
 end
 
+
 function aca(
     M::LazyMatrix{I, K},
     am::ACAGlobalMemory{I, F, K};
@@ -178,19 +179,46 @@ function aca(
     end
 end
 
+"""
+    aca(
+        M::LazyMatrix{I, K};
+        rowpivstrat::PivStrat=MaxPivoting(1),
+        columnpivstrat::PivStrat=MaxPivoting(1),
+        convcrit::ConvergenceCriterion=Standard(),
+        tol::F=1e-14,
+        maxrank::I=40,
+        svdrecompress=false
+    ) where {I, K}
+
+Adaptive cross approximation that requires a `FastBEAST.LazyMatrix{I, K}` which is the 
+constructor of the matrix. 
+
+# Arguments
+- `M::LazyMatrix{I, K}`: Constructor of the matrix.
+- `am::ACAGlobalMemory{I, F, K}`: Memory struct of the ACA can be reused if the ACA is called several times.
+- `rowpivstrat::PivStrat=MaxPivoting(1)`: Pivoting strategy for the rows.
+- `columnpivstrat::PivStrat=MaxPivoting(1)`: Pivoting strategy for the columns.
+- `convcrit::ConvergenceCriterion=Standard()`: Convergence criterion.
+- `maxrank::I=40`: Maxium allowed rank in the ACA, equals the maximum allowed number of pivots.
+- `tol::F=1e-14`: Tolerance used in the convergence criterion.
+- `svdrecompress=false`: Recompresson of the approximation using and ACA.
+
+# Example
+
+"""
 function aca(
-    M::FastBEAST.LazyMatrix{I, F};
-    rowpivstrat=FastBEAST.MaxPivoting(1),
-    columnpivstrat=FastBEAST.MaxPivoting(1),
-    convcrit=Standard(),
-    tol=1e-14,
-    maxrank=40,
-    svdrecompress=true
-) where {I, F}
+        M::LazyMatrix{I, K};
+        rowpivstrat::PivStrat=MaxPivoting(1),
+        columnpivstrat::PivStrat=MaxPivoting(1),
+        convcrit::ConvergenceCriterion=Standard(),
+        tol::F=real(K)(1e-14),
+        maxrank::I=40,
+        svdrecompress=false
+    ) where {I, F, K}
 
     return aca(
         M,
-        allocate_aca_memory(F, size(M, 1), size(M, 2); maxrank=maxrank),
+        allocate_aca_memory(K, size(M, 1), size(M, 2); maxrank=maxrank),
         rowpivstrat=rowpivstrat,
         columnpivstrat=columnpivstrat,
         convcrit=convcrit,

@@ -1,10 +1,26 @@
 # Standard partial pivoting
+"""
+    MaxPivoting{I} <: PivStrat
+
+Struct for the standard partial pivoting of the ACA used for dispatching.
+
+# Fields
+- `firstindex::I`: Start index of the pivoting strategy.
+"""
 struct MaxPivoting{I} <: PivStrat
     firstindex::I
 end
 
-function MaxPivoting()
-    return MaxPivoting(1)
+"""
+    MaxPivoting(;firstindex=1)
+
+Constructor for the standard partial pivoting of the ACA.
+
+# Arguments
+- `firstindex=1`: Start index of the pivoting strategy, default is the first index.
+"""
+function MaxPivoting(;firstindex=1)
+    return MaxPivoting(firstindex)
 end
 
 function maxvalue(
@@ -33,11 +49,29 @@ end
 
 # Fill-distance pivoting
 abstract type FD <: PivStrat end
+
+"""
+    FillDistance{F <: Real} <: FD
+
+Struct for the fill distance pivoting strategy of the ACA, used for dispatching.
+
+# Fields
+- `h::Vector{F}`: Distances of underlying nodes to the set of selected nodes.
+- `pos::Vector{SVector{3, F}}`: Positions of the underlying nodes corresponding to the rows or columns.
+"""
 struct FillDistance{F <: Real} <: FD
     h::Vector{F}
     pos::Vector{SVector{3, F}}
 end
 
+"""
+    FillDistance(pos::Vector{SVector{3, F}}) where F <: Real
+
+Constructor for the fill distance pivoting strategy of the ACA.
+
+# Arguments
+- `pos::Vector{SVector{3, F}}`: Positions of the underlying nodes corresponding to the rows or columns.
+"""
 function FillDistance(pos::Vector{SVector{3, F}}) where F <: Real
     return FillDistance(zeros(F, length(pos)), pos)
 end
@@ -76,11 +110,28 @@ function filldistance(
     return pivots
 end
 
+"""
+    ModifiedFillDistance{F <: Real} <: FD
+
+Struct for the modified fill distance pivoting strategy of the ACA, used for dispatching.
+
+# Fields
+- `h::Vector{F}`: Distances of underlying nodes to the set of selected nodes.
+- `pos::Vector{SVector{3, F}}`: Positions of the underlying nodes corresponding to the rows or columns.
+"""
 struct ModifiedFillDistance{F <: Real} <: FD
     h::Vector{F}
     pos::Vector{SVector{3, F}}
 end
 
+"""
+    ModifiedFillDistance(pos::Vector{SVector{3, F}}) where F <: Real
+
+Constructor for the modified fill distance pivoting strategy of the ACA.
+
+# Arguments
+- `pos::Vector{SVector{3, F}}`: Positions of the underlying nodes corresponding to the rows or columns.
+"""
 function ModifiedFillDistance(pos::Vector{SVector{3, F}}) where F <: Real
     return ModifiedFillDistance(zeros(F, length(pos)), pos)
 end
@@ -102,18 +153,6 @@ function update!(fdmemory::FD, pivotidx::Int)
     end
 end
 
-""" 
-    function firstpivot(pivstrat::FD, globalidcs::Vector{Int})
-
-Returns first index of the pivoting strategy. For `FillDistance` this will be the 
-basis function closest to the center of the distribution.
-
-# Arguments 
-- `pivstrat::FD`: Pivoting strategy.
-- `globalidcs::Vector{Int}`: Indices corresponding to the matrix block, used to determine the
-basis functions/positions used for pivoting.
-
-"""
 function firstpivot(pivstrat::FD, globalidcs::Vector{Int})
 
     localpos = pivstrat.pos[globalidcs]
@@ -138,25 +177,6 @@ function firstpivot(pivstrat::FD, globalidcs::Vector{Int})
     pivstrat isa MRFPivoting && return MRFPivoting(h, localpos, false, false, false), firstidcs
 end
 
-
-""" 
-    function pivoting(
-        pivstrat::FD,
-        roworcolumn::Vector{K},
-        usedidcs::SubArray{Bool, 1, Vector{Bool}, Tuple{UnitRange{Int}}, true},
-        convcrit::ConvergenceCriterion
-    ) where {K}
-
-Returns next row or column used for approximation.
-
-# Arguments 
-- `pivstrat::FD`: Pivoting strategy. 
-- `roworcolumn::Vector{K}`: Last row or column.
-- `usedidcs::SubArray{Bool, 1, Vector{Bool}, Tuple{UnitRange{Int}}, true}`: Already used
-indices. Rows/colums can be used only once.
-- `convcrit::ConvergenceCriterion`: Convergence criterion used only in the case of MRFPivoting
-
-"""
 function pivoting(
     pivstrat::FD,
     roworcolumn::Vector{K},
@@ -175,6 +195,18 @@ function pivoting(
 end
 
 # MRFPivoting
+"""
+    MRFPivoting{I, F} <: FD
+
+Struct for the MRF pivoting strategy of the ACA, used for dispatching.
+
+# Fields
+- `h::Vector{F}`: Distances of underlying nodes to the set of selected nodes.
+- `pos::Vector{SVector{3, F}}`: Positions of the underlying nodes corresponding to the rows or columns.
+- `sc::Bool`: Result of standard convergence criterion in the last iteration.
+- `rc::Bool`: Result of random sampling convergence criterion in the last iteration.
+- `fillstep::Bool`: True if a fill distance step has been done. 
+"""
 mutable struct MRFPivoting{I, F} <: FD
     h::Vector{F}
     pos::Vector{SVector{I, F}}
@@ -183,6 +215,14 @@ mutable struct MRFPivoting{I, F} <: FD
     fillstep::Bool
 end
 
+"""
+    MRFPivoting(pos::Vector{SVector{I, F}}) where {I, F}
+
+Constructor for the MRF pivoting strategy of the ACA.
+
+# Arguments
+- `pos::Vector{SVector{I, F}}`: Positions of the underlying nodes corresponding to the rows or columns.
+"""
 function MRFPivoting(pos::Vector{SVector{I, F}}) where {I, F}
 
     return MRFPivoting(zeros(F, length(pos)), pos, false, false, false)
