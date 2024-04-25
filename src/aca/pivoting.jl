@@ -1,3 +1,6 @@
+using Statistics
+using LinearAlgebra
+
 # Standard partial pivoting
 struct MaxPivoting{I} <: PivStrat
     firstindex::I
@@ -17,7 +20,7 @@ function maxvalue(
     usedidcs[idx] && return argmin(usedidcs)
 end
 
-function firstpivot(pivstrat::MaxPivoting{Int}, globalidcs::Vector{Int})
+function firstpivot(pivstrat::PivStrat, globalidcs::Vector{Int})
     return pivstrat, pivstrat.firstindex
 end
 
@@ -135,7 +138,6 @@ function firstpivot(pivstrat::FD, globalidcs::Vector{Int})
     
     pivstrat isa FillDistance && return FillDistance(h, localpos), firstidcs
     pivstrat isa ModifiedFillDistance && return ModifiedFillDistance(h, localpos), firstidcs
-    pivstrat isa MRFPivoting && return MRFPivoting(h, localpos, false, false, false), firstidcs
 end
 
 
@@ -174,22 +176,28 @@ function pivoting(
     return nextpivot
 end
 
-# MRFPivoting
-mutable struct MRFPivoting{I, F} <: FD
-    h::Vector{F}
+# EnforcedPivoting
+mutable struct EnforcedPivoting{I, F} <: PivStrat
+    firstindex::Int
     pos::Vector{SVector{I, F}}
     sc::Bool
     rc::Bool
-    fillstep::Bool
+    geostep::Bool
 end
 
-function MRFPivoting(pos::Vector{SVector{I, F}}) where {I, F}
+function EnforcedPivoting(pos::Vector{SVector{I, F}}; firstpivot=1) where {I, F}
 
-    return MRFPivoting(zeros(F, length(pos)), pos, false, false, false)
+    return EnforcedPivoting(firstpivot, pos, false, false, false)
+end
+
+function firstpivot(pivstrat::EnforcedPivoting{3, F}, globalidcs::Vector{Int}) where F
+    return EnforcedPivoting(
+        1, pivstrat.pos[globalidcs], false, false, false
+    ), pivstrat.firstindex
 end
 
 function pivoting(
-    pivstrat::MRFPivoting{3, F},
+    pivstrat::EnforcedPivoting{3, F},
     roworcolumn::Vector{K},
     usedidcs::SubArray{Bool, 1, Vector{Bool}, Tuple{UnitRange{Int}}, true},
     # ToDo: Perhaps structs of Pivoting and Converegence must be declarded in aca_utils.jl
@@ -197,18 +205,33 @@ function pivoting(
 ) where {F, K}
 
     localind = 1
-    if pivstrat.sc && pivstrat.rc && pivstrat.fillstep
+    if pivstrat.sc && pivstrat.rc && pivstrat.geostep
         println("You should not be here.")
-    elseif pivstrat.sc && pivstrat.rc && !pivstrat.fillstep
-        pivstrat.fillstep = true
-        localind = argmax(pivstrat.h)
+    elseif pivstrat.sc && pivstrat.rc && !pivstrat.geostep
+        #geostep
+        pivstrat.geostep=true
+        idcs = findall(x->x, usedidcs)
+        pos = zeros(F, 3, length(idcs))
+        mp = mean(pivstrat.pos[idcs])
+        for (i, idx) in enumerate(idcs)
+            pos[:, i] = pivstrat.pos[idx]-mp
+        end
+        u, _, _ = svd(pos)
+        localind = argmin(usedidcs)
+        maxval = 0.0
+        for (lind, p) in enumerate(pivstrat.pos)
+            val = abs(dot((p - mp), u[:, 3])) 
+            if maxval < val && !usedidcs[lind]
+                maxval = val 
+                localind = lind
+            end
+        end
     elseif pivstrat.sc
         localind = convcrit.indices[argmax(abs.(convcrit.rest)), 1]
     else
         localind = maxvalue(roworcolumn, usedidcs)
     end
 
-    update!(pivstrat, localind)
-
     return localind
 end
+
