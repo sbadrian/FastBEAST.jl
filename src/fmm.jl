@@ -87,7 +87,12 @@ function getfullrankblocks(
     quadstratfbk=BEAST.defaultquadstrat(operator, test_functions, trial_functions)
 )
 
-    @views blkasm = BEAST.blockassembler(operator, test_functions, trial_functions)
+    @views blkasm = BEAST.blockassembler(
+        operator,
+        test_functions,
+        trial_functions;
+        quadstrat=quadstratfbk
+    )
 
     @views function assembler(Z, tdata, sdata)
         @views store(v,m,n) = (Z[m,n] += v)
