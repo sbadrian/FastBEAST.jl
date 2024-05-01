@@ -18,8 +18,28 @@ end
 
 function compressionrate(hmat::HT) where HT <: HMatrix
     fullsize = hmat.rowdim*hmat.columndim
-    return (fullsize - nnz(hmat))/fullsize
+    nonzero = 0
+    for lrb in hmat.lowrankblocks
+        nonzero += length(lrb.M.U) + length(lrb.M.V)
+    end
+    for frb in hmat.fullrankblocks
+        nonzero += length(frb.M)
+    end
+    return nonzero/fullsize
 end
+
+# Returns storage in GB, assuming 64 bit representations.
+function storage(hmat::HT) where HT <: HMatrix
+    nonzero = 0
+    for lrb in hmat.lowrankblocks
+        nonzero += length(lrb.M.U) + length(lrb.M.V)
+    end
+    for frb in hmat.fullrankblocks
+        nonzero += length(frb.M)
+    end
+    return (nonzero*64)/8 * 10^-9
+end
+
 
 function ismultithreaded(hmat::HT) where HT <: HMatrix
     return hmat.ismultithreaded
@@ -328,7 +348,7 @@ function HMatrix(
     for (ind, lbk) in enumerate(lowrankblocks)
         maxrowcols = Int(floor(length(lbk.τ)*length(lbk.σ)/(length(lbk.τ)+length(lbk.σ))))
 
-        if maxrowcols == size(lbk.M.U)[2] || size(lbk.M.U)[2] == compressor.maxrank
+        if maxrowcols <= size(lbk.M.U)[2] || size(lbk.M.U)[2] == compressor.maxrank
             push!(fullcompressableinteractions, SVector(lbk.τ, lbk.σ))
             push!(correctionindices, ind)
         end 
@@ -510,6 +530,9 @@ function getcompressedmatrix(
 
         lm = LazyMatrix(matrixassembler, indices(testnode), indices(sourcenode), K)
 
+        maxrank = compressor.maxrank
+        maxrank == 0 && Int(round(length(lm.τ)*length(lm.σ)/(length(lm.τ)+length(lm.σ))))
+
         U, V = aca(
             lm,
             am;
@@ -517,7 +540,8 @@ function getcompressedmatrix(
             columnpivstrat=compressor.columnpivstrat,
             convcrit=compressor.convcrit,
             tol=compressor.tol,
-            svdrecompress=compressor.svdrecompress
+            svdrecompress=compressor.svdrecompress,
+            maxrank= maxrank
         )
 
         mbl = MatrixBlock{I, K, LowRankMatrix{K}}(

@@ -30,6 +30,7 @@ function aca(
     svdrecompress=false
 ) where {I, F, K}
     
+    maxrank = min(maxrank, min(length(M.τ), length(M.σ)))
     clear!(am)  
     convcrit = initconvergence(M, convcrit)
     (maxrows, maxcolumns) = size(M)
