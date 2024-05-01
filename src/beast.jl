@@ -107,7 +107,7 @@ function fmmassemble(
     )
 end
 
-exafmmoptions(gamma::T, fmm) where {T <: Nothing} = LaplaceFMMOptions(; p=fmm.p, ncrit=fmm.ncrit)
+exafmmoptions(gamma::T, fmm) where {T <: Val{0}} = LaplaceFMMOptions(; p=fmm.p, ncrit=fmm.ncrit)
 #TODO: Write unit tests for the ModifiedHelmholtzFMMOptions
 exafmmoptions(gamma::T, fmm) where {T <: Real} = ModifiedHelmholtzFMMOptions(gamma; p=fmm.p, ncrit=fmm.ncrit)
 exafmmoptions(gamma::T, fmm) where {T <: Complex} = HelmholtzFMMOptions(-gamma/im; p=fmm.p, ncrit=fmm.ncrit)
