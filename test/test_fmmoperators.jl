@@ -42,16 +42,26 @@ Os = [
 ]
 
 @testset "FMM mvp test: $O" for (O, Y1, X1) in Os
-    #O = Helmholtz3D.hypersingular(;alpha=3000.0)
-    Oft = fmmassemble(O, Y1, X1, treeoptions=BoxTreeOptions(nmin=20)) # fast
+    @show O
+    Oft = fmmassemble(O, Y1, X1, treeoptions=BoxTreeOptions(nmin=20), fmmoptions=ExaFMMOptions(p=8), computetransposeadjoint=true) # fast
     Ofl = assemble(O, Y1, X1) # full
 
     x = rand(numfunctions(X1))
 
-    for matop in [x -> x] #[x -> x, x-> transpose(x)]#, x -> adjoint(x)]
-        yt = matop(Oft)*x
-        yl = matop(Ofl)*x
-        @test eltype(yt) == promote_type(eltype(x), eltype(Oft)) 
-        @test norm(yt - yl)/norm(yl) ≈ 0 atol=1e-2
-    end
+    yt = Oft*x
+    yl = Ofl*x
+    @test eltype(yt) == promote_type(eltype(x), eltype(Oft)) 
+    @test norm(yt - yl)/norm(yl) ≈ 0 atol=1e-2
+
+    x = rand(numfunctions(Y1))
+
+    yt = transpose(Oft)*x
+    yl = transpose(Ofl)*x
+    @test eltype(yt) == promote_type(eltype(x), eltype(Oft)) 
+    @test norm(yt - yl)/norm(yl) ≈ 0 atol=1e-2
+
+    yt = adjoint(Oft)*x
+    yl = adjoint(Ofl)*x
+    @test eltype(yt) == promote_type(eltype(x), eltype(Oft)) 
+    @test norm(yt - yl)/norm(yl) ≈ 0 atol=1e-2
 end
