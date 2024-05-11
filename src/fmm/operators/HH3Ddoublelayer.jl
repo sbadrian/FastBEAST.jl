@@ -47,7 +47,7 @@ end
 
     fill!(y, zero(eltype(y)))
 
-    if eltype(x) <: Complex
+    if eltype(x) <: Complex && eltype(A.fmm) <: Real
         y .+= mul!(copy(y), A, real.(x))
         y .+= im .* mul!(copy(y), A, imag.(x))
         return y
@@ -77,13 +77,13 @@ end
 
     fill!(y, zero(eltype(y)))
 
-    if eltype(x) <: Complex
-        y .+= mul!(copy(y), A, real.(x))
-        y .+= im .* mul!(copy(y), A, imag.(x)) 
+    A = At.lmap
+
+    if eltype(x) <: Complex && eltype(A.fmm) <: Real
+        y .+= mul!(copy(y), At, real.(x))
+        y .+= im .* mul!(copy(y), At, imag.(x))
         return y
     end
-
-    A = At.lmap
 
     if eltype(x) != eltype(A.fmm_t)
         xfmm = eltype(A.fmm_t).(x)
