@@ -96,28 +96,13 @@ end
 
 @views function LinearAlgebra.mul!(
     y::AbstractVecOrMat,
-    A::LinearMaps.AdjointMap{<:Any,<:FMMMatrixMWSL},
+    At::LinearMaps.AdjointMap{<:Any,<:FMMMatrixMWSL},
     x::AbstractVector
 )
-    LinearMaps.check_dim_mul(y, A, x)
 
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
-    end
-    fill!(y, zero(eltype(y)))
+    mul!(y, transpose(adjoint(At)), conj(x))
 
-    res1 = A.B1_test * (A.fmm * (A.B1 * x))[:,1]
-    res2 = A.B2_test * (A.fmm * (A.B2 * x))[:,1]
-    res3 = A.B3_test * (A.fmm * (A.B3 * x))[:,1]
-
-    y1 = (A.op.α  .* (res1 + res2 + res3))
-
-    y2 = - (A.op.β) .*
-        (A.Bdiv_test * (A.fmm * (A.Bdiv * x))[:,1])
-
-    y.= (y1 - y2) - A.BtCB * x + A.fullmat * x
-
-    return y
+    return conj!(y)
 end
 
 function FMMMatrix(
