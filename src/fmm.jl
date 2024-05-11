@@ -23,27 +23,36 @@ end
 """
     assemble_fmm(
         spoints::Matrix{F},
-        tpoints::Matrix{F};
-        options=LaplaceFMMOptions() 
+        tpoints::Matrix{F},
+        options::ExaFMMt.FMMOptions;
+        computetransposeadjoint=false
     ) where F <: Real
 
-Function calls setup routine of ExaFMM library. Without specific options, 
-Laplace FMM is used.
+Function calls setup routine of ExaFMM library.
 
 # Arguments
 - `spoints::Matrix{F}`: Array of source points in Float64 or Float32.
 - `tpoints::Matrix{F}`: Array of target points in Float64 or Float32.
-- `options::ExaFMMt.FMMOptions`: Specifies FMM type, default is Laplace.
+- `options::ExaFMMt.FMMOptions`
 """
 function assemble_fmm(
     spoints::Matrix{F},
-    tpoints::Matrix{F};
-    options=LaplaceFMMOptions() 
+    tpoints::Matrix{F},
+    options::ExaFMMt.FMMOptions;
+    computetransposeadjoint=false
 ) where F <: Real
-    
-    A = setup(spoints, tpoints, options)
-    return A
 
+    @info "ExaFMM: assemble operator"
+    A = setup(spoints, tpoints, options)
+
+    if computetransposeadjoint
+        @info "ExaFMM: assemble transpose operator"
+        Aᵀ = setup(tpoints, spoints, options)
+    else
+        Aᵀ = A
+    end
+
+    return A, Aᵀ
 end
 
 """

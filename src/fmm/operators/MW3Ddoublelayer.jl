@@ -6,6 +6,7 @@ using SparseArrays
 
 struct FMMMatrixMWDL{I, F <: Real, K} <: LinearMaps.LinearMap{K}
     fmm::ExaFMMt.ExaFMM{K}
+    fmm_t::ExaFMMt.ExaFMM{K}
     op::BEAST.MWDoubleLayer3D
     B1::SparseMatrixCSC{F, I}
     B2::SparseMatrixCSC{F, I}
@@ -121,6 +122,7 @@ function FMMMatrix(
     testqp::Matrix,
     trialqp::Matrix,
     fmm::ExaFMMt.ExaFMM{K},
+    fmm_t::ExaFMMt.ExaFMM{K},
     BtCB::HMatrix{I, K},
     fullmat::HMatrix{I, K},
 ) where {I, K}
@@ -135,6 +137,7 @@ function FMMMatrix(
       
     return FMMMatrixMWDL(
         fmm,
+        fmm_t,
         op,
         B1,
         B2,

@@ -7,6 +7,7 @@ using SparseArrays
 
 struct FMMMatrixSL{I, F <: Real, K, KE} <: LinearMaps.LinearMap{K}
     fmm::ExaFMMt.ExaFMM{KE}
+    fmm_t::ExaFMMt.ExaFMM{KE}
     op::BEAST.HH3DSingleLayerFDBIO
     B_trial::SparseMatrixCSC{F, I}
     B_test::SparseMatrixCSC{F, I}
@@ -79,11 +80,13 @@ end
 
     A = At.lmap
 
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
+    if eltype(x) != eltype(A.fmm)
+        xfmm = eltype(A.fmm).(x)
+    else
+        xfmm = x
     end
 
-    y .= A.op.alpha .* (A.B_test * (A.fmm * (A.B_trial * x))[:,1]) - A.BtCB * x + A.fullmat * x
+    y .= A.op.alpha .* (transpose(A.B_trial) * (A.fmm_t * (transpose(A.B_test) *  xfmm))[:,1]) - transpose(A.BtCB) * x + transpose(A.fullmat) * x
 
     return y
 end
@@ -93,25 +96,10 @@ end
     At::LinearMaps.AdjointMap{<:Any,<:FMMMatrixSL},
     x::AbstractVector
 )
-    LinearMaps.check_dim_mul(y, At, x)
 
-    fill!(y, zero(eltype(y)))
+    mul!(y, transpose(adjoint(At)), conj(x))
 
-    if eltype(x) <: Complex
-        y .+= mul!(copy(y), A, real.(x))
-        y .+= im .* mul!(copy(y), A, imag.(x)) 
-        return y
-    end
-
-    A = At.lmap
-
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
-    end
-
-    y .= A.op.alpha .* (A.B_test * (A.fmm * (A.B_trial * x))[:,1]) - A.BtCB * x + A.fullmat * x
-
-    return y
+    return conj!(y)
 end
 
 function FMMMatrix(
@@ -121,14 +109,16 @@ function FMMMatrix(
     testqp::Matrix,
     trialqp::Matrix,
     fmm::ExaFMMt.ExaFMM{KE},
+    fmm_t::ExaFMMt.ExaFMM{KE},
     BtCB::HMatrix{I, K},
     fullmat::HMatrix{I, K},
 ) where {I, K, KE}
 
     B, B_test = sample_basisfunctions(op, test_functions, trial_functions, testqp, trialqp)
-    
+
     return FMMMatrixSL(
         fmm,
+        fmm_t,
         op,
         B,
         B_test,

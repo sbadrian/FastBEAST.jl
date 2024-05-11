@@ -7,6 +7,7 @@ using SparseArrays
 
 struct FMMMatrixDL{I, F <: Real, K, KE} <: LinearMaps.LinearMap{K}
     fmm::ExaFMMt.ExaFMM{KE}
+    fmm_t::ExaFMMt.ExaFMM{KE}
     op::BEAST.HH3DDoubleLayerFDBIO
     normals::Matrix{F}
     B_trial::SparseMatrixCSC{F, I}
@@ -84,15 +85,20 @@ end
 
     A = At.lmap
 
-    if eltype(x) != eltype(A)
-        x = eltype(A).(x)
+    if eltype(x) != eltype(A.fmm_t)
+        xfmm = eltype(A.fmm_t).(x)
+    else
+        xfmm = x
     end
 
-    fmm_res1 = A.B_test * (A.fmm*(A.normals[:,1] .* (A.B_trial * x)))[:,2]
-    fmm_res2 = A.B_test * (A.fmm*(A.normals[:,2] .* (A.B_trial * x)))[:,3]
-    fmm_res3 = A.B_test * (A.fmm*(A.normals[:,3] .* (A.B_trial * x)))[:,4]
+    xx = -1 .* (A.fmm_t*(transpose(A.B_test)*xfmm))
+    test = transpose(A.B_trial)
+
+    fmm_res1 = test * (A.normals[:,1] .* xx[:,2])
+    fmm_res2 = test * (A.normals[:,2] .* xx[:,3])
+    fmm_res3 = test * (A.normals[:,3] .* xx[:,4])
     fmm_res = -(fmm_res1 + fmm_res2 + fmm_res3)
-    y .= A.op.alpha .* fmm_res - A.BtCB*x + A.fullmat*x
+    y .= A.op.alpha .* fmm_res - transpose(A.BtCB)*x + transpose(A.fullmat)*x
 
     return y
 end
@@ -102,31 +108,10 @@ end
     At::LinearMaps.AdjointMap{<:Any,<:FMMMatrixDL},
     x::AbstractVector
 )
-    LinearMaps.check_dim_mul(y, A, x)
 
-    fill!(y, zero(eltype(y)))
+    mul!(y, transpose(adjoint(At)), conj(x))
 
-    if eltype(x) <: Complex
-        y .+= mul!(copy(y), A, real.(x))
-        y .+= im .* mul!(copy(y), A, imag.(x)) 
-        return y
-    end
-
-    A = At.lmap
-
-    if eltype(x) != eltype(A.fmm)
-        xfmm = eltype(A.fmm).(x)
-    else
-        xfmm = x
-    end
-
-    fmm_res1 = A.B_test * (A.fmm*(A.normals[:,1] .* (A.B_trial * xfmm)))[:,2]
-    fmm_res2 = A.B_test * (A.fmm*(A.normals[:,2] .* (A.B_trial * xfmm)))[:,3]
-    fmm_res3 = A.B_test * (A.fmm*(A.normals[:,3] .* (A.B_trial * xfmm)))[:,4]
-    fmm_res = -(fmm_res1 + fmm_res2 + fmm_res3)
-    y .= A.op.alpha .* fmm_res - A.BtCB*x + A.fullmat*x
-
-    return y
+    return conj!(y)
 end
 
 function FMMMatrix(
@@ -136,6 +121,7 @@ function FMMMatrix(
     testqp::Matrix,
     trialqp::Matrix,
     fmm::ExaFMMt.ExaFMM{KE},
+    fmm_t::ExaFMMt.ExaFMM{KE},
     BtCB::HMatrix{I, K},
     fullmat::HMatrix{I, K}
 ) where {I, K, KE}
@@ -150,6 +136,7 @@ function FMMMatrix(
 
     return FMMMatrixDL(
         fmm,
+        fmm_t,
         op,
         normals,
         B,

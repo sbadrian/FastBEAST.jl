@@ -6,12 +6,18 @@ function hassemble(
     trial_functions;
     treeoptions=BoxTreeOptions(nmin=100),
     compressor=ACAOptions(),
-    quadstrat=BEAST.defaultquadstrat(operator, test_functions, trial_functions),
+    quadstratcbk=BEAST.defaultquadstrat(operator, test_functions, trial_functions),
+    quadstratfbk=BEAST.defaultquadstrat(operator, test_functions, trial_functions),
     multithreading=false,
     verbose=false
 )
 
-    @views blkasm = BEAST.blockassembler(operator, test_functions, trial_functions)
+    @views blkasm = BEAST.blockassembler(
+        operator,
+        test_functions,
+        trial_functions,
+        quadstrat=quadstratfbk
+    )
     
     @views function assembler(Z, tdata, sdata)
         @views store(v,m,n) = (Z[m,n] += v)
@@ -22,7 +28,7 @@ function hassemble(
         operator,
         test_functions,
         trial_functions,
-        quadstrat=quadstrat
+        quadstrat=quadstratcbk
     )
     
     @views function farassembler(Z, tdata, sdata)
@@ -57,6 +63,7 @@ function fmmassemble(
     quadstratcbk=SafeDoubleNumQStrat(3, 3),
     quadstratfbk=BEAST.defaultquadstrat(operator, test_functions, trial_functions),
     multithreading=false,
+    computetransposeadjoint=false,
     verbose=false
 )
     fullrankblocks, correctionblocks, _ = getfullrankblocks(
@@ -91,10 +98,11 @@ function fmmassemble(
     testpoints, testqp = meshtopoints(test_functions, quadstratcbk.outer_rule)
     trialpoints, trialqp = meshtopoints(trial_functions, quadstratcbk.outer_rule)
 
-    fmm = assemble_fmm(
+    fmm, fmm_t = assemble_fmm(
         trialpoints,
         testpoints,
-        options=fmmoptions
+        fmmoptions,
+        computetransposeadjoint=computetransposeadjoint
     )
 
     return FMMMatrix(
@@ -104,6 +112,7 @@ function fmmassemble(
         testqp,
         trialqp,
         fmm,
+        fmm_t,
         BtCB,
         fullmat,
     )
@@ -124,6 +133,7 @@ function fmmassemble(
     quadstratcbk=SafeDoubleNumQStrat(3, 3),
     quadstratfbk=BEAST.defaultquadstrat(operator, test_functions, trial_functions),
     multithreading=false,
+    computetransposeadjoint=false,
     verbose=false
 ) where {T, K}
 
@@ -136,6 +146,7 @@ function fmmassemble(
         quadstratcbk=quadstratcbk,
         quadstratfbk=quadstratfbk,
         multithreading=multithreading,
+        computetransposeadjoint=computetransposeadjoint,
         verbose=verbose
     )
 end
@@ -149,6 +160,7 @@ function fmmassemble(
     quadstratcbk=SafeDoubleNumQStrat(3, 3),
     quadstratfbk=BEAST.defaultquadstrat(operator, test_functions, trial_functions),
     multithreading=false,
+    computetransposeadjoint=false,
     verbose=false
 )
     return assemble(operator, test_functions, trial_functions)
@@ -280,6 +292,7 @@ function fmmassemble(op::BEAST.LinearCombinationOfOperators, X::BEAST.Space, Y::
         println("Compress operator: ", counter)
         A = A + α * fmmassemble(term, X, Y;
             treeoptions=treeoptions,
+            fmmoptions=fmmoptions,
             quadstratcbk=quadstratcbk,
             quadstratfbk=quadstratfbk,
             multithreading=multithreading,
